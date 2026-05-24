@@ -4,9 +4,10 @@
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
-const BOX_PAD = 90; // 인식 박스 여백(px)
+const BOX_PAD = 90;        // 인식 박스 여백(px)
 const MAX_PARTICLES = 400; // 최대 파티클 수
-const STABLE_FRAMES = 25; // 스냅샷 확정까지 필요한 안정 프레임 수
+const STABLE_FRAMES = 25;  // 스냅샷 확정까지 필요한 안정 프레임 수
+const WARP_SIZE = 580;     // homography 워프 출력 크기(px)
 
 // ── 전역 상태 ──────────────────────────────────────
 let video, canvas, ctx;
@@ -15,7 +16,7 @@ let offCanvas, offCtx; // 픽셀 분석용 오프스크린
 let originalBitMatrix = null;
 let moduleCount = 0;
 
-let particles = []; // 현재 파티클 배열
+let particles = [];      // 현재 파티클 배열
 let lastErrorScore = -1; // 파티클 재생성 판단용
 
 // ── 스냅샷 스테이트 머신 ──────────────────────────
@@ -100,23 +101,162 @@ function prepareOriginalQR(img) {
   console.log(`✅ 원본 QR 분석 완료 | 모듈: ${moduleCount}×${moduleCount}`);
 }
 
-// ── 모듈 수 자동 감지 ──────────────────────────────
-// QR 버전마다 모듈 수가 다름 (v1=21, v2=25, v3=29, …)
-// 각 후보값으로 샘플링 → 가장 "선명한"(0 또는 255에 가까운) 결과를 선택
+// ═══════════════════════════════════════════════════
+//  Homography 계산 유틸
+// ═══════════════════════════════════════════════════
+
+// 8×8 선형 시스템 풀기 — 부분 피벗팅 가우시안 소거법
+function gaussianElimination(A, b) {
+  const n = b.length;
+  // 첨가행렬 생성
+  const M = A.map((row, i) => [...row, b[i]]);
+
+  for (let col = 0; col < n; col++) {
+    // 부분 피벗팅: 절대값 최대 행과 교환
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+    }
+    [M[col], M[maxRow]] = [M[maxRow], M[col]];
+
+    const pivot = M[col][col];
+    if (Math.abs(pivot) < 1e-10) continue; // 특이 행렬 방어
+
+    for (let row = col + 1; row < n; row++) {
+      const f = M[row][col] / pivot;
+      for (let j = col; j <= n; j++) M[row][j] -= f * M[col][j];
+    }
+  }
+
+  // 후진 대입
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    x[i] = M[i][n];
+    for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
+    x[i] /= M[i][i];
+  }
+  return x;
+}
+
+// src 4점 → dstSize 정사각형의 역 homography(dst→src) 계산
+//
+// 4점 대응 DLT: 각 점 (u,v)→(x,y) 에 대해 h22=1 고정 후 8원 연립방정식 구성
+//   h00·u + h01·v + h02 + (-u·x)·h20 + (-v·x)·h21 = x
+//   h10·u + h11·v + h12 + (-u·y)·h20 + (-v·y)·h21 = y
+//
+// srcPoints 순서: [topLeft, topRight, bottomRight, bottomLeft]
+// 반환: 3×3 행렬  (dst 좌표 → src 좌표)
+function computeHomography(srcPoints, dstSize) {
+  const d = dstSize - 1;
+  // dst 정사각형 4꼭짓점 (srcPoints 순서와 1:1 대응)
+  const dst = [
+    { x: 0, y: 0 },
+    { x: d, y: 0 },
+    { x: d, y: d },
+    { x: 0, y: d },
+  ];
+
+  const A = [],
+    b = [];
+  for (let i = 0; i < 4; i++) {
+    const u = dst[i].x,
+      v = dst[i].y;
+    const x = srcPoints[i].x,
+      y = srcPoints[i].y;
+    // x 방정식
+    A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]);
+    b.push(x);
+    // y 방정식
+    A.push([0, 0, 0, u, v, 1, -u * y, -v * y]);
+    b.push(y);
+  }
+
+  const h = gaussianElimination(A, b);
+  // h = [h00, h01, h02, h10, h11, h12, h20, h21],  h22 = 1
+  return [
+    [h[0], h[1], h[2]],
+    [h[3], h[4], h[5]],
+    [h[6], h[7], 1],
+  ];
+}
+
+// jsQR location의 QR 영역을 dstSize×dstSize 정사각형으로 펼침
+// 역 homography로 출력 픽셀마다 소스 좌표를 역산 + 쌍선형 보간
+function warpQRToFlat(imgData, location, dstSize) {
+  const srcPoints = [
+    location.topLeftCorner,
+    location.topRightCorner,
+    location.bottomRightCorner,
+    location.bottomLeftCorner,
+  ];
+
+  // H: dst → src  (역 homography)
+  const H = computeHomography(srcPoints, dstSize);
+
+  const srcW = imgData.width,
+    srcH = imgData.height;
+  const output = new Uint8ClampedArray(dstSize * dstSize * 4);
+
+  // 클램프 + 픽셀 채널 샘플링
+  const sample = (px, py, ch) => {
+    px = Math.max(0, Math.min(srcW - 1, px));
+    py = Math.max(0, Math.min(srcH - 1, py));
+    return imgData.data[(py * srcW + px) * 4 + ch];
+  };
+
+  for (let vy = 0; vy < dstSize; vy++) {
+    for (let vx = 0; vx < dstSize; vx++) {
+      // 역 homography로 소스 좌표 역산
+      const w = H[2][0] * vx + H[2][1] * vy + H[2][2];
+      const sx = (H[0][0] * vx + H[0][1] * vy + H[0][2]) / w;
+      const sy = (H[1][0] * vx + H[1][1] * vy + H[1][2]) / w;
+
+      // 쌍선형 보간
+      const x0 = Math.floor(sx),
+        y0 = Math.floor(sy);
+      const fx = sx - x0,
+        fy = sy - y0;
+
+      const dstIdx = (vy * dstSize + vx) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        output[dstIdx + ch] = Math.round(
+          sample(x0,     y0,     ch) * (1 - fx) * (1 - fy) +
+          sample(x0 + 1, y0,     ch) * fx       * (1 - fy) +
+          sample(x0,     y0 + 1, ch) * (1 - fx) * fy       +
+          sample(x0 + 1, y0 + 1, ch) * fx       * fy,
+        );
+      }
+      output[dstIdx + 3] = 255;
+    }
+  }
+
+  return new ImageData(output, dstSize, dstSize);
+}
+
+// ═══════════════════════════════════════════════════
+//  모듈 수 자동 감지
+//  QR 버전마다 모듈 수가 다름 (v1=21, v2=25, v3=29, …)
+//  warpQRToFlat으로 한 번만 펼친 뒤 모든 후보 검사
+// ═══════════════════════════════════════════════════
 function detectModuleCount(imgData, loc) {
+  // 모듈 수 감지용 소형 워프 (속도 우선)
+  const SAMPLE_SIZE = 280;
+  const flatData = warpQRToFlat(imgData, loc, SAMPLE_SIZE);
+
   const candidates = [21, 25, 29, 33, 37, 41];
   let best = 29,
     bestScore = -1;
 
   for (const mc of candidates) {
+    const cellSize = SAMPLE_SIZE / mc;
     let clarity = 0,
       n = 0;
-    // 전체를 다 돌기엔 느릴 수 있어서 일부만 샘플링
     const step = Math.max(1, Math.floor(mc / 7));
     for (let r = 0; r < mc; r += step) {
       for (let c = 0; c < mc; c += step) {
-        const pt = bilinearCell(loc, r, c, mc);
-        const b = sampleBrightness(imgData, pt.x, pt.y);
+        const cx = Math.round((c + 0.5) * cellSize);
+        const cy = Math.round((r + 0.5) * cellSize);
+        const b = sampleBrightness(flatData, cx, cy);
         // 128(회색)에서 멀수록 명확한 셀 → 올바른 모듈 수
         clarity += Math.abs(b - 128) / 128;
         n++;
@@ -131,15 +271,22 @@ function detectModuleCount(imgData, loc) {
   return best;
 }
 
-// ── BitMatrix 생성 ─────────────────────────────────
-// 원본 QR 각 셀의 기대값(1=검정, 0=흰색) 2D 배열
+// ═══════════════════════════════════════════════════
+//  BitMatrix 생성
+//  원본 QR을 WARP_SIZE 정사각형으로 펼친 뒤 셀별 기대값 추출
+//  → 카메라 분석(analyzeQR)과 동일한 좌표계 사용
+// ═══════════════════════════════════════════════════
 function buildBitMatrix(imgData, loc, mc) {
+  const flatData = warpQRToFlat(imgData, loc, WARP_SIZE);
+  const cellSize = WARP_SIZE / mc;
+
   const matrix = [];
   for (let r = 0; r < mc; r++) {
     matrix[r] = [];
     for (let c = 0; c < mc; c++) {
-      const pt = bilinearCell(loc, r, c, mc);
-      const bright = sampleBrightness(imgData, pt.x, pt.y);
+      const cx = Math.round((c + 0.5) * cellSize);
+      const cy = Math.round((r + 0.5) * cellSize);
+      const bright = sampleBrightness(flatData, cx, cy);
       matrix[r][c] = bright < 128 ? 1 : 0; // 1=검정, 0=흰색
     }
   }
@@ -167,7 +314,7 @@ function enhanceContrast(imgData) {
   const scale = 255 / range;
 
   for (let i = 0; i < src.length; i += 4) {
-    dst[i] = Math.min(255, Math.round((src[i] - minB) * scale));
+    dst[i]     = Math.min(255, Math.round((src[i]     - minB) * scale));
     dst[i + 1] = Math.min(255, Math.round((src[i + 1] - minB) * scale));
     dst[i + 2] = Math.min(255, Math.round((src[i + 2] - minB) * scale));
     dst[i + 3] = src[i + 3]; // alpha 유지
@@ -221,6 +368,7 @@ function loop() {
         stableCount = 1;
       }
       state.detected = false;
+
     } else if (scanState === 'stabilizing') {
       if (code && inBox) {
         stableCount++;
@@ -245,12 +393,14 @@ function loop() {
           state.detected = false;
           drawQRBorder(code.location, 'rgba(200,255,0,0.45)');
         }
+
       } else {
         // QR 사라짐 → 대기로 리셋
         scanState = 'waiting';
         stableCount = 0;
         state.detected = false;
       }
+
     } else if (scanState === 'locked') {
       if (!code || !inBox) {
         // QR 사라짐 → 완전 리셋
@@ -281,18 +431,17 @@ function loop() {
 }
 
 // ═══════════════════════════════════════════════════
-//  QR 오차 분석
+//  QR 오차 분석 (homography 기반)
+//  카메라 프레임 QR을 WARP_SIZE×WARP_SIZE로 펼친 뒤
+//  고정 셀 좌표에서 fill rate 계산 → 각도/거리 불변
 // ═══════════════════════════════════════════════════
 function analyzeQR(imgData, loc) {
   const mc = moduleCount;
 
-  // 카메라 화면 기준 QR 한 셀의 픽셀 크기 추정
-  const qrWidth = Math.hypot(
-    loc.topRightCorner.x - loc.topLeftCorner.x,
-    loc.topRightCorner.y - loc.topLeftCorner.y,
-  );
-  const cellPx = Math.max(2, qrWidth / mc);
-  const radius = Math.max(1, Math.floor(cellPx * 0.35)); // 샘플링 반경
+  // QR을 정사각형으로 펼침 (원본 BitMatrix와 동일한 WARP_SIZE 기준)
+  const flatData = warpQRToFlat(imgData, loc, WARP_SIZE);
+  const cellSize = WARP_SIZE / mc;
+  const radius = Math.max(1, Math.floor(cellSize * 0.4)); // 샘플링 반경
 
   let totalError = 0;
   let blackCellErrors = 0; // 검정이어야 하는데 덜 채워진 셀
@@ -300,8 +449,9 @@ function analyzeQR(imgData, loc) {
 
   for (let r = 0; r < mc; r++) {
     for (let c = 0; c < mc; c++) {
-      const pt = bilinearCell(loc, r, c, mc);
-      const fillRate = getCellFillRate(imgData, pt.x, pt.y, radius);
+      const cx = Math.round((c + 0.5) * cellSize);
+      const cy = Math.round((r + 0.5) * cellSize);
+      const fillRate = getCellFillRate(flatData, cx, cy, radius);
       const expected = originalBitMatrix[r][c];
 
       let cellErr;
@@ -326,15 +476,18 @@ function analyzeQR(imgData, loc) {
 }
 
 // ── 셀 채움률 계산 ─────────────────────────────────
-// 셀 중심 주변 radius×radius 픽셀에서 검정 비율을 반환
+// 셀 중심 주변 radius 범위 픽셀에서 검정 비율 반환
+// imgData 크기에 독립적으로 동작 (WARP_SIZE 이미지에서도 정상 작동)
 function getCellFillRate(imgData, cx, cy, radius) {
   let black = 0,
     total = 0;
+  const iw = imgData.width,
+    ih = imgData.height;
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
       const px = cx + dx;
       const py = cy + dy;
-      if (px < 0 || px >= CANVAS_W || py < 0 || py >= CANVAS_H) continue;
+      if (px < 0 || px >= iw || py < 0 || py >= ih) continue;
       if (sampleBrightness(imgData, px, py) < 128) black++;
       total++;
     }
@@ -460,33 +613,8 @@ function drawQRBorder(loc, color) {
 }
 
 // ═══════════════════════════════════════════════════
-//  유틸: 셀 중심 좌표 (이중선형 보간)
-//  4꼭짓점 좌표로 원근 왜곡을 보정해 각 셀 위치 계산
+//  유틸: 특정 좌표 픽셀 밝기 (R+G+B 평균)
 // ═══════════════════════════════════════════════════
-function bilinearCell(loc, row, col, mc) {
-  const u = (col + 0.5) / mc;
-  const v = (row + 0.5) / mc;
-  const tl = loc.topLeftCorner,
-    tr = loc.topRightCorner;
-  const bl = loc.bottomLeftCorner,
-    br = loc.bottomRightCorner;
-  return {
-    x: Math.round(
-      tl.x * (1 - u) * (1 - v) +
-        tr.x * u * (1 - v) +
-        bl.x * (1 - u) * v +
-        br.x * u * v,
-    ),
-    y: Math.round(
-      tl.y * (1 - u) * (1 - v) +
-        tr.y * u * (1 - v) +
-        bl.y * (1 - u) * v +
-        br.y * u * v,
-    ),
-  };
-}
-
-// 유틸: 특정 좌표 픽셀 밝기 (R+G+B 평균)
 function sampleBrightness(imgData, x, y) {
   x = Math.max(0, Math.min(imgData.width - 1, Math.round(x)));
   y = Math.max(0, Math.min(imgData.height - 1, Math.round(y)));
