@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Error Interaction</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="title">QR Error Interaction — Prototype</span>
+      <span class="badge">v0.1</span>
+    </header>
+
+    <!-- 숨긴 요소들 -->
+    <video id="video" autoplay playsinline muted hidden></video>
+    <img id="originalQRImg" src="original.png" hidden />
+
+    <!-- 카메라 캔버스 -->
+    <div id="cameraWrap">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <!-- 하단 패널 -->
+    <div id="bottomPanel">
+      <div id="origPanel">
+        <span class="label">원본 QR</span>
+        <img src="original.png" alt="원본 QR" />
+      </div>
+
+      <div id="dataPanel">
+        <span class="label">실시간 오차 데이터</span>
+
+        <div id="statusLine">
+          <div id="statusDot"></div>
+          <span id="statusText">QR 대기 중</span>
+        </div>
+
+        <div id="errorBarWrap">
+          <div id="errorBarLabel">
+            <span>ERROR SCORE</span>
+            <span id="d-errorPct">— %</span>
+          </div>
+          <div id="errorBarTrack">
+            <div id="errorBarFill"></div>
+          </div>
+        </div>
+
+        <div class="dataRow">
+          <span class="rowLabel">검정 셀 오차 (덜 채워진 셀)</span>
+          <span class="rowVal" id="d-blackErr">—</span>
+        </div>
+        <div class="dataRow">
+          <span class="rowLabel">흰색 셀 오차 (침범한 셀)</span>
+          <span class="rowVal red" id="d-whiteErr">—</span>
+        </div>
+        <div class="dataRow">
+          <span class="rowLabel">파티클 수</span>
+          <span class="rowVal hi" id="d-particles">—</span>
+        </div>
+
+        <div id="d-module">MODULE — × —</div>
+      </div>
+    </div>
+
+    <script src="sketch.js"></script>
+  </body>
+</html>
