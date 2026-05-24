@@ -4,10 +4,10 @@
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
-const BOX_PAD = 90;        // 인식 박스 여백(px)
+const BOX_PAD = 90; // 인식 박스 여백(px)
 const MAX_PARTICLES = 400; // 최대 파티클 수
-const STABLE_FRAMES = 25;  // 스냅샷 확정까지 필요한 안정 프레임 수
-const WARP_SIZE = 580;     // homography 워프 출력 크기(px)
+const STABLE_FRAMES = 25; // 스냅샷 확정까지 필요한 안정 프레임 수
+const WARP_SIZE = 580; // homography 워프 출력 크기(px)
 
 // ── 전역 상태 ──────────────────────────────────────
 let video, canvas, ctx;
@@ -16,7 +16,7 @@ let offCanvas, offCtx; // 픽셀 분석용 오프스크린
 let originalBitMatrix = null;
 let moduleCount = 0;
 
-let particles = [];      // 현재 파티클 배열
+let particles = []; // 현재 파티클 배열
 let lastErrorScore = -1; // 파티클 재생성 판단용
 
 // ── 스냅샷 스테이트 머신 ──────────────────────────
@@ -220,10 +220,10 @@ function warpQRToFlat(imgData, location, dstSize) {
       const dstIdx = (vy * dstSize + vx) * 4;
       for (let ch = 0; ch < 3; ch++) {
         output[dstIdx + ch] = Math.round(
-          sample(x0,     y0,     ch) * (1 - fx) * (1 - fy) +
-          sample(x0 + 1, y0,     ch) * fx       * (1 - fy) +
-          sample(x0,     y0 + 1, ch) * (1 - fx) * fy       +
-          sample(x0 + 1, y0 + 1, ch) * fx       * fy,
+          sample(x0, y0, ch) * (1 - fx) * (1 - fy) +
+            sample(x0 + 1, y0, ch) * fx * (1 - fy) +
+            sample(x0, y0 + 1, ch) * (1 - fx) * fy +
+            sample(x0 + 1, y0 + 1, ch) * fx * fy,
         );
       }
       output[dstIdx + 3] = 255;
@@ -278,6 +278,7 @@ function detectModuleCount(imgData, loc) {
 // ═══════════════════════════════════════════════════
 function buildBitMatrix(imgData, loc, mc) {
   const flatData = warpQRToFlat(imgData, loc, WARP_SIZE);
+  const threshold = getAdaptiveThreshold(flatData);
   const cellSize = WARP_SIZE / mc;
 
   const matrix = [];
@@ -287,7 +288,7 @@ function buildBitMatrix(imgData, loc, mc) {
       const cx = Math.round((c + 0.5) * cellSize);
       const cy = Math.round((r + 0.5) * cellSize);
       const bright = sampleBrightness(flatData, cx, cy);
-      matrix[r][c] = bright < 128 ? 1 : 0; // 1=검정, 0=흰색
+      matrix[r][c] = bright < threshold ? 1 : 0; // 1=검정, 0=흰색
     }
   }
   return matrix;
@@ -314,7 +315,7 @@ function enhanceContrast(imgData) {
   const scale = 255 / range;
 
   for (let i = 0; i < src.length; i += 4) {
-    dst[i]     = Math.min(255, Math.round((src[i]     - minB) * scale));
+    dst[i] = Math.min(255, Math.round((src[i] - minB) * scale));
     dst[i + 1] = Math.min(255, Math.round((src[i + 1] - minB) * scale));
     dst[i + 2] = Math.min(255, Math.round((src[i + 2] - minB) * scale));
     dst[i + 3] = src[i + 3]; // alpha 유지
@@ -368,7 +369,6 @@ function loop() {
         stableCount = 1;
       }
       state.detected = false;
-
     } else if (scanState === 'stabilizing') {
       if (code && inBox) {
         stableCount++;
@@ -393,14 +393,12 @@ function loop() {
           state.detected = false;
           drawQRBorder(code.location, 'rgba(200,255,0,0.45)');
         }
-
       } else {
         // QR 사라짐 → 대기로 리셋
         scanState = 'waiting';
         stableCount = 0;
         state.detected = false;
       }
-
     } else if (scanState === 'locked') {
       if (!code || !inBox) {
         // QR 사라짐 → 완전 리셋
@@ -440,6 +438,7 @@ function analyzeQR(imgData, loc) {
 
   // QR을 정사각형으로 펼침 (원본 BitMatrix와 동일한 WARP_SIZE 기준)
   const flatData = warpQRToFlat(imgData, loc, WARP_SIZE);
+  const threshold = getAdaptiveThreshold(flatData);
   const cellSize = WARP_SIZE / mc;
   const radius = Math.max(1, Math.floor(cellSize * 0.4)); // 샘플링 반경
 
@@ -451,7 +450,7 @@ function analyzeQR(imgData, loc) {
     for (let c = 0; c < mc; c++) {
       const cx = Math.round((c + 0.5) * cellSize);
       const cy = Math.round((r + 0.5) * cellSize);
-      const fillRate = getCellFillRate(flatData, cx, cy, radius);
+      const fillRate = getCellFillRate(flatData, cx, cy, radius, threshold);
       const expected = originalBitMatrix[r][c];
 
       let cellErr;
@@ -475,10 +474,23 @@ function analyzeQR(imgData, loc) {
   return { errorScore, blackCellErrors, whiteCellErrors, particleCount };
 }
 
+// ── 적응형 임계값 계산 ────────────────────────────
+// 펼쳐진 QR 이미지 전체 픽셀 밝기의 평균을 임계값으로 반환
+// 조명 조건·잉크 농도에 따라 자동으로 검정/흰색 경계가 조정됨
+function getAdaptiveThreshold(flatData) {
+  const data = flatData.data;
+  let sum = 0;
+  const pixelCount = flatData.width * flatData.height;
+  for (let i = 0; i < data.length; i += 4) {
+    sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+  }
+  return sum / pixelCount;
+}
+
 // ── 셀 채움률 계산 ─────────────────────────────────
 // 셀 중심 주변 radius 범위 픽셀에서 검정 비율 반환
 // imgData 크기에 독립적으로 동작 (WARP_SIZE 이미지에서도 정상 작동)
-function getCellFillRate(imgData, cx, cy, radius) {
+function getCellFillRate(imgData, cx, cy, radius, threshold) {
   let black = 0,
     total = 0;
   const iw = imgData.width,
@@ -488,7 +500,7 @@ function getCellFillRate(imgData, cx, cy, radius) {
       const px = cx + dx;
       const py = cy + dy;
       if (px < 0 || px >= iw || py < 0 || py >= ih) continue;
-      if (sampleBrightness(imgData, px, py) < 128) black++;
+      if (sampleBrightness(imgData, px, py) < threshold) black++;
       total++;
     }
   }
