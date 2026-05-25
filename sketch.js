@@ -2,8 +2,8 @@
 //  QR 오차 인터랙션 — sketch.js
 // ═══════════════════════════════════════════════════
 
-const CANVAS_W = 640;
-const CANVAS_H = 480;
+let CANVAS_W = 640; // loadedmetadata에서 실제 해상도로 갱신됨
+let CANVAS_H = 480; // loadedmetadata에서 실제 해상도로 갱신됨
 const BOX_PAD = 90; // 인식 박스 여백(px)
 const MAX_PARTICLES = 400; // 최대 파티클 수
 const STABLE_FRAMES = 25; // 스냅샷 확정까지 필요한 안정 프레임 수
@@ -52,10 +52,27 @@ async function init() {
 
   // ── 카메라 연결 ──
   try {
+    // 전면 카메라 (기존)
+    // const stream = await navigator.mediaDevices.getUserMedia({
+    //   video: { width: CANVAS_W, height: CANVAS_H },
+    // });
+
+    // 후면 카메라
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: CANVAS_W, height: CANVAS_H },
+      video: { facingMode: 'environment' },
     });
     video.srcObject = stream;
+
+    // 실제 해상도 확정 후 캔버스 크기 동기화
+    video.addEventListener('loadedmetadata', () => {
+      CANVAS_W = video.videoWidth;
+      CANVAS_H = video.videoHeight;
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
+      offCanvas.width = CANVAS_W;
+      offCanvas.height = CANVAS_H;
+    });
+
     await video.play();
   } catch (e) {
     alert(
