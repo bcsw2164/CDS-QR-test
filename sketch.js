@@ -348,8 +348,12 @@ function enhanceContrast(imgData) {
 // ═══════════════════════════════════════════════════
 function loop() {
   if (video.readyState >= video.HAVE_ENOUGH_DATA) {
-    // 카메라 → 오프스크린(분석용)
+    // 카메라 → 오프스크린(분석용) — 좌우반전 보정
+    offCtx.save();
+    offCtx.translate(CANVAS_W, 0);
+    offCtx.scale(-1, 1);
     offCtx.drawImage(video, 0, 0, CANVAS_W, CANVAS_H);
+    offCtx.restore();
     const rawImgData = offCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
 
     // 카메라 화면 → 메인 캔버스 (원본 영상 그대로 표시)
