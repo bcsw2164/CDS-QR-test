@@ -61,7 +61,6 @@ header .badge {
   width: 100%;
   max-width: 640px;
   height: auto;
-  transform: scaleX(-1);
 }
 
 /* ── 하단 패널 ── */

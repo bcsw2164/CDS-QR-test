@@ -607,11 +607,6 @@ function drawRecognitionBox(x, y, w, h, scanState, stableCount) {
   ctx.lineTo(x + w, y + h - cs);
   ctx.stroke();
 
-  // CSS scaleX(-1) 역반전 — 텍스트/UI 요소를 정방향으로 표시
-  ctx.save();
-  ctx.translate(CANVAS_W, 0);
-  ctx.scale(-1, 1);
-
   if (scanState === 'waiting') {
     // ── 대기: 안내 텍스트 ──
     ctx.font = '12px "Space Mono", monospace';
@@ -640,8 +635,6 @@ function drawRecognitionBox(x, y, w, h, scanState, stableCount) {
     ctx.fillRect(barX, barY, barW * progress, barH);
   }
   // ── locked: 박스 색만 accent 유지, 텍스트 없음 ──
-
-  ctx.restore();
 }
 
 // QR 감지 윤곽선
