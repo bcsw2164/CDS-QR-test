@@ -7,6 +7,7 @@ const CANVAS_H = 480;
 const BOX_PAD = 90; // 인식 박스 여백(px)
 const MAX_PARTICLES = 400; // 최대 파티클 수
 const STABLE_FRAMES = 25; // 스냅샷 확정까지 필요한 안정 프레임 수
+const MAX_MISS_FRAMES = 10; // stabilizing/locked 중 흔들림 허용 연속 미감지 프레임 수
 const WARP_SIZE = 580; // homography 워프 출력 크기(px)
 
 // ── 전역 상태 ──────────────────────────────────────
@@ -22,6 +23,7 @@ let lastErrorScore = -1; // 파티클 재생성 판단용
 // ── 스냅샷 스테이트 머신 ──────────────────────────
 let scanState = 'waiting'; // 'waiting' | 'stabilizing' | 'locked'
 let stableCount = 0;
+let missCount = 0; // 연속 미감지 프레임 수 (흔들림 허용 카운터)
 let lockedResult = null;
 
 let state = {
@@ -367,10 +369,12 @@ function loop() {
       if (code && inBox) {
         scanState = 'stabilizing';
         stableCount = 1;
+        missCount = 0;
       }
       state.detected = false;
     } else if (scanState === 'stabilizing') {
       if (code && inBox) {
+        missCount = 0; // 감지 성공 → 미감지 카운터 초기화
         stableCount++;
 
         if (stableCount >= STABLE_FRAMES) {
@@ -381,11 +385,13 @@ function loop() {
             respawnParticles(lockedResult.errorScore);
             lastErrorScore = lockedResult.errorScore;
             scanState = 'locked';
+            missCount = 0;
             drawQRBorder(code.location, '#c8ff00');
           } else {
             // 원본 BitMatrix 아직 미준비 → 대기로 복귀
             scanState = 'waiting';
             stableCount = 0;
+            missCount = 0;
             state.detected = false;
           }
         } else {
@@ -394,21 +400,32 @@ function loop() {
           drawQRBorder(code.location, 'rgba(200,255,0,0.45)');
         }
       } else {
-        // QR 사라짐 → 대기로 리셋
-        scanState = 'waiting';
-        stableCount = 0;
-        state.detected = false;
+        // 잠시 안 보임 → 흔들림 허용 (MAX_MISS_FRAMES 초과 시에만 리셋)
+        missCount++;
+        if (missCount >= MAX_MISS_FRAMES) {
+          scanState = 'waiting';
+          stableCount = 0;
+          missCount = 0;
+          state.detected = false;
+        }
+        // else: stableCount 유지, 진행 바 일시 정지
       }
     } else if (scanState === 'locked') {
       if (!code || !inBox) {
-        // QR 사라짐 → 완전 리셋
-        scanState = 'waiting';
-        stableCount = 0;
-        lockedResult = null;
-        particles = [];
-        lastErrorScore = -1;
-        state.detected = false;
+        // 잠시 안 보임 → 흔들림 허용 (MAX_MISS_FRAMES 초과 시에만 리셋)
+        missCount++;
+        if (missCount >= MAX_MISS_FRAMES) {
+          scanState = 'waiting';
+          stableCount = 0;
+          missCount = 0;
+          lockedResult = null;
+          particles = [];
+          lastErrorScore = -1;
+          state.detected = false;
+        }
+        // else: locked 값 유지 (화면에서 잠깐 벗어나도 고정 유지)
       } else {
+        missCount = 0; // 감지 성공 → 미감지 카운터 초기화
         // 값 고정 유지 (analyzeQR 재실행 없음)
         state = { ...state, ...lockedResult, detected: true };
         drawQRBorder(code.location, '#c8ff00');
