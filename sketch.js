@@ -2,8 +2,8 @@
 //  QR 손그림 인식 — sketch.js  (p5.js 환경)
 // ═══════════════════════════════════════════════════
 
-// ▼ ngrok 실행 후 발급된 URL로 교체하세요
-const BACKEND_URL = 'https://여기에-ngrok-URL-입력.ngrok.io';
+// ▼ localtunnel 재실행 시 새 URL로 교체 (start-tunnel.ps1 참고)
+const BACKEND_URL = 'https://forty-deer-post.loca.lt';
 
 let capture;
 let uiState    = 'IDLE'; // IDLE | SCANNING | RESULT | ERROR
@@ -114,7 +114,10 @@ async function onScan() {
   try {
     const res  = await fetch(BACKEND_URL + '/predict', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type':          'application/json',
+        'bypass-tunnel-reminder': 'true',
+      },
       body:    JSON.stringify({ image: imgData }),
     });
     const data = await res.json();
