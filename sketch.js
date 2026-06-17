@@ -2,8 +2,8 @@
 //  QR 손그림 인식 — sketch.js  (p5.js 환경)
 // ═══════════════════════════════════════════════════
 
-// ▼ localtunnel 재실행 시 새 URL로 교체 (start-tunnel.ps1 참고)
-const BACKEND_URL = 'https://forty-deer-post.loca.lt';
+// ▼ cloudflared 재실행 시 새 URL로 교체 (start-tunnel.ps1 참고)
+const BACKEND_URL = 'https://race-hamilton-persistent-previews.trycloudflare.com';
 
 let capture;
 let uiState    = 'IDLE'; // IDLE | SCANNING | RESULT | ERROR
@@ -114,10 +114,7 @@ async function onScan() {
   try {
     const res  = await fetch(BACKEND_URL + '/predict', {
       method:  'POST',
-      headers: {
-        'Content-Type':          'application/json',
-        'bypass-tunnel-reminder': 'true',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ image: imgData }),
     });
     const data = await res.json();
