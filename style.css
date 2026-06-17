@@ -1,14 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400&display=swap');
-
-:root {
-  --bg: #0c0c0c;
-  --surface: #141414;
-  --border: #2a2a2a;
-  --accent: #c8ff00;
-  --accent2: #ff4d4d;
-  --text: #e8e8e8;
-  --muted: #555;
-}
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 
 * {
   margin: 0;
@@ -16,183 +6,65 @@
   box-sizing: border-box;
 }
 
+html,
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Space Mono', monospace;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── 헤더 ── */
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--border);
-}
-header .title {
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-header .badge {
-  font-size: 10px;
-  letter-spacing: 2px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-/* ── 카메라 영역 ── */
-#cameraWrap {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  background: #000;
-  border-bottom: 1px solid var(--border);
-}
-
-#mainCanvas {
-  display: block;
   width: 100%;
-  max-width: 640px;
-  height: auto;
-}
-
-/* ── 하단 패널 ── */
-#bottomPanel {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  flex: 1;
-  max-width: 640px;
-  width: 100%;
-  margin: 0 auto;
-  border-top: 1px solid var(--border);
-}
-
-/* ── 원본 QR 패널 ── */
-#origPanel {
-  border-right: 1px solid var(--border);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-#origPanel .label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-#origPanel img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
-  background: #fff;
-  display: block;
-}
-
-/* ── 데이터 패널 ── */
-#dataPanel {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-#dataPanel .label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 14px;
-}
-
-/* 상태 표시 */
-#statusLine {
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-#statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--muted);
-  transition: background 0.3s;
-}
-#statusDot.active {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-}
-
-/* 오차 바 */
-#errorBarWrap {
-  margin-bottom: 20px;
-}
-#errorBarLabel {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-#errorBarLabel span:last-child {
-  color: var(--accent);
-  font-size: 13px;
-}
-#errorBarTrack {
-  height: 2px;
-  background: var(--border);
-  position: relative;
-}
-#errorBarFill {
   height: 100%;
-  background: var(--accent);
-  width: 0%;
-  transition: width 0.15s ease;
+  overflow: hidden;
+  background: #0c0c0c;
 }
 
-/* 데이터 행 */
-.dataRow {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.dataRow:last-child {
-  border-bottom: none;
-}
-.dataRow .rowLabel {
-  font-size: 9px;
-  color: var(--muted);
-  letter-spacing: 1px;
-}
-.dataRow .rowVal {
-  font-size: 16px;
-  color: var(--text);
-  transition: color 0.2s;
-}
-.dataRow .rowVal.hi {
-  color: var(--accent);
-}
-.dataRow .rowVal.red {
-  color: var(--accent2);
+/* p5.js가 생성하는 canvas 요소 */
+canvas {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
-/* 모듈 카운트 */
-#moduleInfo {
-  margin-top: auto;
-  padding-top: 12px;
-  font-size: 9px;
-  color: var(--border);
-  letter-spacing: 1px;
+/* ── 스캔 버튼 ── */
+#scanBtn {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+
+  background: #c8ff00;
+  color: #000;
+  border: none;
+  border-radius: 60px;
+  padding: 20px 60px;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 2px;
+  cursor: pointer;
+
+  min-width: 160px;
+  min-height: 64px;
+
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+
+  transition:
+    background 0.12s,
+    transform 0.1s,
+    box-shadow 0.12s;
+  box-shadow: 0 4px 28px rgba(200, 255, 0, 0.3);
+}
+
+#scanBtn:active {
+  background: #a8d800;
+  transform: translateX(-50%) scale(0.95);
+  box-shadow: 0 2px 12px rgba(200, 255, 0, 0.2);
+}
+
+#scanBtn:disabled {
+  background: #1e1e1e;
+  color: #444;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: translateX(-50%);
 }
