@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════
 
 // ▼ cloudflared 재실행 시 새 URL로 교체 (start-tunnel.ps1 참고)
-const BACKEND_URL = 'https://race-hamilton-persistent-previews.trycloudflare.com';
+const BACKEND_URL = 'https://usb-alloy-florist-holidays.trycloudflare.com';
 
 let capture;
 let uiState    = 'IDLE'; // IDLE | SCANNING | RESULT | ERROR
