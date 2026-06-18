@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════
 //  QR 손그림 인식 — sketch.js  (p5.js 환경)
 // ═══════════════════════════════════════════════════
 
 // ▼ cloudflared 재실행 시 새 URL로 교체 (start-tunnel.ps1 참고)
-const BACKEND_URL = 'https://usb-alloy-florist-holidays.trycloudflare.com';
+const BACKEND_URL = 'https://psi-womens-persons-ebooks.trycloudflare.com';
 
 let capture;
 let uiState    = 'IDLE'; // IDLE | SCANNING | RESULT | ERROR
