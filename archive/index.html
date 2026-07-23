@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signature Archive</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  </head>
+  <body>
+    <div id="archive-wrap">
+      <div class="tab-row">
+        <button class="tab-btn shape-btn active" data-shape="signature">
+          사각형+원
+        </button>
+        <button class="tab-btn shape-btn" data-shape="grid">그리드</button>
+      </div>
+      <div class="tab-row">
+        <button class="tab-btn mode-btn active" data-mode="collected">
+          수집순
+        </button>
+        <button class="tab-btn mode-btn" data-mode="error">오차율순</button>
+      </div>
+      <div id="canvas-holder"></div>
+    </div>
+    <script src="../shared/core.js"></script>
+    <script src="sketch.js"></script>
+  </body>
+</html>

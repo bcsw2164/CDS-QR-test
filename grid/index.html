@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grid System</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <div id="canvas-wrap"></div>
+      <div id="controls">
+        <div class="slider-row">
+          <label>errorA <span class="desc">— 격자 밀도</span></label>
+          <input
+            type="range"
+            id="sliderA"
+            min="0"
+            max="100"
+            value="30"
+            step="1"
+          />
+          <span class="val" id="valA">30</span>
+        </div>
+        <div class="slider-row">
+          <label>errorB <span class="desc">— 굵기/간격 불규칙성</span></label>
+          <input
+            type="range"
+            id="sliderB"
+            min="0"
+            max="100"
+            value="30"
+            step="1"
+          />
+          <span class="val" id="valB">30</span>
+        </div>
+        <div id="btn-row">
+          <button id="btnRegen">패턴 재추첨</button>
+          <button id="btnSave">PNG 저장 (S)</button>
+        </div>
+      </div>
+    </div>
+    <script src="../shared/core.js"></script>
+    <script src="sketch.js"></script>
+  </body>
+</html>
