@@ -5,14 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Behind</title>
     <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    />
   </head>
   <body>
     <div id="behind-wrap">
-      <div class="tab-row nav-row">
-        <a class="tab-btn nav-link" href="../archive/index.html">← Signature Archive</a>
+      <div id="marquee">
+        <div class="marquee-track">
+          <div class="marquee-group">
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+          </div>
+          <div class="marquee-group" aria-hidden="true">
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+            <span>이 프로젝트에 참여해주신 총 211분의 기여를 기리며...</span>
+          </div>
+        </div>
       </div>
       <div id="photo-holder"></div>
+
+      <!-- 자료 수합 과정 카드뉴스 — 확인용 임시 섹션. 검토 끝나면 이 블록,
+           behind/images/collect/ 폴더, script.js의 관련 코드를 통째로 지우면 됨. -->
+      <div id="collect-section">
+        <div id="collect-row">
+          <button id="collect-prev" aria-label="이전 이미지">←</button>
+          <div id="collect-viewer">
+            <img id="collect-img" src="" alt="자료 수합 과정" />
+          </div>
+          <button id="collect-next" aria-label="다음 이미지">→</button>
+        </div>
+        <span id="collect-counter"></span>
+      </div>
     </div>
+    <a id="archive-fab" href="../archive/index.html">아카이브</a>
     <script src="script.js"></script>
   </body>
 </html>

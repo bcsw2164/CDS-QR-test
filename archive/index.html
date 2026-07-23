@@ -5,26 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Signature Archive</title>
     <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   </head>
   <body>
     <div id="archive-wrap">
-      <div class="tab-row">
-        <button class="tab-btn shape-btn active" data-shape="signature">
-          사각형+원
-        </button>
-        <button class="tab-btn shape-btn" data-shape="grid">그리드</button>
+      <div id="shape-row" class="shape-row">
+        <button class="shape-btn active" data-shape="signature">1</button>
+        <button class="shape-btn" data-shape="grid">2</button>
       </div>
-      <div class="tab-row">
-        <button class="tab-btn mode-btn active" data-mode="collected">
-          수집순
-        </button>
-        <button class="tab-btn mode-btn" data-mode="error">오차율순</button>
-      </div>
-      <div class="tab-row nav-row">
-        <a class="tab-btn nav-link" href="../behind/index.html">비하인드</a>
+      <div id="mode-row" class="mode-row">
+        <button class="mode-btn active" data-mode="collected">수집순</button>
+        <button class="mode-btn" data-mode="error">오차율순</button>
       </div>
       <div id="canvas-holder"></div>
+    </div>
+    <a id="behind-fab" href="../behind/index.html">비하인드</a>
+    <div id="detail-overlay">
+      <div class="detail-box">
+        <span class="corner corner-tl"></span>
+        <span class="corner corner-tr"></span>
+        <span class="corner corner-bl"></span>
+        <span class="corner corner-br"></span>
+        <img id="detail-qr" src="" alt="QR 이미지" />
+        <p id="detail-name"></p>
+      </div>
     </div>
     <script src="../shared/core.js"></script>
     <script src="sketch.js"></script>

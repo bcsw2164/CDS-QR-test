@@ -125,6 +125,7 @@ function buildGridView() {
   for (let i = 0; i < order.length; i++) {
     const cell = document.createElement('div');
     cell.className = 'archive-cell';
+    cell.dataset.itemId = items[order[i]].id;
     frag.appendChild(cell);
     cellEls.push(cell);
   }
@@ -156,6 +157,22 @@ function buildGridView() {
   });
 }
 
+// ── 그래픽 클릭 → 상세 오버레이(QR + 이름) ─────────────────────
+//
+// 아직 그래픽↔사람 매칭 데이터가 없어서, 지금은 어떤 셀을 클릭해도
+// 동일한 자리표시자(placeholder) 이미지·이름을 보여준다. 실제 데이터가
+// 모이면 itemId로 조회해서 이 부분만 교체하면 된다.
+//
+function openDetailOverlay(itemId) {
+  document.getElementById('detail-qr').src = 'images/sample-qr.jpg';
+  document.getElementById('detail-name').textContent = '정솔하';
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetailOverlay() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
 // ── p5 setup ────────────────────────────────────────────────
 function setup() {
   colorMode(HSB, 360, 100, 100);
@@ -181,6 +198,19 @@ function setup() {
       sortMode = btn.dataset.mode;
       buildGridView();
     });
+  });
+
+  // 셀은 buildGridView()가 매번 새로 만들지만 #canvas-holder 자체는 그대로이므로
+  // 위임(delegation)으로 한 번만 걸어둔다.
+  document.getElementById('canvas-holder').addEventListener('click', (e) => {
+    const cell = e.target.closest('.archive-cell');
+    if (!cell) return;
+    openDetailOverlay(cell.dataset.itemId);
+  });
+
+  // 박스 밖 어두운 배경을 클릭하면 닫힘
+  document.getElementById('detail-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'detail-overlay') closeDetailOverlay();
   });
 
   buildGridView();
