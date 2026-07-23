@@ -31,10 +31,11 @@ body {
   padding-bottom: 4px;
 }
 
-.tab-row:last-of-type {
+.tab-row.nav-row {
   padding-top: 4px;
   padding-bottom: 12px;
   border-bottom: 1px solid #ddd;
+  justify-content: flex-end;
 }
 
 .tab-btn {
@@ -47,6 +48,8 @@ body {
   letter-spacing: 0.08em;
   cursor: pointer;
   text-transform: uppercase;
+  text-decoration: none;
+  display: inline-block;
   transition:
     background 0.15s,
     color 0.15s;
