@@ -11,7 +11,7 @@
        (errorB = 0 이면 완벽한 정사각형, 클수록 각 꼭짓점이 어긋남)
 
      레이어 2 — 원
-       errorA → 보이지 않는 가이드 원 위의 각도(위치)
+       errorA → 중심(0)에서 왼쪽 위 대각선 방향(100)으로의 이동 거리
 
    재현성:
      noiseSeed(hashSeed(errorB, errorB)) 로 설정 — 사각형의 형태는
@@ -19,10 +19,9 @@
      같은 errorB 입력 → 항상 같은 사각형 형태.
 
    색상:
-     차가움(기계적/정확) — 따뜻함(인간적/불안정) 하나의 hue 축을 공유.
-     사각형은 errorB, 원은 errorA로 각자 그 축 위 위치를 결정 —
-     오차가 작을수록 차갑게, 클수록 따뜻하게 이동.
-     채도·명도는 변수와 무관하게 좁은 범위에서만 랜덤.
+     errorA/errorB와 무관하게 항상 고정.
+     사각형+원 — 사각형은 SQUARE_COLOR, 원은 CIRCLE_COLOR.
+     그리드   — 항상 GRID_COLOR.
 
    렌더링 대상(g):
      drawDistortedRect / drawCircle / drawGridMesh는 첫 인자로 그릴
@@ -39,16 +38,14 @@
    ============================================================ */
 
 // ── 형태 상수 (모두 size 대비 비율) ──────────────────────────
-const JITTER_RATIO = 0.24; // 꼭짓점 최대 이탈 거리 = size × 이 비율
-const GUIDE_R_RATIO = 0.22; // 가이드 원 반지름 = size × 이 비율
+const JITTER_RATIO = 0.36; // 꼭짓점 최대 이탈 거리 = size × 이 비율
+const DIAGONAL_DIST_RATIO = 0.32; // 원의 최대 대각선 이동 거리 = size × 이 비율
 const CIRCLE_R_RATIO = 0.18; // 원 반지름 = size × 이 비율
 
-// ── 색상 상수 (HSB) ─────────────────────────────────────────
-const HUE_COLD = 200; // 오차 0 — 차가운 블루 (기계적/정확)
-const HUE_WARM = 0; // 오차 100 — 따뜻한 레드 (인간적/불안정)
-const HUE_JITTER = 4; // 재추첨용 미세 텍스처 지터
-const SAT_RANGE = [60, 75]; // 변수와 무관, 매번 이 범위에서만 랜덤
-const BRI_RANGE = [68, 84]; // 변수와 무관, 매번 이 범위에서만 랜덤
+// ── 색상 상수 (고정, errorA/errorB와 무관) ──────────────────
+const SQUARE_COLOR = '#18E6BD'; // 사각형+원 오브젝트의 사각형
+const CIRCLE_COLOR = '#1E322D'; // 사각형+원 오브젝트의 원
+const GRID_COLOR = '#F44881'; // 그리드 오브젝트
 
 // 같은 (a, b) → 항상 같은 정수 시드
 function hashSeed(a, b) {
@@ -62,19 +59,6 @@ function hashSeed(a, b) {
 // noise()를 -1 ~ 1 범위로 변환
 function ns(x, y) {
   return (noise(x, y) - 0.5) * 2;
-}
-
-// errorVal(0~100)이 HUE_COLD~HUE_WARM 축 위 위치를 결정.
-// 채도·명도는 변수와 무관하게 매번 좁은 범위에서만 랜덤.
-function pickColorOnTemperatureAxis(errorVal) {
-  const hue =
-    (map(errorVal, 0, 100, HUE_COLD, HUE_WARM) +
-      random(-HUE_JITTER, HUE_JITTER) +
-      360) %
-    360;
-  const sat = random(SAT_RANGE[0], SAT_RANGE[1]);
-  const bri = random(BRI_RANGE[0], BRI_RANGE[1]);
-  return color(hue, sat, bri);
 }
 
 // ── 레이어 1: 일그러진 사각형 ───────────────────────────────
@@ -124,18 +108,18 @@ function drawDistortedRect(g, cx, cy, size, errorB, col) {
 
 // ── 레이어 2: 원 ────────────────────────────────────────────
 //
-// 보이지 않는 가이드 원 위를 errorA에 따라 이동한다.
-// errorA = 0  → 가이드 원의 12시 방향 근처
-// errorA = 100 → 가이드 원을 한 바퀴 돌아간 위치
+// 중심에서 왼쪽 위 대각선 방향으로 errorA에 따라 이동한다.
+// errorA = 0   → 정중앙
+// errorA = 100 → 왼쪽 위 대각선으로 최대한 이동한 위치
 //
 function drawCircle(g, cx, cy, size, errorA, col) {
-  const guideR = size * GUIDE_R_RATIO;
+  const maxDist = size * DIAGONAL_DIST_RATIO;
   const circleR = size * CIRCLE_R_RATIO;
 
-  const angle = map(errorA, 0, 100, -HALF_PI, -HALF_PI + TWO_PI);
+  const dist = map(errorA, 0, 100, 0, maxDist);
 
-  const px = cx + cos(angle) * guideR;
-  const py = cy + sin(angle) * guideR;
+  const px = cx - dist * Math.SQRT1_2;
+  const py = cy - dist * Math.SQRT1_2;
 
   g.push();
   g.noStroke();

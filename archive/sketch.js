@@ -37,25 +37,18 @@ let gridGraphics = [];
 // 리사이즈·탭 전환이 겹칠 때 오래된 빌드 결과가 뒤늦게 그려지는 것을 막는 토큰
 let gridBuildToken = 0;
 
-// errorA/errorB, 그리고 그 값으로 결정되는 색상까지 한 번만 생성해 고정.
-// (색상은 매번 다시 뽑으면 리사이즈할 때마다 바뀌어 보이므로 여기서 확정)
+// errorA/errorB를 한 번만 생성해 고정 (색상은 SQUARE_COLOR/CIRCLE_COLOR로 항상 고정).
 function generateSignatureItems() {
   const list = [];
   for (let i = 0; i < ITEM_COUNT; i++) {
     const errorA = random(0, 100);
     const errorB = random(0, 100);
 
-    noiseSeed(hashSeed(errorB, errorB));
-    const rectCol = pickColorOnTemperatureAxis(errorB);
-    const circleCol = pickColorOnTemperatureAxis(errorA);
-
     list.push({
       id: i + 1,
       errorA,
       errorB,
       errorScore: (errorA + errorB) / 2,
-      rectCol,
-      circleCol,
     });
   }
   return list;
@@ -67,16 +60,12 @@ function generateGridItems() {
     const errorA = random(0, 100);
     const errorB = random(0, 100);
 
-    noiseSeed(hashSeed(errorA, errorB));
-    const col = pickColorOnTemperatureAxis(errorB);
-
     list.push({
       id: i + 1,
       errorA,
       errorB,
       errorScore: (errorA + errorB) / 2,
       n: gridDensityFromErrorA(errorA),
-      col,
     });
   }
   return list;
@@ -100,11 +89,11 @@ function getDisplayOrder() {
 function drawItem(item, g, cx, cy, size, shape) {
   if (shape === 'signature') {
     noiseSeed(hashSeed(item.errorB, item.errorB));
-    drawDistortedRect(g, cx, cy, size, item.errorB, item.rectCol);
-    drawCircle(g, cx, cy, size, item.errorA, item.circleCol);
+    drawDistortedRect(g, cx, cy, size, item.errorB, SQUARE_COLOR);
+    drawCircle(g, cx, cy, size, item.errorA, CIRCLE_COLOR);
   } else {
     noiseSeed(hashSeed(item.errorA, item.errorB));
-    drawGridMesh(g, cx, cy, size, item.n, item.errorB, item.col);
+    drawGridMesh(g, cx, cy, size, item.n, item.errorB, GRID_COLOR);
   }
 }
 

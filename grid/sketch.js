@@ -69,13 +69,12 @@ function draw() {
 
   const n = gridDensityFromErrorA(eA);
   noiseSeed(hashSeed(eA, eB));
-  const col = pickColorOnTemperatureAxis(eB);
 
   const cx = canvasSize / 2;
   const cy = canvasSize / 2;
   const size = canvasSize * (1 - PADDING_RATIO * 2);
 
-  drawGridMesh(window, cx, cy, size, n, eB, col);
+  drawGridMesh(window, cx, cy, size, n, eB, GRID_COLOR);
 }
 
 // ── 저장 ────────────────────────────────────────────────────

@@ -71,16 +71,12 @@ function draw() {
   // 사각형의 노이즈 패턴은 errorB에만 의존 (errorA는 원의 위치만 제어)
   noiseSeed(hashSeed(eB, eB));
 
-  // 차가움-따뜻함 축 위에서 각 레이어를 제어하는 변수로 위치 결정
-  const rectCol = pickColorOnTemperatureAxis(eB);
-  const circleCol = pickColorOnTemperatureAxis(eA);
-
   const cx = canvasSize / 2;
   const cy = canvasSize / 2;
   const size = canvasSize * (1 - PADDING_RATIO * 2);
 
-  drawDistortedRect(window, cx, cy, size, eB, rectCol);
-  drawCircle(window, cx, cy, size, eA, circleCol);
+  drawDistortedRect(window, cx, cy, size, eB, SQUARE_COLOR);
+  drawCircle(window, cx, cy, size, eA, CIRCLE_COLOR);
 }
 
 // ── 저장 ────────────────────────────────────────────────────
