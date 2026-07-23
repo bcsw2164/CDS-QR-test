@@ -2,10 +2,45 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=archive/index.html" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Signature Archive</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      #intro-video {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <p><a href="archive/index.html">Signature Archive로 이동</a></p>
+    <!-- 최초 접속 시 보여주는 인트로 영상 — 계속 반복 재생되다가 화면을
+         탭하면 사라지고 아카이브로 이동. 영상 파일: intro.mp4 (1:1 비율). -->
+    <video id="intro-video" src="intro.mp4" autoplay muted loop playsinline></video>
+    <script>
+      const video = document.getElementById('intro-video');
+
+      function goToArchive() {
+        window.location.href = 'archive/index.html';
+      }
+
+      video.addEventListener('error', goToArchive); // 영상 로드 실패 시 그냥 바로 이동
+      video.addEventListener('click', goToArchive); // 탭하면 건너뛰기
+    </script>
   </body>
 </html>
