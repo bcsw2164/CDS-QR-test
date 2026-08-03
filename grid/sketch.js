@@ -17,8 +17,8 @@
 const PADDING_RATIO = 0.1; // 캔버스 가장자리와 격자가 유지할 여백 = 캔버스 크기 × 이 비율
 const MIN_CANVAS_SIZE = 220; // 캔버스가 이보다 작아지지 않도록 하는 하한
 
-let eA = 30;
-let eB = 30;
+let eA = 0.3;
+let eB = 0.3;
 let canvasSize;
 
 // #canvas-wrap이 실제로 차지하는 공간 중 작은 쪽에 맞춰 정사각형 캔버스 크기를 계산한다.
@@ -42,12 +42,12 @@ function setup() {
   const vB = document.getElementById('valB');
 
   sA.addEventListener('input', () => {
-    eA = parseInt(sA.value);
+    eA = parseFloat(sA.value);
     vA.textContent = eA;
     redraw();
   });
   sB.addEventListener('input', () => {
-    eB = parseInt(sB.value);
+    eB = parseFloat(sB.value);
     vB.textContent = eB;
     redraw();
   });

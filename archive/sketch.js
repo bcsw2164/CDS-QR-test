@@ -41,8 +41,8 @@ let gridBuildToken = 0;
 function generateSignatureItems() {
   const list = [];
   for (let i = 0; i < ITEM_COUNT; i++) {
-    const errorA = random(0, 100);
-    const errorB = random(0, 100);
+    const errorA = random(0, 1);
+    const errorB = random(0, 1);
 
     list.push({
       id: i + 1,
@@ -57,8 +57,8 @@ function generateSignatureItems() {
 function generateGridItems() {
   const list = [];
   for (let i = 0; i < ITEM_COUNT; i++) {
-    const errorA = random(0, 100);
-    const errorB = random(0, 100);
+    const errorA = random(0, 1);
+    const errorB = random(0, 1);
 
     list.push({
       id: i + 1,

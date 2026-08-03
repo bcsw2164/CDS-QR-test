@@ -11,7 +11,7 @@
        (errorB = 0 이면 완벽한 정사각형, 클수록 각 꼭짓점이 어긋남)
 
      레이어 2 — 원
-       errorA → 중심(0)에서 왼쪽 위 대각선 방향(100)으로의 이동 거리
+       errorA → 중심(0)에서 왼쪽 위 대각선 방향(1)으로의 이동 거리
 
    재현성:
      noiseSeed(hashSeed(errorB, errorB)) 로 설정 — 사각형의 형태는
@@ -73,7 +73,7 @@ function ns(x, y) {
 //
 function drawDistortedRect(g, cx, cy, size, errorB, col) {
   const half = size / 2;
-  const jitter = map(errorB, 0, 100, 0, size * JITTER_RATIO);
+  const jitter = map(errorB, 0, 1, 0, size * JITTER_RATIO);
 
   // 꼭짓점 기본 위치: [좌상, 우상, 우하, 좌하]
   const base = [
@@ -109,14 +109,14 @@ function drawDistortedRect(g, cx, cy, size, errorB, col) {
 // ── 레이어 2: 원 ────────────────────────────────────────────
 //
 // 중심에서 왼쪽 위 대각선 방향으로 errorA에 따라 이동한다.
-// errorA = 0   → 정중앙
-// errorA = 100 → 왼쪽 위 대각선으로 최대한 이동한 위치
+// errorA = 0 → 정중앙
+// errorA = 1 → 왼쪽 위 대각선으로 최대한 이동한 위치
 //
 function drawCircle(g, cx, cy, size, errorA, col) {
   const maxDist = size * DIAGONAL_DIST_RATIO;
   const circleR = size * CIRCLE_R_RATIO;
 
-  const dist = map(errorA, 0, 100, 0, maxDist);
+  const dist = map(errorA, 0, 1, 0, maxDist);
 
   const px = cx - dist * Math.SQRT1_2;
   const py = cy - dist * Math.SQRT1_2;
@@ -137,23 +137,23 @@ function drawCircle(g, cx, cy, size, errorA, col) {
 //
 //   격자 밀도 — errorA: 내부 칸막이 개수(N-1개씩)를 결정.
 //   막대의 어긋남 — errorB: 각 막대 끝점 위치·굵기·삐져나옴을 결정.
-//     errorB = 0   → 모든 막대가 곧고 균일한 기계 같은 격자.
-//     errorB = 100 → 막대마다 끝이 틀어지고 굵기도 제각각인 격자.
+//     errorB = 0 → 모든 막대가 곧고 균일한 기계 같은 격자.
+//     errorB = 1 → 막대마다 끝이 틀어지고 굵기도 제각각인 격자.
 //
 // 색은 오브젝트 전체에 하나만 적용 (막대별로 다르게 뽑지 않음).
 // 호출 전 noiseSeed(hashSeed(errorA, errorB))로 시드를 맞춰야 한다.
 //
 const GRID_MIN_N = 3; // errorA = 0 일 때 칸 수 (성김)
-const GRID_MAX_N = 6; // errorA = 100 일 때 칸 수 (빽빽함)
+const GRID_MAX_N = 6; // errorA = 1 일 때 칸 수 (빽빽함)
 const BAR_THICKNESS_RATIO = 0.26; // 막대 기본 굵기 = cellSize × 이 비율
-const THICKNESS_JITTER_MAX_RATIO = 0.35; // errorB = 100 일 때 굵기 변동폭 (기본 굵기 대비)
-const ENDPOINT_JITTER_MAX_RATIO = 0.5; // errorB = 100 일 때 막대 끝점이 흔들리는 폭 (cellSize 대비)
+const THICKNESS_JITTER_MAX_RATIO = 0.35; // errorB = 1 일 때 굵기 변동폭 (기본 굵기 대비)
+const ENDPOINT_JITTER_MAX_RATIO = 0.5; // errorB = 1 일 때 막대 끝점이 흔들리는 폭 (cellSize 대비)
 const OVERSHOOT_BASE_RATIO = 0.0025; // errorB와 무관한 최소 삐져나옴 (size 대비)
-const OVERSHOOT_JITTER_MAX_RATIO = 0.04; // errorB = 100 일 때 추가되는 삐져나옴 (size 대비)
+const OVERSHOOT_JITTER_MAX_RATIO = 0.04; // errorB = 1 일 때 추가되는 삐져나옴 (size 대비)
 
-// errorA(0~100) → 격자 칸 수(N)
+// errorA(0~1) → 격자 칸 수(N)
 function gridDensityFromErrorA(errorA) {
-  return Math.round(map(errorA, 0, 100, GRID_MIN_N, GRID_MAX_N));
+  return Math.round(map(errorA, 0, 1, GRID_MIN_N, GRID_MAX_N));
 }
 
 // 두 점을 잇는 두꺼운 막대 하나
@@ -169,10 +169,10 @@ function drawGridMesh(g, cx, cy, size, n, errorB, col) {
   const cellSize = size / n;
 
   const baseThickness = cellSize * BAR_THICKNESS_RATIO;
-  const thicknessJitter = map(errorB, 0, 100, 0, baseThickness * THICKNESS_JITTER_MAX_RATIO);
-  const endpointJitter = map(errorB, 0, 100, 0, cellSize * ENDPOINT_JITTER_MAX_RATIO);
+  const thicknessJitter = map(errorB, 0, 1, 0, baseThickness * THICKNESS_JITTER_MAX_RATIO);
+  const endpointJitter = map(errorB, 0, 1, 0, cellSize * ENDPOINT_JITTER_MAX_RATIO);
   const overshoot =
-    size * OVERSHOOT_BASE_RATIO + map(errorB, 0, 100, 0, size * OVERSHOOT_JITTER_MAX_RATIO);
+    size * OVERSHOOT_BASE_RATIO + map(errorB, 0, 1, 0, size * OVERSHOOT_JITTER_MAX_RATIO);
 
   g.stroke(col);
   g.strokeCap(SQUARE);
