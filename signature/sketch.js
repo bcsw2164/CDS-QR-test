@@ -72,7 +72,7 @@ function draw() {
   const cy = canvasSize / 2;
   const size = canvasSize * (1 - PADDING_RATIO * 2);
 
-  drawDistortedRect(window, cx, cy, size, eB, SQUARE_COLOR);
+  drawDistortedRect(window, cx, cy, size, eA, eB, SQUARE_COLOR);
   drawCircle(window, cx, cy, size, eA, CIRCLE_COLOR);
 }
 

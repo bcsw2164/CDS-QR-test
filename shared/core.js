@@ -7,16 +7,18 @@
 
    그래픽 구성:
      레이어 1 — 일그러진 사각형
-       errorB → 꼭짓점 4개의 이탈 강도
-       (errorB = 0 이면 완벽한 정사각형, 클수록 각 꼭짓점이 어긋남)
+       errorB → 꼭짓점 4개의 가로(X) 방향 이탈 폭
+       errorA → 꼭짓점 4개의 세로(Y) 방향 이탈 폭
+       (둘 다 0이면 완벽한 정사각형, 클수록 각 꼭짓점이 어긋남)
 
      레이어 2 — 원
        errorA → 중심(0)에서 왼쪽 위 대각선 방향(1)으로의 이동 거리
 
    재현성:
-     사각형은 노이즈 없이 errorB만으로 계산되는 순수 함수라 시드가
-     필요 없다 (같은 errorB → 항상 같은 형태). 그리드는 여전히
-     noiseSeed(hashSeed(errorA, errorB))로 시드를 맞춰야 한다.
+     사각형·원 모두 노이즈 없이 errorA/errorB만으로 계산되는 순수
+     함수라 시드가 필요 없다 (같은 입력 → 항상 같은 결과). 그리드는
+     여전히 noiseSeed(hashSeed(errorA, errorB))로 호출부에서 시드를
+     맞춰야 한다.
 
    색상:
      errorA/errorB와 무관하게 항상 고정.
@@ -63,22 +65,30 @@ function ns(x, y) {
 
 // ── 레이어 1: 일그러진 사각형 ───────────────────────────────
 //
-// 노이즈 없이 errorB만으로 결정되는 순수 함수. 꼭짓점마다 이탈 "방향"은
-// 고정해두고(errorB와 무관), errorB는 오직 그 방향으로 "얼마나" 이탈하는지
-// (jitter 크기)만 결정한다 — 원(errorA)과 같은 논리. 방향까지 errorB에
-// 따라 돌면 회전으로 보여서 크기 변화가 잘 안 읽히기 때문에, 방향은
-// 고정해서 "적으면 조금, 크면 많이"가 바로 눈에 들어오게 했다.
+// 노이즈 없이 errorA/errorB만으로 결정되는 순수 함수. 축을 분리해서
+// errorB는 가로(X) 이탈 폭을, errorA는 세로(Y) 이탈 폭을 각각 담당한다
+// (mouseX/mouseY로 X/Y를 따로 제어하던 참고 레퍼런스와 같은 방식).
+// 꼭짓점별로 그 폭 안에서 "어느 쪽으로, 얼마나"를 정하는 고정 계수
+// (CORNER_DIR, -1~1)만 있고 그 외엔 무작위 요소가 전혀 없다 — 같은
+// errorA/errorB → 항상 같은 형태, 값이 가까우면 형태도 가깝다.
 //
 // g: 그릴 대상 — 메인 캔버스(전역 p5, 즉 window)이거나
 //    createGraphics()로 만든 개별 버퍼(p5.Graphics). 둘 다 같은
 //    draw API(push/fill/vertex 등)를 가지므로 그대로 호출한다.
 //
-// 꼭짓점별 고정 이탈 방향(라디안) — 서로 겹치지 않게 각기 다른 방향으로.
-const CORNER_JITTER_ANGLES = [0.4, 2.6, 4.1, 5.5];
+// 꼭짓점별 고정 방향 계수 [X방향, Y방향] (-1~1) — 네 꼭짓점이 서로
+// 다른 쪽으로 흩어지도록 부호·크기를 다르게 줌.
+const CORNER_DIR = [
+  [-0.6, 0.8], // 좌상
+  [0.9, -0.4], // 우상
+  [-0.3, -0.9], // 우하
+  [0.7, 0.5], // 좌하
+];
 
-function drawDistortedRect(g, cx, cy, size, errorB, col) {
+function drawDistortedRect(g, cx, cy, size, errorA, errorB, col) {
   const half = size / 2;
-  const jitter = map(errorB, 0, 1, 0, size * JITTER_RATIO);
+  const jitterX = map(errorB, 0, 1, 0, size * JITTER_RATIO);
+  const jitterY = map(errorA, 0, 1, 0, size * JITTER_RATIO);
 
   // 꼭짓점 기본 위치: [좌상, 우상, 우하, 좌하]
   const base = [
@@ -94,9 +104,9 @@ function drawDistortedRect(g, cx, cy, size, errorB, col) {
   g.noStroke();
   g.beginShape();
   for (let i = 0; i < 4; i++) {
-    const angle = CORNER_JITTER_ANGLES[i];
-    const dx = cos(angle) * jitter;
-    const dy = sin(angle) * jitter;
+    const [dirX, dirY] = CORNER_DIR[i];
+    const dx = dirX * jitterX;
+    const dy = dirY * jitterY;
     g.vertex(base[i][0] + dx, base[i][1] + dy);
   }
   g.endShape(CLOSE);

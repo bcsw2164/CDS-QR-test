@@ -88,7 +88,7 @@ function getDisplayOrder() {
 // shape('signature' | 'grid')에 맞는 함수로 아이템 하나를 g 위 (cx, cy)에 size로 그린다.
 function drawItem(item, g, cx, cy, size, shape) {
   if (shape === 'signature') {
-    drawDistortedRect(g, cx, cy, size, item.errorB, SQUARE_COLOR);
+    drawDistortedRect(g, cx, cy, size, item.errorA, item.errorB, SQUARE_COLOR);
     drawCircle(g, cx, cy, size, item.errorA, CIRCLE_COLOR);
   } else {
     noiseSeed(hashSeed(item.errorA, item.errorB));
