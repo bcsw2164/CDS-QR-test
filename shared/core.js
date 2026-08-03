@@ -14,9 +14,9 @@
        errorA → 중심(0)에서 왼쪽 위 대각선 방향(1)으로의 이동 거리
 
    재현성:
-     noiseSeed(hashSeed(errorB, errorB)) 로 설정 — 사각형의 형태는
-     errorB에만 의존하며 errorA는 관여하지 않는다 (원의 위치만 제어).
-     같은 errorB 입력 → 항상 같은 사각형 형태.
+     사각형은 노이즈 없이 errorB만으로 계산되는 순수 함수라 시드가
+     필요 없다 (같은 errorB → 항상 같은 형태). 그리드는 여전히
+     noiseSeed(hashSeed(errorA, errorB))로 시드를 맞춰야 한다.
 
    색상:
      errorA/errorB와 무관하게 항상 고정.
@@ -63,14 +63,19 @@ function ns(x, y) {
 
 // ── 레이어 1: 일그러진 사각형 ───────────────────────────────
 //
-// 꼭짓점 4개가 각각 서로 다른 노이즈 좌표로 이탈 방향을 결정한다.
-// errorB는 "얼마나" 이탈하는지의 강도(scale)만 담당한다.
-// 호출 전 noiseSeed(hashSeed(errorB, errorB))로 시드를 맞춰야 한다.
+// 노이즈 없이 errorB만으로 결정되는 순수 함수. 꼭짓점마다 이탈 "방향"은
+// 고정해두고(errorB와 무관), errorB는 오직 그 방향으로 "얼마나" 이탈하는지
+// (jitter 크기)만 결정한다 — 원(errorA)과 같은 논리. 방향까지 errorB에
+// 따라 돌면 회전으로 보여서 크기 변화가 잘 안 읽히기 때문에, 방향은
+// 고정해서 "적으면 조금, 크면 많이"가 바로 눈에 들어오게 했다.
 //
 // g: 그릴 대상 — 메인 캔버스(전역 p5, 즉 window)이거나
 //    createGraphics()로 만든 개별 버퍼(p5.Graphics). 둘 다 같은
 //    draw API(push/fill/vertex 등)를 가지므로 그대로 호출한다.
 //
+// 꼭짓점별 고정 이탈 방향(라디안) — 서로 겹치지 않게 각기 다른 방향으로.
+const CORNER_JITTER_ANGLES = [0.4, 2.6, 4.1, 5.5];
+
 function drawDistortedRect(g, cx, cy, size, errorB, col) {
   const half = size / 2;
   const jitter = map(errorB, 0, 1, 0, size * JITTER_RATIO);
@@ -83,23 +88,15 @@ function drawDistortedRect(g, cx, cy, size, errorB, col) {
     [-half, half],
   ];
 
-  // 꼭짓점별 독립적인 노이즈 좌표 쌍
-  // → 각 꼭짓점이 서로 다른 방향으로 이탈하도록
-  const seeds = [
-    [1.1, 2.2, 3.3, 4.4],
-    [5.5, 6.6, 7.7, 8.8],
-    [9.1, 1.2, 2.3, 3.4],
-    [4.5, 5.6, 6.7, 7.8],
-  ];
-
   g.push();
   g.translate(cx, cy);
   g.fill(col);
   g.noStroke();
   g.beginShape();
   for (let i = 0; i < 4; i++) {
-    const dx = ns(seeds[i][0], seeds[i][1]) * jitter;
-    const dy = ns(seeds[i][2], seeds[i][3]) * jitter;
+    const angle = CORNER_JITTER_ANGLES[i];
+    const dx = cos(angle) * jitter;
+    const dy = sin(angle) * jitter;
     g.vertex(base[i][0] + dx, base[i][1] + dy);
   }
   g.endShape(CLOSE);

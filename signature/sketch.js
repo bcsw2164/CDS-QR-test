@@ -68,9 +68,6 @@ function windowResized() {
 function draw() {
   background(0, 0, 96); // HSB에서 245/255 grayscale에 해당
 
-  // 사각형의 노이즈 패턴은 errorB에만 의존 (errorA는 원의 위치만 제어)
-  noiseSeed(hashSeed(eB, eB));
-
   const cx = canvasSize / 2;
   const cy = canvasSize / 2;
   const size = canvasSize * (1 - PADDING_RATIO * 2);
