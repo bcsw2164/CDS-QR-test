@@ -23,15 +23,20 @@
        errorA → 꽃잎 뿌리·끝 폭 (각각 독립적으로 변함)
        errorB → 꽃잎이 옆으로 뒤틀리는 강도 (홀/짝 꽃잎 반대 방향)
 
+     섹션 5(가칭) — 물고기 (drawFish, fish/) — 테두리 없는 플랫 컬러
+     각진 아이콘 스타일. 몸통은 마름모 폴리곤 하나.
+       errorA → 몸통 길이·높이 (서로 반대로 변해 넓적한 몸↔홀쭉한 몸)
+       errorB → 꼬리지느러미가 벌어지는 정도 (0=뾰족한 스파이크, 1=활짝 부채꼴)
+
    재현성:
-     사각형·원·두 꽃 그래픽 모두 노이즈 없이 errorA/errorB만으로
+     사각형·원·꽃 세 종류·물고기 모두 노이즈 없이 errorA/errorB만으로
      계산되는 순수 함수라 시드가 필요 없다 (같은 입력 → 항상 같은
      결과). 그리드는 여전히 noiseSeed(hashSeed(errorA, errorB))로
      호출부에서 시드를 맞춰야 한다.
 
    색상:
      섹션별로 다름(아래 참고) — 사각형+원·그리드·뒤틀림 꽃잎은 항상
-     고정색, 방사형 훅만 오차율에 따라 색조가 움직임.
+     고정색, 방사형 훅·물고기는 오차율에 따라 색조가 움직임.
      사각형+원 — 사각형은 SQUARE_COLOR, 원은 CIRCLE_COLOR.
      그리드   — 항상 GRID_COLOR.
      방사형 훅 — 오차율((A+B)/2)에 따라 선의 색조가 RADIAL_HUE_MIN~MAX
@@ -42,6 +47,10 @@
      타는 잎(홀수 인덱스)은 TWIST_PETAL_COLOR_TWISTED(#f06b77), 통통한
      잎(짝수 인덱스)은 TWIST_PETAL_COLOR_PLUMP(#ffed87), 중심 봉우리는
      TWIST_CENTER_DOT_COLOR(#9ac2ff).
+     물고기   — 오차율((A+B)/2)에 따라 앞쪽 색조가 FISH_HUE_MIN~MAX
+     범위에서 넓게 움직이고, 뒤쪽(꼬리 포함)은 거기서 FISH_BACK_HUE_
+     OFFSET만큼 어긋난 색조를 써서 두 톤으로 나뉨. 채도·명도는 고정
+     (색조별 지각 밝기만 보정).
 
    데이터:
      generateErrorData()가 꽃 그래픽의 errorA(u)/errorB(o)를 생성한다.
@@ -727,4 +736,137 @@ function drawTwistedBezierFlower(g, cx, cy, size, errorA, errorB, twistedAngleOf
   g.strokeWeight(strokeW);
   g.fill(TWIST_CENTER_DOT_COLOR);
   g.ellipse(cx, cy, radius * TWIST_CENTER_DOT_RATIO, radius * TWIST_CENTER_DOT_RATIO);
+}
+
+// ── 섹션 5(가칭): 물고기 ────────────────────────────────────────
+//
+// 플랫 컬러의 각진 아이콘 스타일 — 테두리 없이 순수 색 블록으로만
+// 구성. 몸통은 마름모(kite) 윤곽선 네 변인데, errorA가 커질수록 그
+// 변들이 직선(각짐)에서 바깥으로 부푼 곡선(둥긂)으로 바뀌고 동시에
+// 몸도 더 길쭉해진다(각지고 넓적함↔둥글고 홀쭉함을 함께 오감).
+// errorB → 꼬리지느러미가 벌어지는 정도인데, 각도만 벌어지는 게
+// 아니라 길이도 같이 늘어나서(0=짧고 뾰족한 스파이크, 1=길고 활짝
+// 벌어진 부채꼴) 변화가 훨씬 크게 느껴지게 했다. 몸통은 앞/뒤 두 톤
+// (색조가 다른 두 색)으로 나뉘어 보이는데, 마름모의 위/아래 꼭짓점을
+// 공유하는 앞쪽 절반만 다른 색으로 덮어 그려서 이음매 없이 두 톤이
+// 나뉜다(윤곽선이 곡선이어도 두 절반이 같은 곡선 계산을 공유해서 딱
+// 맞음). 노이즈 없이 errorA/errorB만으로 계산되는 순수 함수.
+//
+const FISH_BODY_LENGTH_MIN_RATIO = 0.5; // errorA = 0 일 때 몸통 길이(가로) = size × 이 비율
+const FISH_BODY_LENGTH_MAX_RATIO = 1.0; // errorA = 1 일 때 몸통 길이
+const FISH_BODY_HEIGHT_MIN_RATIO = 0.62; // errorA = 0 일 때 몸통 높이(세로) = size × 이 비율
+const FISH_BODY_HEIGHT_MAX_RATIO = 0.22; // errorA = 1 일 때 몸통 높이 — 길이와 반대로 줄어들어 넓적한 몸↔홀쭉한 몸 대비를 만듦
+const FISH_BODY_ROUNDNESS_MIN = 0; // errorA = 0 일 때 윤곽선 부풀기 정도 — 0이면 완전히 직선(각진 마름모)
+const FISH_BODY_ROUNDNESS_MAX = 0.7; // errorA = 1 일 때 윤곽선 부풀기 정도 — 변 길이 대비 바깥으로 부푸는 비율
+const FISH_TAIL_LENGTH_MIN_RATIO = 0.22; // errorB = 0 일 때 꼬리 길이 = 몸통 길이 × 이 비율 — 짧고 뾰족
+const FISH_TAIL_LENGTH_MAX_RATIO = 0.75; // errorB = 1 일 때 꼬리 길이 — 길고 활짝
+const FISH_TAIL_SPREAD_MIN_DEG = 6; // errorB = 0 일 때 꼬리 열림각(도) — 거의 뾰족한 스파이크
+const FISH_TAIL_SPREAD_MAX_DEG = 72; // errorB = 1 일 때 꼬리 열림각(도) — 활짝 부채꼴
+const FISH_FIN_SIZE_RATIO = 0.16; // 배지느러미 크기(고정 장식) = 몸통 높이 × 이 비율
+const FISH_EYE_RATIO = 0.11; // 눈 지름 = size × 이 비율
+const FISH_HUE_MIN = 0; // errorScore = 0 일 때 앞쪽 색조
+const FISH_HUE_MAX = 300; // errorScore = 1 일 때 앞쪽 색조 — 360까지 채우면 양 끝이 겹쳐 보이므로 여유를 둠
+const FISH_BACK_HUE_OFFSET = 30; // 뒤쪽(꼬리 포함) 색조 = 앞쪽 색조 + 이 값
+const FISH_SAT = 85; // 채도(%) — 오차율과 무관하게 고정
+const FISH_BRI = 92; // 명도(%) 기준값 — 실제로는 색조에 따라 아래 보정폭만큼 흔들림
+const FISH_BRI_COMPENSATION = 10; // 색조별 지각 밝기 보정 폭
+
+// 두 점을 잇는 변을 곧게(roundAmount=0) 또는 바깥으로 부풀린 곡선으로
+// 그린다 — g.vertex(x1,y1)을 먼저 호출해둔 상태에서 이어서 쓴다.
+function fishBulgeEdge(g, x1, y1, x2, y2, roundAmount) {
+  if (roundAmount <= 0) {
+    g.vertex(x2, y2);
+    return;
+  }
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  let nx = -(y2 - y1);
+  let ny = x2 - x1;
+  const nlen = Math.hypot(nx, ny) || 1;
+  nx /= nlen;
+  ny /= nlen;
+  if (nx * mx + ny * my < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const segLen = Math.hypot(x2 - x1, y2 - y1);
+  const offset = segLen * roundAmount * 0.5;
+  const cx = mx + nx * offset;
+  const cy = my + ny * offset;
+  g.bezierVertex(cx, cy, cx, cy, x2, y2);
+}
+
+function drawFish(g, cx, cy, size, errorA, errorB) {
+  const bodyLen = size * map(errorA, 0, 1, FISH_BODY_LENGTH_MIN_RATIO, FISH_BODY_LENGTH_MAX_RATIO);
+  const bodyH = size * map(errorA, 0, 1, FISH_BODY_HEIGHT_MIN_RATIO, FISH_BODY_HEIGHT_MAX_RATIO);
+  const halfH = bodyH / 2;
+  const roundAmount = map(errorA, 0, 1, FISH_BODY_ROUNDNESS_MIN, FISH_BODY_ROUNDNESS_MAX);
+  const tailLen = bodyLen * map(errorB, 0, 1, FISH_TAIL_LENGTH_MIN_RATIO, FISH_TAIL_LENGTH_MAX_RATIO);
+  const spreadRad = radians(map(errorB, 0, 1, FISH_TAIL_SPREAD_MIN_DEG, FISH_TAIL_SPREAD_MAX_DEG));
+
+  const errorScore = (errorA + errorB) / 2;
+  const frontHue = map(errorScore, 0, 1, FISH_HUE_MIN, FISH_HUE_MAX);
+  const backHue = (frontHue + FISH_BACK_HUE_OFFSET) % 360;
+  const frontBri = perceptualBrightness(frontHue, FISH_BRI, FISH_BRI_COMPENSATION);
+  const backBri = perceptualBrightness(backHue, FISH_BRI, FISH_BRI_COMPENSATION);
+  const frontCol = g.color(frontHue, FISH_SAT, frontBri);
+  const backCol = g.color(backHue, FISH_SAT, backBri);
+
+  // 머리는 오른쪽(+x), 꼬리는 왼쪽(-x) 방향
+  const frontX = bodyLen / 2;
+  const backX = -bodyLen / 2;
+
+  g.push();
+  g.translate(cx, cy);
+  g.noStroke();
+
+  // 꼬리지느러미 — 몸통보다 먼저 그려서 뒤에 자연스럽게 깔림
+  const tipX = backX - tailLen;
+  const upY = -Math.sin(spreadRad / 2) * tailLen;
+  const downY = Math.sin(spreadRad / 2) * tailLen;
+  g.fill(backCol);
+  g.beginShape();
+  g.vertex(backX, 0);
+  g.vertex(tipX, upY);
+  g.vertex(tipX, downY);
+  g.endShape(CLOSE);
+
+  // 몸통 — 마름모 윤곽선(네 변, roundAmount만큼 바깥으로 부풂)을 뒤쪽
+  // 색으로 채운 뒤, 앞쪽 절반(위/아래 꼭짓점을 공유하는 절반)만 같은
+  // 곡선 계산을 재사용해 다른 색으로 겹쳐 그려서 두 톤으로 나뉘어 보이게 한다.
+  g.fill(backCol);
+  g.beginShape();
+  g.vertex(frontX, 0);
+  fishBulgeEdge(g, frontX, 0, 0, -halfH, roundAmount);
+  fishBulgeEdge(g, 0, -halfH, backX, 0, roundAmount);
+  fishBulgeEdge(g, backX, 0, 0, halfH, roundAmount);
+  fishBulgeEdge(g, 0, halfH, frontX, 0, roundAmount);
+  g.endShape(CLOSE);
+
+  g.fill(frontCol);
+  g.beginShape();
+  g.vertex(frontX, 0);
+  fishBulgeEdge(g, frontX, 0, 0, -halfH, roundAmount);
+  g.vertex(0, halfH);
+  fishBulgeEdge(g, 0, halfH, frontX, 0, roundAmount);
+  g.endShape(CLOSE);
+
+  // 배지느러미 — 작은 삼각형 하나(고정 장식, 몸통 크기에 비례만 함)
+  const finSize = bodyH * FISH_FIN_SIZE_RATIO;
+  g.fill(backCol);
+  g.beginShape();
+  g.vertex(-finSize * 0.5, halfH);
+  g.vertex(finSize * 0.5, halfH);
+  g.vertex(0, halfH + finSize);
+  g.endShape(CLOSE);
+
+  // 눈
+  const eyeX = frontX * 0.45;
+  const eyeSize = size * FISH_EYE_RATIO;
+  g.fill('#fff');
+  g.ellipse(eyeX, -halfH * 0.18, eyeSize, eyeSize);
+  g.fill('#111');
+  g.ellipse(eyeX, -halfH * 0.18, eyeSize * 0.5, eyeSize * 0.5);
+
+  g.pop();
 }

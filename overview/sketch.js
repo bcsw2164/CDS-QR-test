@@ -22,6 +22,7 @@ const SERIES = [
   { shape: 'grid', label: '그리드' },
   { shape: 'radial', label: '방사형' },
   { shape: 'twist', label: '뒤틀림' },
+  { shape: 'fish', label: '물고기' },
 ];
 
 let eA = 0.3;
@@ -49,6 +50,8 @@ function drawSeries(shape, g, cx, cy, size) {
     drawRadialBurstFlower(g, cx, cy, size, eA, eB);
   } else if (shape === 'twist') {
     drawTwistedBezierFlower(g, cx, cy, size, eA, eB);
+  } else if (shape === 'fish') {
+    drawFish(g, cx, cy, size, eA, eB);
   }
 }
 
