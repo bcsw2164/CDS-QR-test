@@ -6,6 +6,13 @@
    그래픽 생성 로직은 shared/core.js를 그대로 공유 — core.js를 고치면
    radial/, archive/, 이 페이지까지 전부 반영된다.
 
+   "방사형" 셀은 core.js의 drawRadialBurstFlowerDev(디벨롭 버전, 두
+   번째 선이 좌우반전으로 마는 최종 픽스 모양)를 쓴다 — 이 그래픽은
+   archive/의 방사형 그리드·줄기형(1a)에도 동일하게 적용되어 있다.
+   "방사형 v2" 셀은 drawRadialBurstFlowerV2(디벨롭 버전) — 이 페이지
+   전용이고 radial/은 영향받지 않는다. 디벨롭이 끝나면 v1/v2에 반영해
+   radial/까지 포함한 공유 버전으로 옮길 예정.
+
    그래픽 하나당 createGraphics()로 만든 개별 p5.Graphics 버퍼를 쓴다
    (archive/sketch.js와 같은 방식). 메인 캔버스는 만들지 않는다
    (noCanvas()).
@@ -18,6 +25,7 @@ const MIN_CELL_SIZE = 120; // 셀이 이보다 작아지지 않도록 하는 하
 
 const SERIES = [
   { shape: 'radial', label: '방사형' },
+  { shape: 'radial-v2', label: '방사형 v2' },
 ];
 
 let eA = 0.3;
@@ -27,11 +35,17 @@ let eB = 0.3;
 // 움직일 때마다 바뀌면 산만하니 [랜덤 생성] 버튼을 누를 때만 새로 뽑는다.
 let radialLineColor;
 let radialDotColor;
+// "방사형" 셀(drawRadialBurstFlowerDev)의 선 끝을 따라가는 원 전용 색 —
+// radialLineColor·radialDotColor와 겹치지 않도록 팔레트에서 남은 색 중
+// 하나를 골라 쓴다.
+let radialTipColor;
 
 function rerollRadialColors() {
   const { lineColor, dotColor } = pickRadialColors();
   radialLineColor = lineColor;
   radialDotColor = dotColor;
+  const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
+  radialTipColor = tipOptions[Math.floor(random(tipOptions.length))];
 }
 
 // shape → p5.Graphics 버퍼
@@ -47,7 +61,9 @@ function computeCellSize(cellEl) {
 // (archive/sketch.js의 drawItem()과 같은 분기 규칙)
 function drawSeries(shape, g, cx, cy, size) {
   if (shape === 'radial') {
-    drawRadialBurstFlower(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor);
+    drawRadialBurstFlowerDev(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor, radialTipColor, true);
+  } else if (shape === 'radial-v2') {
+    drawRadialBurstFlowerV2(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor);
   }
 }
 
