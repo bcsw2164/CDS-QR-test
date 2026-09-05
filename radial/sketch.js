@@ -22,6 +22,17 @@ let eA = 0.3;
 let eB = 0.3;
 let canvasSize;
 
+// 선·점 색 — 오차 데이터와 무관하게 무작위로 뽑고, [랜덤 생성] 버튼을
+// 누를 때만 새로 뽑는다(슬라이더를 움직일 때마다 바뀌면 산만하므로).
+let lineColor;
+let dotColor;
+
+function rerollColors() {
+  const picked = pickRadialColors();
+  lineColor = picked.lineColor;
+  dotColor = picked.dotColor;
+}
+
 // #canvas-wrap이 실제로 차지하는 공간 중 작은 쪽에 맞춰 정사각형 캔버스 크기를 계산한다.
 function computeCanvasSize() {
   const wrap = document.getElementById('canvas-wrap');
@@ -48,6 +59,7 @@ function setup() {
   noLoop();
 
   applyErrorData(generateErrorData());
+  rerollColors();
 
   // HTML 슬라이더 연결
   const sA = document.getElementById('sliderA');
@@ -68,6 +80,7 @@ function setup() {
 
   document.getElementById('btnRegen').addEventListener('click', () => {
     applyErrorData(generateErrorData());
+    rerollColors();
     redraw();
   });
   document.getElementById('btnSave').addEventListener('click', saveImg);
@@ -88,7 +101,7 @@ function draw() {
   const cy = canvasSize / 2;
   const size = canvasSize * (1 - PADDING_RATIO * 2);
 
-  drawRadialBurstFlower(window, cx, cy, size, eA, eB);
+  drawRadialBurstFlower(window, cx, cy, size, eA, eB, lineColor, dotColor);
 }
 
 // ── 저장 ────────────────────────────────────────────────────

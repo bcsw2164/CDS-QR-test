@@ -1,32 +1,38 @@
 /* ============================================================
    Series Overview — sketch.js
    ------------------------------------------------------------
-   signature/, grid/, radial/, twist/ 네 개의 독립된 슬라이더 페이지를
-   한 화면에 모아 놓은 페이지. 슬라이더(errorA/errorB)는 하나만 있고,
-   그 값 하나가 네 그래픽 모두에 동시에 적용된다. 실제 그래픽 생성
-   로직은 shared/core.js를 그대로 공유 — core.js를 고치면 signature/,
-   grid/, radial/, twist/, archive/, 이 페이지까지 전부 반영된다.
+   radial/ 슬라이더 페이지를 한 화면에 모아 놓은 페이지. 슬라이더
+   (errorA/errorB)는 하나만 있고, 그 값이 그래픽에 적용된다. 실제
+   그래픽 생성 로직은 shared/core.js를 그대로 공유 — core.js를 고치면
+   radial/, archive/, 이 페이지까지 전부 반영된다.
 
    그래픽 하나당 createGraphics()로 만든 개별 p5.Graphics 버퍼를 쓴다
    (archive/sketch.js와 같은 방식). 메인 캔버스는 만들지 않는다
    (noCanvas()).
 
-   's' 키 또는 [PNG 저장] 버튼 → 네 캔버스를 각각 PNG로 저장.
+   's' 키 또는 [PNG 저장] 버튼 → 두 캔버스를 각각 PNG로 저장.
    ============================================================ */
 
 const PADDING_RATIO = 0.1; // 캔버스 가장자리와 그래픽이 유지할 여백 = 캔버스 크기 × 이 비율
 const MIN_CELL_SIZE = 120; // 셀이 이보다 작아지지 않도록 하는 하한
 
 const SERIES = [
-  { shape: 'signature', label: '사각형+원' },
-  { shape: 'grid', label: '그리드' },
   { shape: 'radial', label: '방사형' },
-  { shape: 'twist', label: '뒤틀림' },
-  { shape: 'fish', label: '물고기' },
 ];
 
 let eA = 0.3;
 let eB = 0.3;
+
+// 방사형(3번) 선·점 색 — 오차 데이터와 무관하게 무작위로 뽑고, 슬라이더를
+// 움직일 때마다 바뀌면 산만하니 [랜덤 생성] 버튼을 누를 때만 새로 뽑는다.
+let radialLineColor;
+let radialDotColor;
+
+function rerollRadialColors() {
+  const { lineColor, dotColor } = pickRadialColors();
+  radialLineColor = lineColor;
+  radialDotColor = dotColor;
+}
 
 // shape → p5.Graphics 버퍼
 let buffers = {};
@@ -40,18 +46,8 @@ function computeCellSize(cellEl) {
 // shape에 맞는 함수로 그래픽 하나를 g 위 (cx, cy)에 size로 그린다.
 // (archive/sketch.js의 drawItem()과 같은 분기 규칙)
 function drawSeries(shape, g, cx, cy, size) {
-  if (shape === 'signature') {
-    drawDistortedRect(g, cx, cy, size, eA, eB, SQUARE_COLOR);
-    drawCircle(g, cx, cy, size, eA, CIRCLE_COLOR);
-  } else if (shape === 'grid') {
-    noiseSeed(hashSeed(eA, eB));
-    drawGridMesh(g, cx, cy, size, gridDensityFromErrorA(eA), eB, GRID_COLOR);
-  } else if (shape === 'radial') {
-    drawRadialBurstFlower(g, cx, cy, size, eA, eB);
-  } else if (shape === 'twist') {
-    drawTwistedBezierFlower(g, cx, cy, size, eA, eB);
-  } else if (shape === 'fish') {
-    drawFish(g, cx, cy, size, eA, eB);
+  if (shape === 'radial') {
+    drawRadialBurstFlower(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor);
   }
 }
 
@@ -100,6 +96,7 @@ function setup() {
   noCanvas(); // 메인 캔버스는 안 씀 — 셀마다 개별 p5.Graphics만 사용
   colorMode(HSB, 360, 100, 100);
 
+  rerollRadialColors();
   buildBuffers();
   renderAll();
 
@@ -121,6 +118,7 @@ function setup() {
 
   document.getElementById('btnRegen').addEventListener('click', () => {
     applyErrorData(generateErrorData());
+    rerollRadialColors();
     renderAll();
   });
   document.getElementById('btnSave').addEventListener('click', saveImgs);
