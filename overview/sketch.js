@@ -9,15 +9,14 @@
    "방사형" 셀은 core.js의 drawRadialBurstFlowerDev(디벨롭 버전, 두
    번째 선이 좌우반전으로 마는 최종 픽스 모양)를 쓴다 — 이 그래픽은
    archive/의 방사형 그리드·줄기형(1a)에도 동일하게 적용되어 있다.
-   "방사형 v2" 셀은 drawRadialBurstFlowerV2(디벨롭 버전) — 이 페이지
-   전용이고 radial/은 영향받지 않는다. 디벨롭이 끝나면 v1/v2에 반영해
-   radial/까지 포함한 공유 버전으로 옮길 예정.
+   "방사형 스포크" 셀은 drawRadialSpokeDots(이 페이지 전용) — 중심에서
+   뻗는 선분 두 세트(밖지름/안지름)와 끝점 원으로 이루어진 심볼.
 
    그래픽 하나당 createGraphics()로 만든 개별 p5.Graphics 버퍼를 쓴다
    (archive/sketch.js와 같은 방식). 메인 캔버스는 만들지 않는다
    (noCanvas()).
 
-   's' 키 또는 [PNG 저장] 버튼 → 두 캔버스를 각각 PNG로 저장.
+   's' 키 또는 [PNG 저장] 버튼 → 각 캔버스를 개별 PNG로 저장.
    ============================================================ */
 
 const PADDING_RATIO = 0.1; // 캔버스 가장자리와 그래픽이 유지할 여백 = 캔버스 크기 × 이 비율
@@ -25,7 +24,7 @@ const MIN_CELL_SIZE = 120; // 셀이 이보다 작아지지 않도록 하는 하
 
 const SERIES = [
   { shape: 'radial', label: '방사형' },
-  { shape: 'radial-v2', label: '방사형 v2' },
+  { shape: 'radial-spokes', label: '방사형 스포크' },
 ];
 
 let eA = 0.3;
@@ -39,6 +38,10 @@ let radialDotColor;
 // radialLineColor·radialDotColor와 겹치지 않도록 팔레트에서 남은 색 중
 // 하나를 골라 쓴다.
 let radialTipColor;
+// "방사형 스포크" 셀 전용 색 시드 — 형태는 core.js의 고정 시드라 안 바뀌고,
+// 선분 두 세트 색·끝점 원 색만 이 시드를 따른다. [랜덤 생성] 때만 새로 뽑아서
+// 슬라이더·리사이즈에는 색이 유지되고 버튼에만 바뀌게 한다.
+let radialSpokeColorSeed;
 
 function rerollRadialColors() {
   const { lineColor, dotColor } = pickRadialColors();
@@ -46,6 +49,7 @@ function rerollRadialColors() {
   radialDotColor = dotColor;
   const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
   radialTipColor = tipOptions[Math.floor(random(tipOptions.length))];
+  radialSpokeColorSeed = Math.floor(random(1e9));
 }
 
 // shape → p5.Graphics 버퍼
@@ -62,8 +66,8 @@ function computeCellSize(cellEl) {
 function drawSeries(shape, g, cx, cy, size) {
   if (shape === 'radial') {
     drawRadialBurstFlowerDev(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor, radialTipColor, true);
-  } else if (shape === 'radial-v2') {
-    drawRadialBurstFlowerV2(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor);
+  } else if (shape === 'radial-spokes') {
+    drawRadialSpokeDots(g, cx, cy, size, eA, eB, radialSpokeColorSeed);
   }
 }
 

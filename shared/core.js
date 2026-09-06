@@ -431,125 +431,13 @@ function drawRadialBurstFlower(g, cx, cy, size, errorA, errorB, lineColorHex, do
   g.pop();
 }
 
-// ── 섹션 3 v2: 방사형 다발 훅 — 디벨롭 버전 (overview 전용) ───────
-//
-// 위 drawRadialBurstFlower(v1)의 훅(직선+원호) 알고리즘은 그대로 두고,
-// overview/의 "방사형 v2" 셀에서만 쓰는 확장 버전. archive/, radial/은
-// 계속 v1을 그대로 쓴다(이 함수는 두 곳에서 호출되지 않음).
-//
-// v1과 달리 다음 4가지가 errorA로 추가 제어된다:
-//   1) 바깥쪽 훅 다발 개수 — 6(errorA=0) ~ 14(errorA=1)개, 반올림
-//   2) 훅 선 굵기 — size × 0.04(errorA=0) ~ 0.16(errorA=1)
-//   3) 바깥쪽 훅을 두 겹으로: 레이어1(바깥, 기존 반지름)과 레이어2
-//      (안쪽, 반지름 고정 70%)를 같은 색으로 겹쳐 그리되, errorA가
-//      커질수록 두 레이어 사이 회전 오프셋(최대 PI/개수)이 생겨서
-//      어긋나 보인다
-//   4) 기존 8개 점을 없애고, 같은 훅 모양이지만 반지름이 훨씬 작고
-//      반대 방향으로 마는 안쪽 훅 다발로 대체 — 반지름은 errorA로
-//      3%~45%까지 커진다
-// errorB(sweep, 마는 정도)는 모든 훅에 동일하게 적용되고(안쪽 훅만
-// 부호를 반전해 반대 방향), 중심 흰 점은 v1과 동일하게 마지막에
-// 그려서 유지한다.
-//
-const RADIAL_V2_ARC_COUNT_MIN = 6; // errorA = 0 일 때 바깥쪽 훅 다발 개수
-const RADIAL_V2_ARC_COUNT_MAX = 14; // errorA = 1 일 때 바깥쪽 훅 다발 개수
-const RADIAL_V2_WEIGHT_MIN_RATIO = 0.04; // errorA = 0 일 때 훅 굵기 = size × 이 비율
-const RADIAL_V2_WEIGHT_MAX_RATIO = 0.16; // errorA = 1 일 때 훅 굵기
-const RADIAL_V2_LAYER_RADIUS_RATIO = 0.7; // 레이어2(안쪽) 반지름 = 레이어1(바깥) 반지름 × 이 비율(고정, errorA와 무관)
-const RADIAL_V2_INNER_RADIUS_MIN_RATIO = 0.03; // errorA = 0 일 때 안쪽 훅(옛 점 자리) 반지름 = 바깥 반지름 × 이 비율
-const RADIAL_V2_INNER_RADIUS_MAX_RATIO = 0.45; // errorA = 1 일 때 안쪽 훅 반지름 비율
-const RADIAL_V2_INNER_WEIGHT_RATIO = 0.06; // 안쪽 훅 굵기 = size × 이 비율(고정)
-
-// 훅(직선 구간 + 원호로 마는 구간) 하나의 정점 좌표를 계산한다 — 중심
-// 에서 가장 먼 점이 항상 정확히 len이 되도록 스케일 보정까지 마친 뒤
-// 반환한다. v1 drawRadialBurstFlower 안에 인라인으로 있던 것과 같은
-// 계산이지만, v2는 이 로직을 여러 반지름·색으로 반복 재사용해야 해서
-// 함수로 뽑아냈다(v1 쪽은 그대로 두고 건드리지 않음).
-function hookArcPoints(len, angle, sweepAmt) {
-  const straightLen = len * RADIAL_HOOK_START_RATIO;
-  const hookRadius = len * RADIAL_HOOK_RADIUS_RATIO;
-  const straightX = cos(angle) * straightLen;
-  const straightY = sin(angle) * straightLen;
-
-  const points = [
-    [0, 0],
-    [straightX, straightY],
-  ];
-
-  if (Math.abs(sweepAmt) < 1e-4) {
-    points.push([cos(angle) * len, sin(angle) * len]);
-  } else {
-    const circleCx = straightX + hookRadius * cos(angle + HALF_PI);
-    const circleCy = straightY + hookRadius * sin(angle + HALF_PI);
-    const alpha0 = angle - HALF_PI;
-    for (let seg = 1; seg <= RADIAL_ARC_SEGMENTS; seg++) {
-      const alpha = alpha0 + (seg / RADIAL_ARC_SEGMENTS) * sweepAmt;
-      points.push([circleCx + hookRadius * cos(alpha), circleCy + hookRadius * sin(alpha)]);
-    }
-  }
-
-  let maxDist = 0;
-  for (const [x, y] of points) {
-    const d = Math.hypot(x, y);
-    if (d > maxDist) maxDist = d;
-  }
-  const scale = maxDist > 0 ? len / maxDist : 1;
-  return points.map(([x, y]) => [x * scale, y * scale]);
-}
-
-function strokeHookArc(g, len, angle, sweepAmt) {
-  const points = hookArcPoints(len, angle, sweepAmt);
-  g.beginShape();
-  for (const [x, y] of points) g.vertex(x, y);
-  g.endShape();
-}
-
-function drawRadialBurstFlowerV2(g, cx, cy, size, errorA, errorB, lineColorHex, dotColorHex) {
-  const outerRadius = size * RADIAL_RADIUS_RATIO;
-  const sweep = map(errorB, 0, 1, 0, RADIAL_SWEEP_MAX);
-
-  const arcCount = Math.round(map(errorA, 0, 1, RADIAL_V2_ARC_COUNT_MIN, RADIAL_V2_ARC_COUNT_MAX));
-  const weight = map(errorA, 0, 1, RADIAL_V2_WEIGHT_MIN_RATIO, RADIAL_V2_WEIGHT_MAX_RATIO) * size;
-  const layerRotationOffset = map(errorA, 0, 1, 0, PI / arcCount);
-  const innerRadius =
-    map(errorA, 0, 1, RADIAL_V2_INNER_RADIUS_MIN_RATIO, RADIAL_V2_INNER_RADIUS_MAX_RATIO) * outerRadius;
-
-  g.push();
-  g.translate(cx, cy);
-  g.noFill();
-  g.strokeCap(SQUARE);
-  g.strokeJoin(ROUND);
-
-  // 바깥쪽 두 레이어 — 같은 훅 알고리즘을 반지름만 다르게(레이어1은
-  // outerRadius, 레이어2는 그 70%) 두 번 그린다. errorA가 커질수록
-  // 레이어2가 레이어1보다 layerRotationOffset만큼 더 돌아가 있어서
-  // 두 겹이 서로 어긋나 보인다.
-  g.stroke(lineColorHex);
-  g.strokeWeight(weight);
-  for (let p = 0; p < arcCount; p++) {
-    const angle = -HALF_PI + (TWO_PI * p) / arcCount;
-    strokeHookArc(g, outerRadius, angle, sweep);
-  }
-  for (let p = 0; p < arcCount; p++) {
-    const angle = -HALF_PI + (TWO_PI * p) / arcCount + layerRotationOffset;
-    strokeHookArc(g, outerRadius * RADIAL_V2_LAYER_RADIUS_RATIO, angle, sweep);
-  }
-
-  // 안쪽 훅 다발(v1의 8개 점 자리를 대체) — 개수는 v1의 점 개수와 동일
-  // (RADIAL_DOT_COUNT)하게 고정, 바깥쪽과 반대 방향으로 말리고(sweep
-  // 부호 반전), errorA가 커질수록 반지름이 커져 바깥으로 퍼진다.
-  g.stroke(dotColorHex);
-  g.strokeWeight(RADIAL_V2_INNER_WEIGHT_RATIO * size);
-  for (let d = 0; d < RADIAL_DOT_COUNT; d++) {
-    const angle = -HALF_PI + (TWO_PI * d) / RADIAL_DOT_COUNT;
-    strokeHookArc(g, innerRadius, angle, -sweep);
-  }
-
-  g.noStroke();
-  g.fill('#fff');
-  g.ellipse(0, 0, outerRadius * RADIAL_CENTER_DOT_RATIO, outerRadius * RADIAL_CENTER_DOT_RATIO);
-  g.pop();
-}
+// ── 섹션 3 dev 공용 상수 ───────────────────────────────────
+// 원래 overview "방사형 v2" 셀과 공유하던 값 — v2 셀과 그 전용 코드
+// (drawRadialBurstFlowerV2 / hookArcPoints / strokeHookArc)는 삭제됐고,
+// 지금은 아래 drawRadialBurstFlowerDev("방사형" 셀)에서만 쓴다.
+const RADIAL_V2_ARC_COUNT_MIN = 6; // errorA = 0 일 때 방사형선 개수
+const RADIAL_V2_ARC_COUNT_MAX = 14; // errorA = 1 일 때 방사형선 개수
+const RADIAL_V2_LAYER_RADIUS_RATIO = 0.7; // 두 번째(짧은) 선 길이 = 원래 선 길이 × 이 비율
 
 // ── 섹션 3 dev: 방사형 — 선 끝을 따라가는 원 (overview·archive "방사형") ──
 //
@@ -752,6 +640,163 @@ function drawRadialBurstFlowerDev(
   g.fill(tipColorHex);
   shape.tips.forEach(([x, y]) => {
     g.ellipse(x, y, shape.dotSize, shape.dotSize);
+  });
+
+  g.pop();
+}
+
+// ── 섹션 3 스포크: 방사형 선분 + 끝점 원 (overview "방사형 스포크") ──
+//
+// 중심점 한 곳에서 바깥으로 뻗는 방사형 선분(spoke)과 각 선분 끝의
+// 원(dot)으로만 이루어진 정적 심볼. 선분은 두 세트다:
+//   · 밖지름 세트 — 바깥쪽 선분, N개
+//   · 안지름 세트 — 안쪽 선분, N개(밖지름 선분 사이에 반 칸 어긋나 배치)
+// 노이즈 대신 고정 시드(RADIAL_SPOKE_SEED) 기반이라, 같은 errorA/errorB
+// 값이면 색 배정·지터까지 항상 동일한 형태가 재현된다.
+//
+// 오차율 순으로 나열했을 때 errorA/errorB 가 클수록·작을수록 형태가
+// 한 방향으로 또렷하게 달라지도록, "큰 흐름"은 변수가 잡고 랜덤은 잔결만
+// 담당한다.
+//
+//   errorA → 밖지름 층과 안지름 층이 얼마나 벌어지는지(편차의 크기).
+//            두 층의 중심 반지름을 R×MID 에서 대칭으로 밀고 당긴다.
+//            · errorA ≈ 0 : 두 층이 거의 겹쳐 하나의 고른 방사형(별)처럼
+//            · errorA ≈ 1 : 밖지름은 바깥, 안지름은 중심 가까이로 크게 갈라짐
+//            각 선분이 자기 층 중심에서 ±LEN_JITTER 만큼 벗어나는 건 랜덤
+//            (선분마다 길이가 조금씩 다르되, 벌어짐의 큰 폭은 errorA 가 지배).
+//   errorB → 각 선분의 좌우 이동량.
+//            · errorB = 0 : 지터 0 → 완전히 균등한 기하학적 별(* 모양)
+//            · errorB ↑   : 각 선분이 정위치에서 좌우로 크게 흔들린다(1에
+//              가까우면 이웃 칸을 넘어설 만큼). 이동 폭과 방향은 선분마다
+//              랜덤이지만, 그 최대치는 errorB 가 정한다.
+//   색   → RADIAL_COLOR_PALETTE(5색) 중 무작위 배정(colorSeed 고정).
+//          · 밖지름 선분 = 전부 같은 색 하나, 안지름 선분 = 그와 다른 색 하나
+//          · 끝점 원 = 위 두 선분 색을 뺀 나머지 3색에서 원마다 개별 랜덤
+//
+// 전체 크기는 errorA/errorB 와 무관하게 항상 일정하다(잘림 방지 스케일
+// 없음) — 밖지름 최대치도 캔버스 안에 안전하게 들어오는 값으로 고정.
+//
+const RADIAL_SPOKE_SEED = 20240906; // 이 값을 바꾸면 길이·지터·배색 패턴 전체가 달라진다
+const RADIAL_SPOKE_COUNT = 12; // 한 세트(밖지름/안지름)당 선분 개수
+const RADIAL_SPOKE_MID_RATIO = 0.5; // 두 층의 기준(가운데) 반지름 = R × 이 비율
+const RADIAL_SPOKE_SEPARATION_MIN = 0.05; // errorA=0 일 때 두 층 중심 간 거리 = R × 이 비율
+const RADIAL_SPOKE_SEPARATION_MAX = 0.72; // errorA=1 일 때 두 층 중심 간 거리
+const RADIAL_SPOKE_LEN_JITTER = 0.08; // 선분마다 자기 층 중심에서 ± 이 비율(R) 안에서 랜덤하게 길이 편차
+const RADIAL_SPOKE_ANGLE_JITTER = 1.6; // errorB=1 일 때 선분 최대 이동폭 = (선분 간격 각도) × 이 비율 (1보다 크면 이웃 칸을 넘어설 수 있음)
+const RADIAL_SPOKE_ANGLE_RANGE_MIN = 0.2; // 선분별 이동폭 랜덤 하한(위 최대치 대비 — 선분마다 흔들리는 폭도 제각각)
+const RADIAL_SPOKE_WEIGHT_RATIO = 0.028; // 선분 굵기 = size × 이 비율
+const RADIAL_SPOKE_DOT_RATIO = 0.15; // 끝점 원 지름 = R × 이 비율
+
+// mulberry32 — 시드 하나로 결정적인 0~1 난수열을 만드는 작은 PRNG.
+// p5의 전역 random()/randomSeed()를 쓰면 이 함수가 전역 난수 상태를
+// 리셋해서 generateErrorData()·rerollRadialColors() 같은 다른 곳의
+// 난수까지 고정돼 버리므로(= [랜덤 생성]이 한 번만 먹는 버그), 여기서는
+// 전역을 전혀 건드리지 않는 로컬 RNG를 쓴다.
+function makeRadialSpokeRng(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// size 기준으로 선분 두 세트의 각도·길이·색, 굵기, 끝점 원 크기를 계산해서
+// 반환한다(그리지 않음). 모든 선분은 원점(0,0)에서 시작한다.
+// 형태(각도·길이·지터)는 고정 시드(RADIAL_SPOKE_SEED)라 errorA/errorB 가
+// 같으면 항상 동일하고, 색만 별도 colorSeed 를 따른다 — 호출부에서
+// [랜덤 생성] 때만 새 colorSeed 를 넘기면 슬라이더·리사이즈에는 색이
+// 안 바뀌고 버튼에만 바뀐다. colorSeed 를 안 주면 형태 시드와 동일.
+//
+// outerGrow/innerGrow (기본 1) — 밖지름·안지름 세트의 선분 길이에 각각
+// 곱하는 배율. 폭죽처럼 터지는 등장 애니메이션에서 0(중심에 뭉침)→1(제
+// 크기)로 따로 키우려고 archive 에서 넘긴다. RNG 소비량에는 영향이 없어
+// (길이 계산 마지막에 곱하기만 함) 색·지터·각도는 배율과 무관하게 고정.
+function buildRadialSpokeGeometry(
+  size,
+  errorA,
+  errorB,
+  colorSeed = RADIAL_SPOKE_SEED,
+  outerGrow = 1,
+  innerGrow = 1
+) {
+  const rnd = makeRadialSpokeRng(RADIAL_SPOKE_SEED);
+  const colorRnd = makeRadialSpokeRng(colorSeed);
+  const R = size * RADIAL_RADIUS_RATIO;
+  const step = TWO_PI / RADIAL_SPOKE_COUNT;
+  const jitterMax = errorB * step * RADIAL_SPOKE_ANGLE_JITTER;
+
+  // errorA — 두 층 중심 반지름을 MID 에서 대칭으로 벌린다(편차의 큰 폭).
+  const separation = lerp(RADIAL_SPOKE_SEPARATION_MIN, RADIAL_SPOKE_SEPARATION_MAX, errorA);
+  const outerCenter = RADIAL_SPOKE_MID_RATIO + separation / 2;
+  const innerCenter = RADIAL_SPOKE_MID_RATIO - separation / 2;
+
+  const pick = (pool) => pool[Math.floor(colorRnd() * pool.length)];
+
+  // 색 배정 순서:
+  //  1) 밖지름 선분 색 — 팔레트 5색 중 하나
+  //  2) 안지름 선분 색 — 밖지름 색을 뺀 4색 중 하나(두 세트 색은 절대 안 겹침)
+  //  3) 끝점 원 색 — 위 두 선분 색을 뺀 나머지 3색 중에서 원마다 개별 랜덤
+  const outerLineColor = pick(RADIAL_COLOR_PALETTE);
+  const innerLineColor = pick(RADIAL_COLOR_PALETTE.filter((c) => c !== outerLineColor));
+  const dotOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== outerLineColor && c !== innerLineColor);
+
+  // 세트 하나당 선분 색은 lineColor 로 통일, 끝점 원은 dotOptions 에서
+  // 원마다 랜덤. centerRatio 는 이 층의 중심 반지름 비율(errorA 로 결정),
+  // 각 선분 길이는 거기서 ±LEN_JITTER 안에서만 랜덤(잔결). baseOffset 은
+  // 세트 전체를 반 칸 돌리는 값(안지름 세트를 밖지름 선분 사이에 끼움).
+  const makeSet = (centerRatio, baseOffset, lineColor, grow) => {
+    const arr = [];
+    for (let i = 0; i < RADIAL_SPOKE_COUNT; i++) {
+      const len = R * (centerRatio + (rnd() * 2 - 1) * RADIAL_SPOKE_LEN_JITTER) * grow;
+      const base = -HALF_PI + (i + baseOffset) * step;
+      // 이 선분이 흔들릴 수 있는 최대 폭도 선분마다 랜덤(RANGE_MIN~1),
+      // 그 안에서 실제 좌우 이동은 또 랜덤. errorB=0 이면 전부 0.
+      const spokeJitter = jitterMax * lerp(RADIAL_SPOKE_ANGLE_RANGE_MIN, 1, rnd());
+      const angle = base + (rnd() * 2 - 1) * spokeJitter;
+      // grow 는 이 세트의 등장 배율(0~1). 그릴 때 grow<=0 이면 통째로 건너뛰어
+      // 아무것도 안 보이게 하고, 끝점 원 크기도 grow 에 비례시킨다.
+      arr.push({ angle, len, lineColor, dotColor: pick(dotOptions), grow });
+    }
+    return arr;
+  };
+
+  const spokes = [
+    ...makeSet(outerCenter, 0, outerLineColor, outerGrow),
+    ...makeSet(innerCenter, 0.5, innerLineColor, innerGrow),
+  ];
+  const weight = Math.max(1, size * RADIAL_SPOKE_WEIGHT_RATIO);
+  const dotSize = R * RADIAL_SPOKE_DOT_RATIO;
+  return { spokes, weight, dotSize };
+}
+
+function drawRadialSpokeDots(g, cx, cy, size, errorA, errorB, colorSeed, outerGrow = 1, innerGrow = 1) {
+  // 크기 보정(스케일) 없이 size 그대로 한 번만 계산 — errorA/errorB 를
+  // 어떻게 바꿔도 전체 크기는 일정하게 유지된다. outerGrow/innerGrow 는
+  // 등장 애니메이션용 세트별 길이 배율(기본 1).
+  const shape = buildRadialSpokeGeometry(size, errorA, errorB, colorSeed, outerGrow, innerGrow);
+
+  g.push();
+  g.translate(cx, cy);
+  g.strokeCap(ROUND);
+
+  // 방사형 선분 — 전부 중앙(0,0)에서 시작. grow<=0(아직 안 터진 세트)은
+  // 건너뛴다 — 길이 0 선분이 ROUND 캡 때문에 중앙에 점처럼 남는 것 방지.
+  shape.spokes.forEach((s) => {
+    if (s.grow <= 0) return;
+    g.stroke(s.lineColor);
+    g.strokeWeight(shape.weight);
+    g.line(0, 0, cos(s.angle) * s.len, sin(s.angle) * s.len);
+  });
+
+  // 각 선분 끝의 원 — 크기도 grow 에 비례(터지면서 같이 커짐).
+  g.noStroke();
+  shape.spokes.forEach((s) => {
+    if (s.grow <= 0) return;
+    g.fill(s.dotColor);
+    const d = shape.dotSize * s.grow;
+    g.ellipse(cos(s.angle) * s.len, sin(s.angle) * s.len, d, d);
   });
 
   g.pop();

@@ -135,10 +135,11 @@ body {
   width: 100%;
   align-content: start;
   overflow-y: auto;
-  transition: background 0.15s;
+  /* 그리드 영역 배경은 항상 검게 (셀 사이 간격·캔버스 로드 전에도 검게).
+     transition을 두면 첫 로드 때 흰색→검정으로 페이드돼서 넣지 않는다. */
+  background: #000;
 }
 
-/* 1번(방사형) 탭 그리드 영역 배경을 검게 (셀 사이 간격도 검게 보이도록) */
 #canvas-holder.bg-dark {
   background: #000;
 }
