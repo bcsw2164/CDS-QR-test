@@ -92,28 +92,12 @@ body {
   color: #fff;
 }
 
-/* TEMP — 나중에 삭제 예정. 러프하게 얹어둔 링크. */
-#overview-fab {
-  position: fixed;
-  right: 16px;
-  bottom: 70px;
-  z-index: 50;
-  padding: 8px 14px;
-  background: #fff;
-  border: 2px solid #111;
-  color: #111;
-  font-family: 'Pretendard', sans-serif;
-  font-weight: 700;
-  font-size: 13px;
-  text-decoration: none;
-}
-
 /* 비하인드 — 스크롤과 무관하게 항상 우측 하단에 떠 있는 버튼.
    채움 없이 테두리만 있는 스타일. */
 #behind-fab {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: 28px;
+  bottom: 20px;
   z-index: 50;
   padding: clamp(8px, 1.4vmin, 12px) clamp(14px, 2.8vmin, 20px);
   background: transparent;
