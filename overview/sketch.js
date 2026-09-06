@@ -25,10 +25,16 @@ const MIN_CELL_SIZE = 120; // 셀이 이보다 작아지지 않도록 하는 하
 const SERIES = [
   { shape: 'radial', label: '방사형' },
   { shape: 'radial-spokes', label: '방사형 스포크' },
+  { shape: 'watercolor', label: '수채화' },
+  { shape: 'watercolor-flower', label: '수채화 꽃' },
 ];
 
 let eA = 0.3;
 let eB = 0.3;
+
+// "수채화" 셀을 채워진 덩어리 대신 "보이지 않는 점" 시각화로 그릴지 여부.
+// [점 보기] 버튼으로 토글.
+let showWatercolorPoints = false;
 
 // 방사형(3번) 선·점 색 — 오차 데이터와 무관하게 무작위로 뽑고, 슬라이더를
 // 움직일 때마다 바뀌면 산만하니 [랜덤 생성] 버튼을 누를 때만 새로 뽑는다.
@@ -42,6 +48,17 @@ let radialTipColor;
 // 선분 두 세트 색·끝점 원 색만 이 시드를 따른다. [랜덤 생성] 때만 새로 뽑아서
 // 슬라이더·리사이즈에는 색이 유지되고 버튼에만 바뀌게 한다.
 let radialSpokeColorSeed;
+// "수채화" 셀 전용 색 시드 — 두 색 선택만 이 시드를 따른다. [랜덤 생성]
+// 때만 갱신되어 슬라이더·리사이즈에는 색이 유지된다.
+let watercolorColorSeed;
+// "수채화" 셀 전용 형태 시드 — 덩어리 윤곽의 성격(혹 개수·방향)을 정한다.
+// [랜덤 생성] 때마다 새 값 → 매번 다른 유기적 형태. errorA 는 그 편차의
+// 세기만 키운다(0=정원).
+let watercolorShapeSeed;
+// "수채화 꽃" 셀 전용 색·형태 시드 — 색: 꽃잎색·암술색(서로 다른 2색),
+// 형태: 꽃잎 윤곽 + 암술이 벗어나는 방향. [랜덤 생성] 때만 갱신.
+let flowerColorSeed;
+let flowerShapeSeed;
 
 function rerollRadialColors() {
   const { lineColor, dotColor } = pickRadialColors();
@@ -50,6 +67,10 @@ function rerollRadialColors() {
   const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
   radialTipColor = tipOptions[Math.floor(random(tipOptions.length))];
   radialSpokeColorSeed = Math.floor(random(1e9));
+  watercolorColorSeed = Math.floor(random(1e9));
+  watercolorShapeSeed = Math.floor(random(1e9));
+  flowerColorSeed = Math.floor(random(1e9));
+  flowerShapeSeed = Math.floor(random(1e9));
 }
 
 // shape → p5.Graphics 버퍼
@@ -68,6 +89,10 @@ function drawSeries(shape, g, cx, cy, size) {
     drawRadialBurstFlowerDev(g, cx, cy, size, eA, eB, radialLineColor, radialDotColor, radialTipColor, true);
   } else if (shape === 'radial-spokes') {
     drawRadialSpokeDots(g, cx, cy, size, eA, eB, radialSpokeColorSeed);
+  } else if (shape === 'watercolor') {
+    drawWatercolorBlob(g, cx, cy, size, eA, eB, watercolorColorSeed, showWatercolorPoints, watercolorShapeSeed);
+  } else if (shape === 'watercolor-flower') {
+    drawPistilFlower(g, cx, cy, size, eA, eB, flowerColorSeed, flowerShapeSeed);
   }
 }
 
@@ -139,6 +164,12 @@ function setup() {
   document.getElementById('btnRegen').addEventListener('click', () => {
     applyErrorData(generateErrorData());
     rerollRadialColors();
+    renderAll();
+  });
+  const btnPoints = document.getElementById('btnPoints');
+  btnPoints.addEventListener('click', () => {
+    showWatercolorPoints = !showWatercolorPoints;
+    btnPoints.textContent = showWatercolorPoints ? '덩어리 보기' : '점 보기';
     renderAll();
   });
   document.getElementById('btnSave').addEventListener('click', saveImgs);

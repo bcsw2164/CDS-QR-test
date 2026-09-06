@@ -21,6 +21,13 @@
        아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 1번과
        동일하게 검게. 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이
        한 번 재생되고(아래 "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다.
+     3 수채화 꽃 — core.js의 drawPistilFlower. overview의 "수채화 꽃"
+       셀과 동일한 그래픽(유기적 꽃잎 덩어리 + 위에 얹힌 다른 색 암술).
+       아이템마다 색 시드(colorSeed: 꽃잎색·암술색)와 형태 시드
+       (shapeSeed: 꽃잎 윤곽·암술 이탈 방향)를 한 번 뽑아 고정한다.
+       errorA = 꽃잎 일그러짐, errorB = 암술이 중심에서 벗어난 거리.
+       배경은 흰색이고, 애니메이션은 없다(정적). drawPistilFlower 는 겹겹
+       blur 필터라 무거워서 매 프레임 다시 그리지 않는다 — 첫 렌더 한 번뿐.
 
    폭죽 등장 애니메이션 — 2번 탭 버튼(또는 스포크 탭에서 정렬 변경)을
    누르면 buildGridView(true)가 첫 렌더 시점을 t=0으로 잡고,
@@ -61,11 +68,12 @@ const SPOKE_BURST_DURATION = 0.5; // 한 세트가 0→제 크기까지 걸리�
 const SPOKE_BURST_SET_DELAY = 0.18; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
 const SPOKE_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
 
-let currentShape = 'radial'; // 'radial' | 'radial-spokes'
+let currentShape = 'radial'; // 'radial' | 'radial-spokes' | 'watercolor-flower'
 let sortMode = 'collected'; // 'collected' | 'error'
 
 let radialItems = [];
 let spokeItems = [];
+let pistilItems = [];
 
 // 스포크 등장 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
 let spokeBurstStart = null;
@@ -137,8 +145,22 @@ function generateSpokeItems() {
   return list;
 }
 
+// 수채화 꽃(3번) 전용 — generateFlowerItems()에 색 시드·형태 시드를 더한다.
+// drawPistilFlower는 colorSeed로 꽃잎색·암술색(서로 다른 2색)을, shapeSeed로
+// 꽃잎 윤곽과 암술이 벗어나는 방향을 정한다. 아이템마다 한 번만 뽑아 고정.
+function generatePistilItems() {
+  const list = generateFlowerItems();
+  list.forEach((item) => {
+    item.colorSeed = Math.floor(random(1e9));
+    item.shapeSeed = Math.floor(random(1e9));
+  });
+  return list;
+}
+
 function currentItems() {
-  return currentShape === 'radial-spokes' ? spokeItems : radialItems;
+  if (currentShape === 'radial-spokes') return spokeItems;
+  if (currentShape === 'watercolor-flower') return pistilItems;
+  return radialItems;
 }
 
 // 현재 sortMode('collected' | 'error')에 따라 그릴 순서(currentItems() 인덱스 목록)를 반환
@@ -156,6 +178,11 @@ function getDisplayOrder() {
 // (디벨롭 버전, 두 번째 선이 좌우반전으로 마는 최종 픽스 모양) —
 // overview의 "방사형" 셀과 동일한 그래픽.
 function drawItem(item, g, cx, cy, size, lineAngleOffset = 0, dotAngleOffset = 0, grow = null) {
+  if (currentShape === 'watercolor-flower') {
+    // 애니메이션 없음 — errorA(꽃잎 일그러짐)/errorB(암술 위치)만 반영.
+    drawPistilFlower(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, item.shapeSeed);
+    return;
+  }
   if (currentShape === 'radial-spokes') {
     // 각도 오프셋(회전)은 안 쓰고, 대신 등장 폭죽 애니메이션의 세트별
     // 길이 배율(grow.outer/grow.inner)을 넘긴다. grow가 null이면 제 크기.
@@ -195,10 +222,11 @@ function renderGridFrame(elapsedSec) {
   const lineAngleOffset = animated ? elapsedSec * RADIAL_ROTATION_SPEED : 0;
   const dotAngleOffset = animated ? elapsedSec * -RADIAL_ROTATION_SPEED : 0;
   const spokesBursting = currentShape === 'radial-spokes' && spokeBurstStart !== null;
+  const bgBri = currentShape === 'watercolor-flower' ? 100 : 0; // 3번 탭만 흰 배경
 
   gridCells.forEach(({ gfx, item, cellSize, size }) => {
-    gfx.background(0, 0, 0); // 두 탭 모두 검은 배경
-    // 아이템마다 burstDelay 가 달라서 서로 다른 시점에 터진다.
+    gfx.background(0, 0, bgBri);
+    // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다(스포크만).
     const grow = spokesBursting ? spokeGrowFactors(elapsedSec, item.burstDelay) : null;
     drawItem(item, gfx, cellSize / 2, cellSize / 2, size, lineAngleOffset, dotAngleOffset, grow);
   });
@@ -222,8 +250,13 @@ function buildGridView(burst = false) {
   holder.innerHTML = '';
   spokeBurstStart = null; // 새 빌드 시 일단 정적으로; 아래 첫 렌더에서 필요하면 켠다
 
-  // 두 탭 모두 그리드 배경을 검게.
-  holder.classList.toggle('bg-dark', true);
+  // 배경 — 1·2번 탭은 검게, 3번(수채화 꽃) 탭은 희게.
+  const lightBg = currentShape === 'watercolor-flower';
+  holder.classList.toggle('bg-dark', !lightBg);
+  holder.classList.toggle('bg-light', lightBg);
+  // body 밖(#canvas-holder 형제)에 떠 있는 FAB 버튼 색을 배경에 맞추기 위한 플래그.
+  document.body.classList.toggle('view-dark', !lightBg);
+  document.body.classList.toggle('view-light', lightBg);
 
   const order = getDisplayOrder();
   const items = currentItems();
@@ -272,13 +305,46 @@ function buildGridView(burst = false) {
 
 // ── 그래픽 클릭 → 상세 오버레이(QR + 이름) ─────────────────────
 //
-// 아직 그래픽↔사람 매칭 데이터가 없어서, 지금은 어떤 셀을 클릭해도
-// 동일한 자리표시자(placeholder) 이미지·이름을 보여준다. 실제 데이터가
-// 모이면 itemId로 조회해서 이 부분만 교체하면 된다.
+// 아직 그래픽↔사람 매칭 데이터가 없어서, 지금은 itemId를 그대로
+// QR 이미지 번호에 대응시킨다. 수집된 QR 이미지(QR_IMAGE_COUNT장)보다
+// 오브젝트(ITEM_COUNT개)가 많으므로, 이미지가 끝나면 1번으로 돌아가
+// 순환(모듈러)한다. 실제 매칭 데이터가 모이면 이 부분만 교체하면 된다.
 //
+const QR_IMAGE_COUNT = 87; // images/qr/qr_final_001.jpg ~ qr_final_087.jpg
+
+// qr_name.json(프로젝트 루트) 에서 qr 번호 → 이름 매핑을 읽어둔다.
+// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~87 번만 쓴다.
+// '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
+let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
+
+function loadQrNames() {
+  fetch('../qr_name.json')
+    .then((res) => res.json())
+    .then((list) => {
+      list.forEach((row) => {
+        const m = String(row.qr_nnn || '').match(/(\d+)$/);
+        if (!m) return;
+        const n = Number(m[1]);
+        if (n >= 1 && n <= QR_IMAGE_COUNT && row['이름']) qrNames[n] = row['이름'];
+      });
+    })
+    .catch(() => {});
+}
+
+// itemId(1..ITEM_COUNT) 를 QR 번호(1..QR_IMAGE_COUNT)로 순환시켜 준다.
+function qrIndexOf(itemId) {
+  return ((Number(itemId) - 1) % QR_IMAGE_COUNT) + 1;
+}
+
+function qrImagePath(itemId) {
+  const n = qrIndexOf(itemId);
+  return `images/qr/qr_final_${String(n).padStart(3, '0')}.jpg`;
+}
+
 function openDetailOverlay(itemId) {
-  document.getElementById('detail-qr').src = 'images/sample-qr.jpg';
-  document.getElementById('detail-name').textContent = '정솔하';
+  const n = qrIndexOf(itemId);
+  document.getElementById('detail-qr').src = qrImagePath(itemId);
+  document.getElementById('detail-name').textContent = qrNames[n] || '익명';
   document.getElementById('detail-overlay').classList.add('open');
 }
 
@@ -291,8 +357,11 @@ function setup() {
   colorMode(HSB, 360, 100, 100);
   frameRate(30); // 회전 애니메이션용 — 아이템이 많아 매 프레임 다시 그리는 비용을 아낌
 
+  loadQrNames(); // qr 번호 → 이름 매핑을 비동기로 읽어둔다(클릭 시점에만 필요)
+
   radialItems = generateRadialItems();
   spokeItems = generateSpokeItems();
+  pistilItems = generatePistilItems();
 
   const shapeButtons = document.querySelectorAll('.shape-btn');
   shapeButtons.forEach((btn) => {
@@ -339,6 +408,7 @@ function windowResized() {
 //  · 1번(방사형) : 회전 애니메이션 때문에 매 프레임 다시 그린다.
 //  · 2번(스포크) : 평소엔 정적. 폭죽 등장 애니메이션 중(spokeBurstStart !==
 //    null)에만 매 프레임 다시 그리고, 두 세트가 다 커지면 멈춘다.
+//  · 3번(수채화 꽃) : 항상 정적 — buildGridView의 첫 렌더 이후 다시 안 그린다.
 function draw() {
   if (gridCells.length === 0) return;
 

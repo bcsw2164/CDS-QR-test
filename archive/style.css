@@ -116,11 +116,25 @@ body {
   font-weight: 900;
   font-size: clamp(18px, 2.8vmin, 24px);
   text-decoration: none;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 #behind-fab:hover {
   background: rgba(0, 0, 0, 0.06);
+}
+
+/* 탭 1·2(검은 배경)에서는 버튼을 흰색으로. sketch.js가 body에 view-dark/
+   view-light 클래스를 토글한다. */
+body.view-dark #behind-fab {
+  border-color: #fff;
+  color: #fff;
+}
+
+body.view-dark #behind-fab:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* 수집순 / 오차율순 — 실제 CSS Grid. 열 수는 화면 너비에 맞춰
@@ -142,6 +156,11 @@ body {
 
 #canvas-holder.bg-dark {
   background: #000;
+}
+
+/* 3번(수채화 꽃) 탭 — 흰 배경 */
+#canvas-holder.bg-light {
+  background: #fff;
 }
 
 .archive-cell {

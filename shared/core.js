@@ -771,6 +771,372 @@ function buildRadialSpokeGeometry(
   return { spokes, weight, dotSize };
 }
 
+// ── 섹션 4: 수채화 번짐 덩어리 (overview "수채화") ──
+//
+// 방사형 스포크가 "밖지름/안지름 두 층의 반지름이 벌어지며" 유기적인
+// 형태를 만든 것과 같은 원리다. 다만 여기서는 보이지 않는 점(윤곽선
+// 표본)을 훨씬 촘촘하게(BLOB_CONTOUR_STEPS) 깔고, 살짝 크기·위치가
+// 어긋난 반투명 덩어리 레이어를 여러 장(BLOB_LAYERS) multiply 로 겹쳐
+// 쌓아서, 개별 점이 아니라 하나의 수채화처럼 번지는 덩어리로 보이게
+// 한다. 안쪽은 모든 레이어가 겹쳐 진하고 가장자리는 큰 레이어만 닿아
+// 옅게 → 물감이 번진 듯한 명암이 저절로 생긴다.
+//
+// 덩어리 윤곽의 "성격"(혹이 몇 개고 어느 방향이 튀어나오는지)은
+// shapeSeed 를 따른다 — 호출부에서 [랜덤 생성] 때 새 shapeSeed 를 넘기면
+// 매번 다른 덩어리 모양이 나오고, 슬라이더·리사이즈에는 유지된다.
+// shapeSeed 를 안 주면 BLOB_SEED 로 고정(재현 가능). 색은 별도 colorSeed.
+//
+//   errorA → 정원에서 얼마나 벗어나는지(편차의 크기). 0 이면 완벽한
+//            원, 1 에 가까울수록 윤곽 각 지점의 편차가 커진다. 편차는
+//            둘레 노드(8~18개)마다 방향·세기가 제각각인 랜덤값을 매끈
+//            하게 이은 것이라(사인 하모닉이 아님), 특정한 대칭 형태로
+//            뭉치지 않고 지점마다 불규칙하게 달라진다 — errorB 가 만드는
+//            정점 잔결과 성격이 같고, 스케일만 더 크다. 어느 노드가
+//            얼마나 튀는지는 shapeSeed 가 정하고 errorA 는 세기만 키운다.
+//   errorB → 윤곽의 고주파 거칠기(가장자리가 삐죽삐죽 터지는 정도)와
+//            레이어별 번짐 흔들림. 0 이면 매끈한 덩어리, 1 이면
+//            사방으로 튀는 거친 수채 얼룩.
+//   색     → 아래 BLOB_USE_MULTIPLY 로 두 방식 중 선택.
+//            · true  — multiply 블렌드. 팔레트 5색 중 2색만 골라 레이어·
+//              알갱이마다 두 색 사이를 보간. 겹칠수록 어두워져 물감처럼
+//              깊이가 생기지만, 색을 많이 섞으면 탁해지므로 2색 고정.
+//            · false — 일반(source-over) 블렌드. 팔레트 5색을 다 쓴다:
+//              레이어마다 대표색 1개(BLOB_DOMINANT_RATIO 확률) 또는
+//              나머지 팔레트에서 랜덤 accent. 겹쳐도 안 탁해지는 대신
+//              multiply 같은 자동 명암이 없어서, 안쪽 레이어를 더
+//              불투명하게(BLOB_LAYER_ALPHA × 스케일 보정) 만들어 깊이를
+//              낸다. multiply 처럼 겹을 많이 쌓을 필요가 없어 레이어 수
+//              (BLOB_LAYERS)를 절반으로 줄인다.
+//
+// 전체 크기는 errorA/errorB 와 무관하게 항상 캔버스에 꽉 맞는다 —
+// 실제 윤곽 최대 반지름을 재서 size/2 에 맞춰 스케일(fitR)하기 때문.
+//
+const BLOB_USE_MULTIPLY = false; // true = multiply·2색, false = 일반 블렌드·팔레트 5색
+const BLOB_RADIUS_RATIO = 0.5; // 목표 반지름 = size × 이 비율 (fitScale 기준)
+const BLOB_CONTOUR_STEPS = 144; // 윤곽선 각도 분할 수(보이지 않는 점)
+const BLOB_LAYERS = BLOB_USE_MULTIPLY ? 26 : 13; // 겹쳐 쌓는 반투명 덩어리 레이어 수
+const BLOB_LAYER_ALPHA = BLOB_USE_MULTIPLY ? 0.07 : 0.16; // 레이어 한 장 채움 투명도(0~1)
+const BLOB_DOMINANT_RATIO = 0.62; // (일반 블렌드) 레이어가 대표색을 쓸 확률 — 나머지는 팔레트 랜덤
+const BLOB_SPECKLE_COUNT = BLOB_USE_MULTIPLY ? 240 : 170; // 번짐 알갱이 점 개수
+const BLOB_SPECKLE_ALPHA = BLOB_USE_MULTIPLY ? 0.1 : 0.14; // 알갱이 한 개 투명도(0~1)
+const BLOB_LOBE_MIN = 0.0; // errorA=0 일 때 윤곽 편차 → 완벽한 원
+const BLOB_LOBE_MAX = 0.52; // errorA=1 일 때 윤곽 편차의 큰 폭
+const BLOB_RAGGED_MIN = 0.0; // errorB=0 일 때 고주파(삐죽삐죽) 진폭
+const BLOB_RAGGED_MAX = 0.26; // errorB=1 일 때 고주파 진폭
+const BLOB_LOBE_NODES_MIN = 8; // errorA 편차를 만드는 둘레 노드 최소 개수(시드마다 랜덤)
+const BLOB_LOBE_NODES_MAX = 18; // 노드 최대 개수 — 많을수록 굴곡이 잘게 불규칙
+const BLOB_SEED = 20240906; // shapeSeed 를 안 넘겼을 때 쓰는 기본(재현용) 시드
+
+// 캣멀롬 스플라인 보간 — 노드 4개(p0..p3) 사이 t(0~1) 지점 값을 매끈하게
+// 잇는다. 사인 하모닉과 달리 "몇 번 파동"이라는 규칙이 없어서, 노드마다
+// 제각각인 랜덤 편차가 특정한 대칭 형태로 뭉치지 않고 불규칙하게 이어진다.
+function catmullRom(p0, p1, p2, p3, t) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+  );
+}
+
+// 각도별 윤곽 반지름 배열(1 을 기준으로 한 배수)을 계산한다.
+//
+//   errorA 편차(lobeAmp) — 둘레를 nodeCount(8~18)개로 나눠, 노드마다
+//     방향·세기가 전부 제각각인 랜덤 편차를 두고 캣멀롬으로 매끈하게
+//     보간한다. 사인 하모닉("N번 파동")이 아니라서 3-로브 트레포일 같은
+//     "특정한 형태"로 뭉치지 않고, 크고 작은 굴곡이 둘레를 따라 불규칙
+//     하게 섞인다 — errorB(삐죽삐죽)가 만드는 편차처럼 지점마다 편차가
+//     크다. 다만 errorB 는 정점 단위 잔결, 이쪽은 그보다 큰 스케일의
+//     매끈한 굴곡.
+//   errorB 편차(raggedAmp) — 각도마다 랜덤값을 한 번 이웃 평균해서 살짝
+//     이은 것(삐죽삐죽한 가장자리).
+//
+// seed·errorA·errorB 가 같으면 항상 같은 윤곽.
+function buildBlobContour(steps, seed, lobeAmp, raggedAmp) {
+  const rnd = makeRadialSpokeRng(seed);
+
+  // errorA 편차용 둘레 노드 — 편차 방향(부호)·세기(0.15~1.0 배)를 노드마다
+  // 따로 뽑아, 어떤 구간은 크게 튀어나오고 어떤 구간은 거의 안 움직인다.
+  const nodeCount =
+    BLOB_LOBE_NODES_MIN + Math.floor(rnd() * (BLOB_LOBE_NODES_MAX - BLOB_LOBE_NODES_MIN + 1));
+  const nodes = [];
+  for (let k = 0; k < nodeCount; k++) {
+    nodes.push((rnd() * 2 - 1) * (0.15 + rnd() * 0.85));
+  }
+
+  // errorB 편차용 정점 단위 잔결 — 랜덤값 이웃 평균 1회.
+  const raw = [];
+  for (let i = 0; i < steps; i++) raw.push(rnd() * 2 - 1);
+  const spikes = raw.map((v, i) => {
+    const a = raw[(i - 1 + steps) % steps];
+    const b = raw[(i + 1) % steps];
+    return (a + v * 2 + b) / 4;
+  });
+
+  const radii = [];
+  for (let i = 0; i < steps; i++) {
+    const f = (i / steps) * nodeCount;
+    const j = Math.floor(f);
+    const frac = f - j;
+    const p0 = nodes[(j - 1 + nodeCount) % nodeCount];
+    const p1 = nodes[j % nodeCount];
+    const p2 = nodes[(j + 1) % nodeCount];
+    const p3 = nodes[(j + 2) % nodeCount];
+    const lobe = catmullRom(p0, p1, p2, p3, frac); // 대략 -1~1 (오버슈트 가능)
+    radii.push(Math.max(0.15, 1 + lobe * lobeAmp + spikes[i] * raggedAmp));
+  }
+  return radii;
+}
+
+// showPoints = true 면 반투명 덩어리 대신, 그 덩어리를 이루는 "보이지
+// 않는 점"(레이어별 윤곽 정점 26×144개 + 번짐 알갱이 중심 240개)을
+// 전부 작은 점으로 찍어 보여준다. multiply·blur 없이 크리스프하게 그리되,
+// 점 하나하나는 옅은 알파라 겹치는 곳일수록 진해져 덩어리의 밀도 분포가
+// 그대로 드러난다. 형태 계산(레이어 스케일·회전·드리프트·지터·RNG 소비
+// 순서)은 일반 렌더와 완전히 동일하다.
+function drawWatercolorBlob(
+  g,
+  cx,
+  cy,
+  size,
+  errorA,
+  errorB,
+  colorSeed = BLOB_SEED,
+  showPoints = false,
+  shapeSeed = BLOB_SEED
+) {
+  const lobeAmp = lerp(BLOB_LOBE_MIN, BLOB_LOBE_MAX, errorA);
+  const raggedAmp = lerp(BLOB_RAGGED_MIN, BLOB_RAGGED_MAX, errorB);
+  const steps = BLOB_CONTOUR_STEPS;
+  const radii = buildBlobContour(steps, shapeSeed, lobeAmp, raggedAmp);
+
+  // 잘림 방지 — 실제 윤곽 최대 반지름 배수와 레이어 최대 확대(1.08)를
+  // 감안해서, 덩어리가 정확히 size/2 안에 들어오도록 기준 반지름을 정한다.
+  const maxContour = Math.max(...radii);
+  const fitR = (size * BLOB_RADIUS_RATIO) / (maxContour * 1.08);
+  const jitter = size * 0.012; // 레이어별 윤곽 흔들림(번짐)
+  const drift = size * 0.02 * (0.4 + errorB * 0.6); // 레이어별 위치 어긋남
+
+  // 색 — BLOB_USE_MULTIPLY 에 따라 두 방식.
+  //   multiply : 팔레트에서 서로 다른 2색(cA/cB) 보간
+  //   일반     : 대표색 1개(dominantHex) + 나머지 팔레트에서 랜덤 accent
+  const colorRnd = makeRadialSpokeRng(colorSeed);
+  let cA, cB, dominantHex;
+  if (BLOB_USE_MULTIPLY) {
+    const ci = Math.floor(colorRnd() * RADIAL_COLOR_PALETTE.length);
+    let cj = Math.floor(colorRnd() * (RADIAL_COLOR_PALETTE.length - 1));
+    if (cj >= ci) cj += 1;
+    cA = g.color(RADIAL_COLOR_PALETTE[ci]);
+    cB = g.color(RADIAL_COLOR_PALETTE[cj]);
+  } else {
+    dominantHex = RADIAL_COLOR_PALETTE[Math.floor(colorRnd() * RADIAL_COLOR_PALETTE.length)];
+  }
+  // 레이어/알갱이 색 하나를 뽑는다. r, r2 는 그 요소의 RNG 값 두 개.
+  const pickBlobColor = (r, r2) =>
+    BLOB_USE_MULTIPLY
+      ? g.lerpColor(cA, cB, r)
+      : g.color(
+          r < BLOB_DOMINANT_RATIO
+            ? dominantHex
+            : RADIAL_COLOR_PALETTE[Math.floor(r2 * RADIAL_COLOR_PALETTE.length)]
+        );
+
+  g.push();
+  g.translate(cx, cy);
+  g.noStroke();
+
+  const ctx = g.drawingContext;
+  ctx.save();
+  if (!showPoints) {
+    if (BLOB_USE_MULTIPLY) ctx.globalCompositeOperation = 'multiply'; // 겹칠수록 진해지는 물감 혼합
+    ctx.filter = `blur(${Math.max(0.5, size * 0.006)}px)`; // 부드러운 번짐 가장자리
+  }
+  const ptD = Math.max(1, size * 0.007); // showPoints 모드의 점 지름
+
+  for (let L = 0; L < BLOB_LAYERS; L++) {
+    const lr = makeRadialSpokeRng((colorSeed ^ 0x9e3779b9) + L * 0x85ebca6b);
+    // 대부분 작게, 일부만 크게 → 안쪽이 진하고 바깥은 옅게 쌓인다.
+    const layerScale = 0.5 + 0.58 * Math.pow(lr(), 0.7); // 0.5 ~ 1.08
+    const rot = (lr() * 2 - 1) * 0.2;
+    const ox = (lr() * 2 - 1) * drift;
+    const oy = (lr() * 2 - 1) * drift;
+
+    const jr = [];
+    for (let i = 0; i < steps; i++) {
+      jr.push(fitR * layerScale * radii[i] + (lr() * 2 - 1) * jitter);
+    }
+
+    const layerColor = pickBlobColor(lr(), lr());
+    // multiply : 레이어마다 알파를 무작위로 흔든다.
+    // 일반     : 안쪽(작은 layerScale) 레이어일수록 불투명 → 자동 명암 대체.
+    const layerAlpha = BLOB_USE_MULTIPLY
+      ? BLOB_LAYER_ALPHA * (0.6 + lr() * 0.8)
+      : BLOB_LAYER_ALPHA * map(layerScale, 0.5, 1.08, 1.3, 0.5);
+
+    if (showPoints) {
+      // 이 레이어의 윤곽 정점 144개를 점으로 찍는다.
+      g.noStroke();
+      g.fill(layerColor);
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < steps; i++) {
+        const th = (i / steps) * TWO_PI + rot;
+        g.ellipse(Math.cos(th) * jr[i] + ox, Math.sin(th) * jr[i] + oy, ptD, ptD);
+      }
+      continue;
+    }
+
+    ctx.globalAlpha = layerAlpha;
+    g.fill(layerColor);
+    g.beginShape();
+    for (let i = -1; i <= steps + 1; i++) {
+      const idx = ((i % steps) + steps) % steps;
+      const th = (idx / steps) * TWO_PI + rot;
+      g.curveVertex(Math.cos(th) * jr[idx] + ox, Math.sin(th) * jr[idx] + oy);
+    }
+    g.endShape(CLOSE);
+  }
+
+  // 번짐 알갱이 — 가장자리에 몰리게(바깥 비율 편향) 뿌려서, 물감이
+  // 종이에 스며 튄 잔결을 만든다. 일부는 윤곽 밖으로도 살짝 튄다.
+  const sp = makeRadialSpokeRng(colorSeed + 0x77777);
+  if (!showPoints) ctx.filter = `blur(${Math.max(0.5, size * 0.003)}px)`;
+  for (let s = 0; s < BLOB_SPECKLE_COUNT; s++) {
+    const th = sp() * TWO_PI;
+    const idx = Math.floor((th / TWO_PI) * steps) % steps;
+    const edge = fitR * radii[idx];
+    const frac = 0.15 + Math.pow(sp(), 0.5) * 1.05; // 0.15 ~ 1.2 (바깥 편향)
+    const rr = edge * frac;
+    const big = Math.pow(sp(), 3); // 큰 알갱이는 드물게
+    const d = showPoints ? ptD : size * (0.004 + big * 0.02);
+    ctx.globalAlpha = showPoints ? 0.55 : BLOB_SPECKLE_ALPHA * (0.5 + sp() * 0.9);
+    g.fill(pickBlobColor(sp(), sp()));
+    g.ellipse(Math.cos(th) * rr, Math.sin(th) * rr, d, d);
+  }
+
+  ctx.restore();
+  g.pop();
+}
+
+// ── 섹션 5: 암술 있는 수채화 꽃 (overview "수채화 꽃") ──
+//
+// 유기적인 꽃잎 덩어리(petal) 위에, 겹치지 않는 다른 팔레트 색의 작은
+// 암술 덩어리(pistil)를 그대로 얹는다. multiply 가 아니라 source-over
+// 라서 아래 꽃잎 색과 섞이지 않고 위에 또렷하게 올라간다. 첨부
+// 레퍼런스(보라/초록 꽃)처럼 꽃잎은 가장자리가 번지고 중앙이 진하며,
+// 중심에 짙은 암술이 박혀 있다. 윤곽은 drawWatercolorBlob 과 같은
+// buildBlobContour 를 쓴다.
+//
+//   errorA → 꽃잎 윤곽의 일그러짐 정도. 0 이면 거의 원, 1 이면 크게
+//            울퉁불퉁해진다(buildBlobContour 의 lobeAmp).
+//   errorB → 암술이 중심에서 벗어난 거리. 0 이면 정중앙, 1 이면 꽃잎
+//            가장자리 가까이까지 치우친다. 벗어나는 방향은 shapeSeed.
+//   색     → RADIAL_COLOR_PALETTE 5색 중 서로 다른 2색(꽃잎색·암술색).
+//            둘 다 colorSeed 를 따르고, 암술이 항상 위에 올라간다.
+//
+// 전체 크기는 errorA/errorB 와 무관하게 캔버스에 꽉 맞는다 — 꽃잎 최대
+// 반경과 (암술 이동 + 암술 반경) 중 큰 쪽을 size/2 에 맞춰 스케일한다.
+//
+const FLOWER_PETAL_RATIO = 0.5; // 꽃잎 목표 반지름 = size × 이 비율(fit 기준)
+const FLOWER_PETAL_LAYERS = 9; // 꽃잎 반투명 겹 수(전부 같은 꽃잎색)
+const FLOWER_PETAL_ALPHA = 0.2; // 꽃잎 한 겹 알파(source-over)
+const FLOWER_PISTIL_RATIO = 0.32; // 암술 반지름 = 꽃잎 기준 반지름 × 이 비율
+const FLOWER_PISTIL_LAYERS = 3; // 암술 겹 수
+const FLOWER_PISTIL_ALPHA = 0.6; // 암술 한 겹 알파(거의 불투명하게 얹힘)
+const FLOWER_LOBE_MIN = 0.04; // errorA=0 일 때 꽃잎 일그러짐
+const FLOWER_LOBE_MAX = 0.5; // errorA=1 일 때 꽃잎 일그러짐
+const FLOWER_OFFSET_MAX_LOWA = 0.34; // errorB=1·errorA=0 일 때 암술 이동(꽃잎 R 비율) — 암술이 커진 만큼 축소
+const FLOWER_OFFSET_MAX_HIGHA = 0.18; // errorA=1(일그러짐 큼)이면 최대 이동을 줄여 꽃잎 밖으로 빠지지 않게
+const FLOWER_SPECKLE_COUNT = 70; // 꽃잎 가장자리 번짐 알갱이 수
+
+// 유기적 덩어리 하나를 반투명 겹으로 쌓아 그린다(전부 같은 색, source-over).
+// 안쪽(작은 스케일) 겹일수록 불투명 → 중앙이 진하고 가장자리는 옅게.
+function paintOrganicBlob(g, ctx, steps, contour, baseR, cx0, cy0, hex, layers, alpha, seedBase, scaleLo, scaleHi) {
+  for (let L = 0; L < layers; L++) {
+    const lr = makeRadialSpokeRng(seedBase + L * 0x85ebca6b);
+    const ls = scaleLo + (scaleHi - scaleLo) * Math.pow(lr(), 0.7);
+    const rot = (lr() * 2 - 1) * 0.25;
+    const jx = (lr() * 2 - 1) * baseR * 0.03;
+    const jy = (lr() * 2 - 1) * baseR * 0.03;
+    const jr = [];
+    for (let i = 0; i < steps; i++) jr.push(baseR * ls * contour[i] + (lr() * 2 - 1) * baseR * 0.02);
+    ctx.globalAlpha = alpha * map(ls, scaleLo, scaleHi, 1.3, 0.5);
+    g.fill(hex);
+    g.beginShape();
+    for (let i = -1; i <= steps + 1; i++) {
+      const idx = ((i % steps) + steps) % steps;
+      const th = (idx / steps) * TWO_PI + rot;
+      g.curveVertex(cx0 + Math.cos(th) * jr[idx] + jx, cy0 + Math.sin(th) * jr[idx] + jy);
+    }
+    g.endShape(CLOSE);
+  }
+}
+
+function drawPistilFlower(g, cx, cy, size, errorA, errorB, colorSeed = BLOB_SEED, shapeSeed = BLOB_SEED) {
+  const steps = BLOB_CONTOUR_STEPS;
+  const lobeAmp = lerp(FLOWER_LOBE_MIN, FLOWER_LOBE_MAX, errorA);
+  const petal = buildBlobContour(steps, shapeSeed, lobeAmp, lerp(0.02, 0.16, errorA));
+  const pistil = buildBlobContour(steps, (shapeSeed ^ 0x5bd1e995) >>> 0, 0.22, 0.06);
+
+  // 암술 이동 — 방향은 shapeSeed 고정, 거리는 errorB. 일그러짐이 크면
+  // 꽃잎 오목한 쪽으로 빠져나갈 수 있어 최대 이동을 줄인다.
+  const dirRnd = makeRadialSpokeRng((shapeSeed + 0x1234) >>> 0);
+  const offAngle = dirRnd() * TWO_PI;
+  const offMaxRatio = errorB * lerp(FLOWER_OFFSET_MAX_LOWA, FLOWER_OFFSET_MAX_HIGHA, errorA);
+
+  // 잘림 방지 스케일
+  const petalMax = Math.max(...petal);
+  const pistilMax = Math.max(...pistil);
+  const petalExtent = petalMax * 1.06;
+  const pistilExtent = offMaxRatio + FLOWER_PISTIL_RATIO * pistilMax * 1.06;
+  const R = (size * FLOWER_PETAL_RATIO) / Math.max(petalExtent, pistilExtent);
+
+  const offDist = offMaxRatio * R;
+  const px = Math.cos(offAngle) * offDist;
+  const py = Math.sin(offAngle) * offDist;
+
+  // 색 — 팔레트에서 서로 다른 2색(꽃잎색·암술색)
+  const colorRnd = makeRadialSpokeRng(colorSeed);
+  const fi = Math.floor(colorRnd() * RADIAL_COLOR_PALETTE.length);
+  let si = Math.floor(colorRnd() * (RADIAL_COLOR_PALETTE.length - 1));
+  if (si >= fi) si += 1;
+  const petalHex = RADIAL_COLOR_PALETTE[fi];
+  const pistilHex = RADIAL_COLOR_PALETTE[si];
+
+  g.push();
+  g.translate(cx, cy);
+  g.noStroke();
+  const ctx = g.drawingContext;
+  ctx.save();
+  // multiply 안 씀 — 암술이 꽃잎 위에 색 그대로 올라간다.
+  ctx.filter = `blur(${Math.max(0.5, size * 0.006)}px)`;
+
+  // 꽃잎
+  paintOrganicBlob(g, ctx, steps, petal, R, 0, 0, petalHex, FLOWER_PETAL_LAYERS, FLOWER_PETAL_ALPHA, (colorSeed ^ 0x9e3779b9) >>> 0, 0.62, 1.05);
+
+  // 꽃잎 가장자리 번짐 알갱이
+  const sp = makeRadialSpokeRng((colorSeed + 0x77777) >>> 0);
+  ctx.filter = `blur(${Math.max(0.5, size * 0.003)}px)`;
+  for (let s = 0; s < FLOWER_SPECKLE_COUNT; s++) {
+    const th = sp() * TWO_PI;
+    const idx = Math.floor((th / TWO_PI) * steps) % steps;
+    const rr = R * petal[idx] * (0.72 + Math.pow(sp(), 0.5) * 0.46);
+    const d = size * (0.004 + Math.pow(sp(), 3) * 0.016);
+    ctx.globalAlpha = FLOWER_PETAL_ALPHA * (0.4 + sp() * 0.7);
+    g.fill(petalHex);
+    g.ellipse(Math.cos(th) * rr, Math.sin(th) * rr, d, d);
+  }
+
+  // 암술 — 위에 그대로
+  ctx.filter = `blur(${Math.max(0.5, size * 0.004)}px)`;
+  paintOrganicBlob(g, ctx, steps, pistil, R * FLOWER_PISTIL_RATIO, px, py, pistilHex, FLOWER_PISTIL_LAYERS, FLOWER_PISTIL_ALPHA, (colorSeed ^ 0x2545f491) >>> 0, 0.7, 1.05);
+
+  ctx.restore();
+  g.pop();
+}
+
 function drawRadialSpokeDots(g, cx, cy, size, errorA, errorB, colorSeed, outerGrow = 1, innerGrow = 1) {
   // 크기 보정(스케일) 없이 size 그대로 한 번만 계산 — errorA/errorB 를
   // 어떻게 바꿔도 전체 크기는 일정하게 유지된다. outerGrow/innerGrow 는
