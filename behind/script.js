@@ -8,7 +8,7 @@
      아래 PHOTO_COUNT를 사진 장수에 맞게 올리면 된다.
    ============================================================ */
 
-const PHOTO_COUNT = 12;
+const PHOTO_COUNT = 17;
 
 function pad2(n) {
   return String(n).padStart(2, '0');

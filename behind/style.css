@@ -83,35 +83,37 @@ body {
   }
 }
 
-/* 참여 사진 그리드 — 화면 너비에 따라 2열(좁은 화면) ~ 4열(넓은 화면) 사이로 반응. */
+/* 참여 사진 그리드 — 화면 너비에 따라 2열(좁은 화면) ~ 4열(넓은 화면) 사이로 반응.
+   flex-wrap + flex-grow 로 구현해서, 사진 수가 열 수로 나눠떨어지지 않아도
+   마지막 줄의 사진들이 남는 폭만큼 늘어나 빈 칸이 생기지 않는다. */
 #photo-holder {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0;
-  padding: 0;
-  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
   align-content: start;
+  width: 100%;
+}
+
+.photo-cell {
+  flex: 1 1 50%;
+  min-width: 0;
+  height: 50vw;
+  overflow: hidden;
+  background: #ddd;
 }
 
 @media (min-width: 600px) {
-  #photo-holder {
-    grid-template-columns: repeat(3, 1fr);
+  .photo-cell {
+    flex-basis: 33.333%;
+    height: 33.333vw;
   }
 }
 
 @media (min-width: 1000px) {
-  #photo-holder {
-    grid-template-columns: repeat(4, 1fr);
+  .photo-cell {
+    flex-basis: 25%;
+    height: 25vw;
   }
-}
-
-.photo-cell {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  min-width: 0;
-  overflow: hidden;
-  background: #ddd;
 }
 
 .photo-cell img {
