@@ -353,11 +353,82 @@ function currentOrderedIds() {
   return getDisplayOrder().map((idx) => items[idx].id);
 }
 
-// itemId 하나의 QR·이름을 오버레이에 채운다(열고 닫기는 건드리지 않음)
+function itemById(id) {
+  return currentItems().find((it) => it.id === Number(id));
+}
+
+// 상세 박스 안에 그려두는 그래픽 오브젝트 버퍼. 열 때마다 새로 만들고
+// 닫을 때/다음 항목으로 넘어갈 때 폐기한다.
+let detailGfx = null;
+// 박스를 클릭할 때마다 카드를 같은 방향으로 180도씩 돌린다(누적 각도).
+// 360의 배수면 오브젝트 면, 360k+180이면 QR 면. 여는 시점은 QR 면.
+let detailFlipAngle = 0;
+
+// 박스 안에 해당 아이템의 그래픽 오브젝트를 정적으로 한 프레임 그린다.
+function renderDetailGraphic(itemId) {
+  const holder = document.getElementById('detail-graphic');
+  if (detailGfx) {
+    detailGfx.remove();
+    detailGfx = null;
+  }
+  holder.innerHTML = '';
+
+  const item = itemById(itemId);
+  if (!item) return;
+
+  const R = 520; // 렌더 해상도(표시는 CSS가 박스 폭에 맞춰 축소)
+  const density = Math.min(window.devicePixelRatio || 1, 2);
+  const g = createGraphics(R, R);
+  g.pixelDensity(density);
+  g.colorMode(HSB, 360, 100, 100);
+  // p5는 캔버스에 인라인 width/height(px)를 박아서 박스를 초과한다.
+  // 컨테이너(#detail-media, QR 이미지와 동일 영역)에 꽉 맞도록 덮어쓴다.
+  g.canvas.style.display = 'block';
+  g.canvas.style.width = '100%';
+  g.canvas.style.height = '100%';
+
+  g.background(0, 0, 100); // 상세 박스 안에서는 탭 1·2·3 모두 흰 배경으로 통일
+
+  const pad = R * CELL_PADDING_RATIO;
+  drawItem(item, g, R / 2, R / 2, R - pad * 2); // 각도 오프셋 0 = 정지 프레임
+
+  holder.appendChild(g.canvas);
+  detailGfx = g;
+}
+
+// 누적 각도를 카드에 적용한다. data-stage 는 참고용(현재 보이는 면).
+function applyDetailFlip() {
+  const media = document.getElementById('detail-media');
+  media.dataset.stage = (detailFlipAngle / 180) % 2 === 0 ? 'graphic' : 'qr';
+  document.getElementById('detail-flipper').style.transform = `rotateY(${detailFlipAngle}deg)`;
+}
+
+// QR 면으로 즉시 맞춘다(오버레이 열 때/항목 이동 시). 트랜지션을 잠깐
+// 꺼서 플립 애니메이션 없이 곧바로 QR 면이 보이게 한다 — 안 그러면
+// 새 항목의 오브젝트가 잠깐 보였다가 QR로 넘어가는 잔상이 생긴다.
+function resetDetailFlip() {
+  const flipper = document.getElementById('detail-flipper');
+  flipper.style.transition = 'none';
+  detailFlipAngle = 180; // QR 면
+  applyDetailFlip();
+  flipper.offsetHeight; // 리플로우 강제 → 이후 클릭부터 다시 트랜지션 적용
+  flipper.style.transition = '';
+}
+
+// 박스 클릭 시 같은 방향으로 한 번 더 뒤집는다.
+function flipDetail() {
+  detailFlipAngle += 180;
+  applyDetailFlip();
+}
+
+// itemId 하나로 오버레이 내용을 채운다 — 그래픽 오브젝트를 먼저 보여주고
+// (stage='graphic'), 이름·QR 이미지는 준비만 해둔다. 열고 닫기는 안 건드림.
 function fillDetail(itemId) {
   const n = qrIndexOf(itemId);
   document.getElementById('detail-qr').src = qrImagePath(itemId);
   document.getElementById('detail-name').textContent = qrNames[n] || '익명';
+  renderDetailGraphic(itemId);
+  resetDetailFlip(); // QR 면부터 시작(클릭 시 한 방향으로 뒤집혀 오브젝트 표시)
 }
 
 function openDetailOverlay(itemId) {
@@ -377,6 +448,10 @@ function stepDetail(dir) {
 
 function closeDetailOverlay() {
   document.getElementById('detail-overlay').classList.remove('open');
+  if (detailGfx) {
+    detailGfx.remove();
+    detailGfx = null;
+  }
 }
 
 // ── p5 setup ────────────────────────────────────────────────
@@ -421,6 +496,13 @@ function setup() {
   // 박스 밖 어두운 배경을 클릭하면 닫힘
   document.getElementById('detail-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'detail-overlay') closeDetailOverlay();
+  });
+
+  // 박스(그래픽/QR 영역)를 클릭하면 같은 방향으로 한 번 뒤집는다.
+  // < , > 버튼 클릭은 제외(각자 핸들러가 처리).
+  document.querySelector('.detail-box').addEventListener('click', (e) => {
+    if (e.target.closest('.detail-nav')) return;
+    flipDetail();
   });
 
   // < , > 버튼 — 이전/다음 사람의 이미지로. 버튼 클릭이 배경 닫기로
