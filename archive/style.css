@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'NEXON Lv2 Gothic';
+  src: url('fonts/NEXONLv2Gothic-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -246,7 +253,8 @@ body.view-dark #behind-fab:hover {
 }
 
 .detail-box p {
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'NEXON Lv2 Gothic', 'Pretendard', sans-serif;
+  font-weight: 500;
   font-size: clamp(18px, 3.6vmin, 28px);
   letter-spacing: 0.06em;
   color: #111;
