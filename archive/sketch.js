@@ -341,11 +341,38 @@ function qrImagePath(itemId) {
   return `images/qr/qr_final_${String(n).padStart(3, '0')}.jpg`;
 }
 
-function openDetailOverlay(itemId) {
+// 상세 오버레이가 < , > 로 순회할 id 목록과 현재 위치. 오버레이를 열 때
+// 그 시점의 정렬 순서(getDisplayOrder)를 그대로 담아두고, 버튼으로
+// 앞뒤(끝에서 순환)로 이동한다.
+let detailOrderIds = [];
+let detailPos = 0;
+
+// 현재 탭·정렬 기준의 표시 순서를 itemId 배열로 반환
+function currentOrderedIds() {
+  const items = currentItems();
+  return getDisplayOrder().map((idx) => items[idx].id);
+}
+
+// itemId 하나의 QR·이름을 오버레이에 채운다(열고 닫기는 건드리지 않음)
+function fillDetail(itemId) {
   const n = qrIndexOf(itemId);
   document.getElementById('detail-qr').src = qrImagePath(itemId);
   document.getElementById('detail-name').textContent = qrNames[n] || '익명';
+}
+
+function openDetailOverlay(itemId) {
+  detailOrderIds = currentOrderedIds();
+  detailPos = detailOrderIds.indexOf(Number(itemId));
+  if (detailPos < 0) detailPos = 0;
+  fillDetail(itemId);
   document.getElementById('detail-overlay').classList.add('open');
+}
+
+// dir: -1(이전) | +1(다음). 목록 양 끝에서 반대편으로 순환한다.
+function stepDetail(dir) {
+  if (!detailOrderIds.length) return;
+  detailPos = (detailPos + dir + detailOrderIds.length) % detailOrderIds.length;
+  fillDetail(detailOrderIds[detailPos]);
 }
 
 function closeDetailOverlay() {
@@ -394,6 +421,25 @@ function setup() {
   // 박스 밖 어두운 배경을 클릭하면 닫힘
   document.getElementById('detail-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'detail-overlay') closeDetailOverlay();
+  });
+
+  // < , > 버튼 — 이전/다음 사람의 이미지로. 버튼 클릭이 배경 닫기로
+  // 번지지 않도록 stopPropagation.
+  document.getElementById('detail-prev').addEventListener('click', (e) => {
+    e.stopPropagation();
+    stepDetail(-1);
+  });
+  document.getElementById('detail-next').addEventListener('click', (e) => {
+    e.stopPropagation();
+    stepDetail(1);
+  });
+
+  // 키보드 ← / → 로도 이동(오버레이가 열려 있을 때만), Esc 로 닫기.
+  document.addEventListener('keydown', (e) => {
+    if (!document.getElementById('detail-overlay').classList.contains('open')) return;
+    if (e.key === 'ArrowLeft') stepDetail(-1);
+    else if (e.key === 'ArrowRight') stepDetail(1);
+    else if (e.key === 'Escape') closeDetailOverlay();
   });
 
   buildGridView();

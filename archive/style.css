@@ -252,6 +252,54 @@ body.view-dark #behind-fab:hover {
   object-fit: cover;
 }
 
+/* 이전/다음 버튼 — 흰 fill · 검은 stroke(비하인드 버튼과 같은 톤).
+   상세 박스(.detail-box, position:relative)의 좌우 바깥쪽에 딱 붙는다. */
+.detail-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(40px, 8vmin, 60px);
+  height: clamp(40px, 8vmin, 60px);
+  background: #fff;
+  border: 6px solid #111;
+  color: #111;
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 800;
+  font-size: clamp(28px, 6vmin, 44px);
+  line-height: 1;
+  /* ‹ › 글리프가 글꼴상 baseline보다 살짝 아래에 앉아 시각적으로 내려가
+     보이므로, 아래 여백을 조금 줘서 flex 중앙 정렬 기준을 위로 당긴다. */
+  padding-bottom: 0.14em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.detail-nav:hover {
+  background: #ddd;
+}
+
+.detail-nav:active {
+  background: #111;
+  color: #fff;
+}
+
+/* QR 박스 영역을 침범하지 않도록 박스 바깥에 여백을 두고 배치 */
+#detail-prev {
+  right: 100%;
+  margin-right: clamp(8px, 2vmin, 16px);
+}
+
+#detail-next {
+  left: 100%;
+  margin-left: clamp(8px, 2vmin, 16px);
+}
+
 .detail-box p {
   font-family: 'NEXON Lv2 Gothic', 'Pretendard', sans-serif;
   font-weight: 500;
