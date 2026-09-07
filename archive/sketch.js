@@ -12,10 +12,10 @@
    오브젝트 종류 탭:
      1 방사형 — 방사형 다발 꽃잎. core.js의 drawRadialBurstFlowerDev(디벨롭
        버전, 두 번째 선이 좌우반전으로 마는 최종 픽스 모양)를 쓴다 —
-       overview의 "방사형" 셀과 동일한 그래픽. radial/은 아직 이전 버전
-       (drawRadialBurstFlower, v1) 그대로다. 예전에 있던 "1a"(줄기형
-       비교용 탭)는 삭제됐고, 그 회전 애니메이션만 이 그리드 뷰로
-       옮겨와 계속 적용된다(아래 "회전 애니메이션" 참고).
+       overview의 "방사형" 셀과 동일한 그래픽. 2번 탭과 마찬가지로 탭에
+       들어올 때 폭죽처럼 터지는 등장 애니메이션이 한 번 재생되고(아래
+       "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다. 회전 애니메이션은
+       삭제됨.
      2 방사형 스포크 — core.js의 drawRadialSpokeDots. overview의 "방사형
        스포크" 셀과 동일한 그래픽(중심에서 뻗는 선분 두 세트 + 끝점 원).
        아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 1번과
@@ -29,14 +29,19 @@
        배경은 흰색이고, 애니메이션은 없다(정적). drawPistilFlower 는 겹겹
        blur 필터라 무거워서 매 프레임 다시 그리지 않는다 — 첫 렌더 한 번뿐.
 
-   폭죽 등장 애니메이션 — 2번 탭 버튼(또는 스포크 탭에서 정렬 변경)을
-   누르면 buildGridView(true)가 첫 렌더 시점을 t=0으로 잡고,
-   drawRadialSpokeDots에 세트별 길이 배율(outerGrow/innerGrow)을 넘긴다.
-   두 배율은 0(중심에 뭉침)에서 1(제 크기)로 easeOutExpo(확 퍼졌다가
-   감속)로 커지되, 밖지름 세트가 먼저·안지름 세트가 SPOKE_BURST_SET_DELAY
-   만큼 늦게 시작한다. 아이템마다 0~SPOKE_BURST_STAGGER_MAX 초의 랜덤
-   지연(item.burstDelay)이 붙어 모든 오브젝트가 동시에 터지지 않고
-   흩뿌려지듯 순차로 터진다. 회전 애니메이션은 이 탭에 적용하지 않는다.
+   폭죽 등장 애니메이션 — 1·2번 탭 버튼(또는 그 탭에서 정렬 변경, 첫
+   로드)을 누르면 buildGridView(true)가 첫 렌더 시점을 t=0(burstStart)으로
+   잡는다. 아이템마다 0~*_BURST_STAGGER_MAX 초의 랜덤 지연(item.burstDelay)
+   이 붙어 모든 오브젝트가 동시에 터지지 않고 흩뿌려지듯 순차로 터진다.
+     · 2번(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
+       innerGrow)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로 easeOutExpo(확
+       퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가 SPOKE_BURST_SET_DELAY
+       만큼 늦게 시작.
+     · 1번(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
+       넘긴다. lineGrow = 선분(호) + 그 끝을 따라가는 원(같이 움직임),
+       dotGrow = 중심에서 멀어지는 원(따로). 각각 중심 기준 0→1 로
+       easeOutExpo, 선분이 먼저·중심-거리 원이 RADIAL_BURST_SET_DELAY
+       만큼 늦게 시작(그래픽 자체는 안 건드리고 캔버스 변형만).
 
    보기 방식 탭 (오브젝트 종류와 무관하게 적용):
      수집순   — id(1~ITEM_COUNT) 순서 그대로 배치.
@@ -45,20 +50,18 @@
    두 탭 모두 실제 CSS Grid(grid-template-columns: repeat(auto-fill,
    minmax(...)))로 구현되어 있어 열 수는 브라우저가 화면 너비에 맞춰
    자동으로 정한다. 아이템마다 독립된 <canvas>를 하나씩 담는다.
-
-   회전 애니메이션 — 매 프레임 drawRadialBurstFlowerDev에 넘기는 각도
-   오프셋만 시간(elapsedSec)에 비례해 계속 바뀌는 방식이라, 정지된 한
-   프레임의 모양(휘어짐 정도·점 거리 등, errorA/errorB로 정해짐)은
-   그대로 유지된다. 오차값과는 무관하게 모든 아이템이 RADIAL_ROTATION_SPEED
-   로 동일하게 아주 천천히 회전하고(선 그룹은 +방향, 중심-거리 원
-   그룹은 -방향으로 서로 반대), 스케일(크기) 애니메이션은 없다.
    ============================================================ */
 
 const ITEM_COUNT = 200;
 const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율
-// 회전 속도(rad/s) — 오차 데이터와 무관하게 모든 아이템에 고정 적용되는
-// 아주 느린 속도. 선 그룹은 +방향, 중심-거리 원 그룹은 -방향으로 서로 반대.
-const RADIAL_ROTATION_SPEED = 0.03;
+
+// 1번(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
+// 선분(+선 끝 원)과 중심-거리 원을 각각 중심 기준 scale 0→1 로 easeOutExpo
+// 하며 키우되, 2번(스포크)처럼 중심-거리 원이 RADIAL_BURST_SET_DELAY 만큼
+// 늦게 시작.
+const RADIAL_BURST_DURATION = 0.5; // 한 그룹이 0→제 크기까지 걸리는 시간(초)
+const RADIAL_BURST_SET_DELAY = 0.18; // 선분 시작 후 중심-거리 원이 시작되기까지 지연(초)
+const RADIAL_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연
 
 // 2번(방사형 스포크) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
 // 각 선분 세트가 길이 0(중심에 뭉침)에서 제 크기로 easeOutExpo(빠르게
@@ -75,26 +78,39 @@ let radialItems = [];
 let spokeItems = [];
 let pistilItems = [];
 
-// 스포크 등장 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
-let spokeBurstStart = null;
+// 등장(폭죽) 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
+// 1번(방사형)·2번(스포크) 탭이 공유한다.
+let burstStart = null;
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeOutExpo = (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
-// 경과 시간(초)과 아이템별 랜덤 지연(itemDelay)에서 밖지름/안지름 세트의
-// 현재 길이 배율을 구한다. itemDelay 만큼 이 아이템의 t=0 이 뒤로 밀린다.
+// 1번(방사형) — 아이템별 랜덤 지연(itemDelay)을 반영한 현재 scale 배율.
+//   line : 선분(호) + 그 끝을 따라가는 원 (같이 움직임)
+//   dot  : 중심에서 멀어지는 errorA-거리 원 (RADIAL_BURST_SET_DELAY 만큼 늦게)
+function radialGrowFactors(elapsedSec, itemDelay = 0) {
+  if (burstStart === null) return { line: 1, dot: 1 };
+  const t = elapsedSec - burstStart - itemDelay;
+  return {
+    line: easeOutExpo(clamp01(t / RADIAL_BURST_DURATION)),
+    dot: easeOutExpo(clamp01((t - RADIAL_BURST_SET_DELAY) / RADIAL_BURST_DURATION)),
+  };
+}
+
+// 2번(스포크) — 경과 시간과 아이템별 랜덤 지연(itemDelay)에서 밖지름/안지름
+// 세트의 현재 길이 배율을 구한다. itemDelay 만큼 이 아이템의 t=0 이 밀린다.
 function spokeGrowFactors(elapsedSec, itemDelay = 0) {
-  if (spokeBurstStart === null) return { outer: 1, inner: 1 };
-  const t = elapsedSec - spokeBurstStart - itemDelay;
+  if (burstStart === null) return { outer: 1, inner: 1 };
+  const t = elapsedSec - burstStart - itemDelay;
   return {
     outer: easeOutExpo(clamp01(t / SPOKE_BURST_DURATION)),
     inner: easeOutExpo(clamp01((t - SPOKE_BURST_SET_DELAY) / SPOKE_BURST_DURATION)),
   };
 }
 
-// 수집순/오차율순 모드에서 셀마다 만든 p5.Graphics 버퍼와, 매 프레임
-// 회전 애니메이션을 다시 그리는 데 필요한 정보(아이템·중심좌표·크기)를
-// 함께 들고 있는다. 재빌드 시 정리용으로도 쓰인다.
+// 수집순/오차율순 모드에서 셀마다 만든 p5.Graphics 버퍼와, 등장 애니메이션
+// 프레임을 다시 그리는 데 필요한 정보(아이템·중심좌표·크기)를 함께 들고
+// 있는다. 재빌드 시 정리용으로도 쓰인다.
 let gridCells = [];
 // 리사이즈·탭 전환이 겹칠 때 오래된 빌드 결과가 뒤늦게 그려지는 것을 막는 토큰
 let gridBuildToken = 0;
@@ -129,6 +145,7 @@ function generateRadialItems() {
     item.dotColor = dotColor;
     const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
     item.tipColor = tipOptions[Math.floor(random(tipOptions.length))];
+    item.burstDelay = random(0, RADIAL_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연
   });
   return list;
 }
@@ -173,24 +190,26 @@ function getDisplayOrder() {
   return order;
 }
 
-// 아이템 하나를 g 위 (cx, cy)에 size로 그린다. lineAngleOffset/
-// dotAngleOffset은 회전 애니메이션용(기본 0) — drawRadialBurstFlowerDev
-// (디벨롭 버전, 두 번째 선이 좌우반전으로 마는 최종 픽스 모양) —
-// overview의 "방사형" 셀과 동일한 그래픽.
-function drawItem(item, g, cx, cy, size, lineAngleOffset = 0, dotAngleOffset = 0, grow = null) {
+// 아이템 하나를 g 위 (cx, cy)에 size로 그린다. grow는 등장(폭죽)
+// 애니메이션용 — 2번(스포크)은 { outer, inner } 길이 배율, 1번(방사형)은
+// { line, dot } scale 배율. null이면 제 크기(정적).
+function drawItem(item, g, cx, cy, size, grow = null) {
   if (currentShape === 'watercolor-flower') {
     // 애니메이션 없음 — errorA(꽃잎 일그러짐)/errorB(암술 위치)만 반영.
     drawPistilFlower(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, item.shapeSeed);
     return;
   }
   if (currentShape === 'radial-spokes') {
-    // 각도 오프셋(회전)은 안 쓰고, 대신 등장 폭죽 애니메이션의 세트별
-    // 길이 배율(grow.outer/grow.inner)을 넘긴다. grow가 null이면 제 크기.
+    // 등장 폭죽 애니메이션의 세트별 길이 배율(grow.outer/grow.inner).
     const og = grow ? grow.outer : 1;
     const ig = grow ? grow.inner : 1;
     drawRadialSpokeDots(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, og, ig);
     return;
   }
+  // 방사형(1번) — 선분(+끝 원)과 중심-거리 원을 각각 다른 배율로 넘겨
+  // 순차 등장시킨다.
+  const lg = grow ? grow.line : 1;
+  const dg = grow ? grow.dot : 1;
   drawRadialBurstFlowerDev(
     g,
     cx,
@@ -202,8 +221,10 @@ function drawItem(item, g, cx, cy, size, lineAngleOffset = 0, dotAngleOffset = 0
     item.dotColor,
     item.tipColor,
     true,
-    lineAngleOffset,
-    dotAngleOffset
+    0,
+    0,
+    lg,
+    dg
   );
 }
 
@@ -213,22 +234,23 @@ function clearGridCells() {
   gridCells = [];
 }
 
-// gridCells에 등록된 모든 셀을 시간(elapsedSec)에 따른 회전 각도로 다시
-// 그린다. errorA/errorB로 정해지는 "정지된 한 프레임의 모양"(휘어짐
-// 정도·점 거리 등)은 core.js 함수 내부에서 각도 오프셋과 완전히
-// 분리돼 있어 여기서 절대 건드리지 않는다.
+// gridCells에 등록된 모든 셀을 현재 등장 애니메이션 진행도에 맞춰 다시
+// 그린다. errorA/errorB로 정해지는 그래픽 자체의 모양은 건드리지 않고,
+// 스포크는 선분 길이 배율, 방사형은 캔버스 scale 만 시간에 따라 바꾼다.
 function renderGridFrame(elapsedSec) {
-  const animated = currentShape === 'radial';
-  const lineAngleOffset = animated ? elapsedSec * RADIAL_ROTATION_SPEED : 0;
-  const dotAngleOffset = animated ? elapsedSec * -RADIAL_ROTATION_SPEED : 0;
-  const spokesBursting = currentShape === 'radial-spokes' && spokeBurstStart !== null;
+  const bursting = burstStart !== null;
   const bgBri = currentShape === 'watercolor-flower' ? 100 : 0; // 3번 탭만 흰 배경
 
   gridCells.forEach(({ gfx, item, cellSize, size }) => {
     gfx.background(0, 0, bgBri);
-    // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다(스포크만).
-    const grow = spokesBursting ? spokeGrowFactors(elapsedSec, item.burstDelay) : null;
-    drawItem(item, gfx, cellSize / 2, cellSize / 2, size, lineAngleOffset, dotAngleOffset, grow);
+    // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다.
+    let grow = null;
+    if (bursting && currentShape === 'radial-spokes') {
+      grow = spokeGrowFactors(elapsedSec, item.burstDelay);
+    } else if (bursting && currentShape === 'radial') {
+      grow = radialGrowFactors(elapsedSec, item.burstDelay);
+    }
+    drawItem(item, gfx, cellSize / 2, cellSize / 2, size, grow);
   });
 }
 
@@ -238,17 +260,18 @@ function renderGridFrame(elapsedSec) {
 // 정한다. 여기서는 (1) 아이템 수만큼 빈 셀 div를 만들어 넣고,
 // (2) 브라우저가 레이아웃을 확정한 다음 프레임에 각 셀의 실제 크기를
 // 읽어 그 크기의 p5.Graphics를 만들어 셀 안에 넣는다. 그 뒤로는 매
-// 프레임 draw()가 renderGridFrame()을 호출해서 회전 애니메이션을 위해
-// 계속 다시 그린다.
+// 프레임 draw()가 renderGridFrame()을 호출해서 등장 애니메이션이 끝날
+// 때까지 계속 다시 그린다.
 //
-// burst=true 로 부르면(2번 탭 버튼 클릭 시) 첫 렌더 시점을 기준으로
-// 폭죽 등장 애니메이션을 시작한다. 리사이즈·정렬 변경은 burst 없이 부른다.
+// burst=true 로 부르면(1·2번 탭 버튼 클릭, 그 탭에서 정렬 변경, 첫 로드)
+// 첫 렌더 시점을 기준으로 폭죽 등장 애니메이션을 시작한다. 리사이즈는
+// burst 없이 부른다.
 //
 function buildGridView(burst = false) {
   const holder = document.getElementById('canvas-holder');
   clearGridCells();
   holder.innerHTML = '';
-  spokeBurstStart = null; // 새 빌드 시 일단 정적으로; 아래 첫 렌더에서 필요하면 켠다
+  burstStart = null; // 새 빌드 시 일단 정적으로; 아래 첫 렌더에서 필요하면 켠다
 
   // 배경 — 1·2번 탭은 검게, 3번(수채화 꽃) 탭은 희게.
   const lightBg = currentShape === 'watercolor-flower';
@@ -276,8 +299,8 @@ function buildGridView(burst = false) {
   requestAnimationFrame(() => {
     if (myToken !== gridBuildToken) return; // 그 사이 새 빌드가 시작됐으면 이 결과는 버림
 
-    if (burst && currentShape === 'radial-spokes') {
-      spokeBurstStart = millis() / 1000; // t=0 을 첫 렌더에 맞춘다
+    if (burst && (currentShape === 'radial' || currentShape === 'radial-spokes')) {
+      burstStart = millis() / 1000; // t=0 을 첫 렌더에 맞춘다
     }
 
     const density = Math.min(window.devicePixelRatio || 1, 2);
@@ -457,7 +480,7 @@ function closeDetailOverlay() {
 // ── p5 setup ────────────────────────────────────────────────
 function setup() {
   colorMode(HSB, 360, 100, 100);
-  frameRate(30); // 회전 애니메이션용 — 아이템이 많아 매 프레임 다시 그리는 비용을 아낌
+  frameRate(30); // 등장 애니메이션용 — 아이템이 많아 매 프레임 다시 그리는 비용을 아낌
 
   loadQrNames(); // qr 번호 → 이름 매핑을 비동기로 읽어둔다(클릭 시점에만 필요)
 
@@ -471,7 +494,7 @@ function setup() {
       shapeButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentShape = btn.dataset.shape;
-      buildGridView(true); // 2번(스포크) 탭이면 폭죽 등장 애니메이션 시작
+      buildGridView(true); // 1·2번 탭이면 폭죽 등장 애니메이션 시작
     });
   });
 
@@ -481,7 +504,7 @@ function setup() {
       modeButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       sortMode = btn.dataset.mode;
-      buildGridView(true); // 스포크 탭에선 정렬 변경 때도 폭죽 애니메이션 재생
+      buildGridView(true); // 1·2번 탭에선 정렬 변경 때도 폭죽 애니메이션 재생
     });
   });
 
@@ -524,7 +547,7 @@ function setup() {
     else if (e.key === 'Escape') closeDetailOverlay();
   });
 
-  buildGridView();
+  buildGridView(true); // 첫 로드에도 1번 탭 폭죽 등장 애니메이션 재생
 }
 
 // 화면 회전/리사이즈 시 열 수·셀 크기가 바뀔 수 있으므로 다시 빌드
@@ -532,26 +555,23 @@ function windowResized() {
   buildGridView();
 }
 
-// 애니메이션 루프
-//  · 1번(방사형) : 회전 애니메이션 때문에 매 프레임 다시 그린다.
-//  · 2번(스포크) : 평소엔 정적. 폭죽 등장 애니메이션 중(spokeBurstStart !==
-//    null)에만 매 프레임 다시 그리고, 두 세트가 다 커지면 멈춘다.
-//  · 3번(수채화 꽃) : 항상 정적 — buildGridView의 첫 렌더 이후 다시 안 그린다.
+// 애니메이션 루프 — 1·2번 탭 모두 평소엔 정적이고, 폭죽 등장 애니메이션
+// 중(burstStart !== null)에만 매 프레임 다시 그리다가 끝나면 멈춘다.
+// 3번(수채화 꽃)은 항상 정적 — buildGridView의 첫 렌더 이후 다시 안 그린다.
 function draw() {
-  if (gridCells.length === 0) return;
+  if (gridCells.length === 0 || burstStart === null) return;
 
+  const nowSec = millis() / 1000;
+  renderGridFrame(nowSec);
+
+  // 가장 늦게 시작하는 아이템(STAGGER_MAX)까지 다 커지면 종료.
+  let total = 0;
   if (currentShape === 'radial') {
-    renderGridFrame(millis() / 1000);
-    return;
+    total = RADIAL_BURST_STAGGER_MAX + RADIAL_BURST_SET_DELAY + RADIAL_BURST_DURATION;
+  } else if (currentShape === 'radial-spokes') {
+    total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
   }
-
-  if (currentShape === 'radial-spokes' && spokeBurstStart !== null) {
-    const nowSec = millis() / 1000;
-    renderGridFrame(nowSec);
-    // 가장 늦게 시작하는 아이템(STAGGER_MAX)까지 두 세트가 다 커지면 종료.
-    const total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
-    if (nowSec - spokeBurstStart >= total) {
-      spokeBurstStart = null; // 애니메이션 종료 → 이후 정적
-    }
+  if (nowSec - burstStart >= total) {
+    burstStart = null; // 애니메이션 종료 → 이후 정적
   }
 }

@@ -579,8 +579,17 @@ function drawRadialBurstFlowerDev(
   tipColorHex,
   mirrorSecondary = true,
   lineAngleOffset = 0,
-  dotAngleOffset = 0
+  dotAngleOffset = 0,
+  lineGrow = 1,
+  dotGrow = 1
 ) {
+  // lineGrow/dotGrow (기본 1) — 등장 애니메이션 배율.
+  //   lineGrow : 선분(호) + 그 끝을 따라가는 원 (한 덩어리로 같이 움직임)
+  //   dotGrow  : 중심에서 멀어지는 errorA-거리 원 (선분과 따로 움직임)
+  // archive의 폭죽 등장에서 선분이 먼저, 중심-거리 원이 살짝 늦게 0→1 로
+  // 커지도록 따로 넘긴다. 스포크의 outerGrow/innerGrow 와 같은 방식 —
+  // 형태·잘림 방지 계산에는 영향이 없고(그릴 때 캔버스만 스케일) 쓴다.
+
   // 1차 패스(측정용) — size 그대로 geometry를 만들어서, 선의 모든
   // 정점(+weight/2)과 원 중심(+dotSize/2) 중 원점에서 가장 먼 지점을
   // 구한다.
@@ -611,36 +620,50 @@ function drawRadialBurstFlowerDev(
 
   g.push();
   g.translate(cx, cy);
-  g.stroke(lineColorHex);
-  g.strokeWeight(shape.weight);
-  g.strokeCap(SQUARE);
-  g.strokeJoin(ROUND);
-  g.noFill();
 
-  for (let p = 0; p < shape.arcCount; p++) {
-    // 두 번째(짧은) 선을 먼저 그려서 원래 선 아래에 깔리게 한다.
-    g.beginShape();
-    for (const [x, y] of shape.secondaries[p]) g.vertex(x, y);
-    g.endShape();
+  // 선분 + 선 끝을 따라가는 원 — 한 덩어리로 lineGrow(0~1) 스케일해 등장.
+  // 끝 원은 선 끝에 붙어 있으므로 선분과 항상 같이 움직인다. <=0이면 건너뜀.
+  if (lineGrow > 0) {
+    g.push();
+    g.scale(lineGrow);
+    g.stroke(lineColorHex);
+    g.strokeWeight(shape.weight);
+    g.strokeCap(SQUARE);
+    g.strokeJoin(ROUND);
+    g.noFill();
 
-    g.beginShape();
-    for (const [x, y] of shape.lines[p]) g.vertex(x, y);
-    g.endShape();
+    for (let p = 0; p < shape.arcCount; p++) {
+      // 두 번째(짧은) 선을 먼저 그려서 원래 선 아래에 깔리게 한다.
+      g.beginShape();
+      for (const [x, y] of shape.secondaries[p]) g.vertex(x, y);
+      g.endShape();
+
+      g.beginShape();
+      for (const [x, y] of shape.lines[p]) g.vertex(x, y);
+      g.endShape();
+    }
+
+    // 선 끝을 따라가는 원 — 선분 색·중심-거리 원 색과 겹치지 않는 별도 색.
+    g.noStroke();
+    g.fill(tipColorHex);
+    shape.tips.forEach(([x, y]) => {
+      g.ellipse(x, y, shape.dotSize, shape.dotSize);
+    });
+    g.pop();
   }
 
-  // 기존 errorA-거리 원 — 개수는 방사형선과 함께 늘어나도록 arcCount에
-  // 맞춘다.
-  g.noStroke();
-  g.fill(dotColorHex);
-  shape.dotAngles.forEach((dotAngle) => {
-    g.ellipse(cos(dotAngle) * shape.dotDist, sin(dotAngle) * shape.dotDist, shape.dotSize, shape.dotSize);
-  });
-
-  // 선 끝을 따라가는 새 원 — 위 두 색과 겹치지 않는 별도 색 하나로 통일
-  g.fill(tipColorHex);
-  shape.tips.forEach(([x, y]) => {
-    g.ellipse(x, y, shape.dotSize, shape.dotSize);
-  });
+  // 중심에서 멀어지는 errorA-거리 원 — dotGrow(0~1)로 선분과 따로 등장.
+  // 개수는 방사형선과 함께 늘어나도록 arcCount에 맞춘다.
+  if (dotGrow > 0) {
+    g.push();
+    g.scale(dotGrow);
+    g.noStroke();
+    g.fill(dotColorHex);
+    shape.dotAngles.forEach((dotAngle) => {
+      g.ellipse(cos(dotAngle) * shape.dotDist, sin(dotAngle) * shape.dotDist, shape.dotSize, shape.dotSize);
+    });
+    g.pop();
+  }
 
   g.pop();
 }
