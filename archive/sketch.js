@@ -21,13 +21,6 @@
        아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 1번과
        동일하게 검게. 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이
        한 번 재생되고(아래 "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다.
-     3 수채화 꽃 — core.js의 drawPistilFlower. overview의 "수채화 꽃"
-       셀과 동일한 그래픽(유기적 꽃잎 덩어리 + 위에 얹힌 다른 색 암술).
-       아이템마다 색 시드(colorSeed: 꽃잎색·암술색)와 형태 시드
-       (shapeSeed: 꽃잎 윤곽·암술 이탈 방향)를 한 번 뽑아 고정한다.
-       errorA = 꽃잎 일그러짐, errorB = 암술이 중심에서 벗어난 거리.
-       배경은 흰색이고, 애니메이션은 없다(정적). drawPistilFlower 는 겹겹
-       blur 필터라 무거워서 매 프레임 다시 그리지 않는다 — 첫 렌더 한 번뿐.
 
    폭죽 등장 애니메이션 — 1·2번 탭 버튼(또는 그 탭에서 정렬 변경, 첫
    로드)을 누르면 buildGridView(true)가 첫 렌더 시점을 t=0(burstStart)으로
@@ -71,12 +64,11 @@ const SPOKE_BURST_DURATION = 0.5; // 한 세트가 0→제 크기까지 걸리�
 const SPOKE_BURST_SET_DELAY = 0.18; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
 const SPOKE_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
 
-let currentShape = 'radial'; // 'radial' | 'radial-spokes' | 'watercolor-flower'
+let currentShape = 'radial'; // 'radial' | 'radial-spokes'
 let sortMode = 'collected'; // 'collected' | 'error'
 
 let radialItems = [];
 let spokeItems = [];
-let pistilItems = [];
 
 // 등장(폭죽) 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
 // 1번(방사형)·2번(스포크) 탭이 공유한다.
@@ -162,21 +154,8 @@ function generateSpokeItems() {
   return list;
 }
 
-// 수채화 꽃(3번) 전용 — generateFlowerItems()에 색 시드·형태 시드를 더한다.
-// drawPistilFlower는 colorSeed로 꽃잎색·암술색(서로 다른 2색)을, shapeSeed로
-// 꽃잎 윤곽과 암술이 벗어나는 방향을 정한다. 아이템마다 한 번만 뽑아 고정.
-function generatePistilItems() {
-  const list = generateFlowerItems();
-  list.forEach((item) => {
-    item.colorSeed = Math.floor(random(1e9));
-    item.shapeSeed = Math.floor(random(1e9));
-  });
-  return list;
-}
-
 function currentItems() {
   if (currentShape === 'radial-spokes') return spokeItems;
-  if (currentShape === 'watercolor-flower') return pistilItems;
   return radialItems;
 }
 
@@ -194,11 +173,6 @@ function getDisplayOrder() {
 // 애니메이션용 — 2번(스포크)은 { outer, inner } 길이 배율, 1번(방사형)은
 // { line, dot } scale 배율. null이면 제 크기(정적).
 function drawItem(item, g, cx, cy, size, grow = null) {
-  if (currentShape === 'watercolor-flower') {
-    // 애니메이션 없음 — errorA(꽃잎 일그러짐)/errorB(암술 위치)만 반영.
-    drawPistilFlower(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, item.shapeSeed);
-    return;
-  }
   if (currentShape === 'radial-spokes') {
     // 등장 폭죽 애니메이션의 세트별 길이 배율(grow.outer/grow.inner).
     const og = grow ? grow.outer : 1;
@@ -239,10 +213,9 @@ function clearGridCells() {
 // 스포크는 선분 길이 배율, 방사형은 캔버스 scale 만 시간에 따라 바꾼다.
 function renderGridFrame(elapsedSec) {
   const bursting = burstStart !== null;
-  const bgBri = currentShape === 'watercolor-flower' ? 100 : 0; // 3번 탭만 흰 배경
 
   gridCells.forEach(({ gfx, item, cellSize, size }) => {
-    gfx.background(0, 0, bgBri);
+    gfx.background(0, 0, 0);
     // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다.
     let grow = null;
     if (bursting && currentShape === 'radial-spokes') {
@@ -272,14 +245,6 @@ function buildGridView(burst = false) {
   clearGridCells();
   holder.innerHTML = '';
   burstStart = null; // 새 빌드 시 일단 정적으로; 아래 첫 렌더에서 필요하면 켠다
-
-  // 배경 — 1·2번 탭은 검게, 3번(수채화 꽃) 탭은 희게.
-  const lightBg = currentShape === 'watercolor-flower';
-  holder.classList.toggle('bg-dark', !lightBg);
-  holder.classList.toggle('bg-light', lightBg);
-  // body 밖(#canvas-holder 형제)에 떠 있는 FAB 버튼 색을 배경에 맞추기 위한 플래그.
-  document.body.classList.toggle('view-dark', !lightBg);
-  document.body.classList.toggle('view-light', lightBg);
 
   const order = getDisplayOrder();
   const items = currentItems();
@@ -410,7 +375,7 @@ function renderDetailGraphic(itemId) {
   g.canvas.style.width = '100%';
   g.canvas.style.height = '100%';
 
-  g.background(0, 0, 100); // 상세 박스 안에서는 탭 1·2·3 모두 흰 배경으로 통일
+  g.background(0, 0, 100); // 상세 박스 안에서는 탭 1·2 모두 흰 배경으로 통일
 
   const pad = R * CELL_PADDING_RATIO;
   drawItem(item, g, R / 2, R / 2, R - pad * 2); // 각도 오프셋 0 = 정지 프레임
@@ -486,7 +451,6 @@ function setup() {
 
   radialItems = generateRadialItems();
   spokeItems = generateSpokeItems();
-  pistilItems = generatePistilItems();
 
   const shapeButtons = document.querySelectorAll('.shape-btn');
   shapeButtons.forEach((btn) => {
@@ -557,7 +521,6 @@ function windowResized() {
 
 // 애니메이션 루프 — 1·2번 탭 모두 평소엔 정적이고, 폭죽 등장 애니메이션
 // 중(burstStart !== null)에만 매 프레임 다시 그리다가 끝나면 멈춘다.
-// 3번(수채화 꽃)은 항상 정적 — buildGridView의 첫 렌더 이후 다시 안 그린다.
 function draw() {
   if (gridCells.length === 0 || burstStart === null) return;
 

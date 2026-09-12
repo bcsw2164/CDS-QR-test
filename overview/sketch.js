@@ -26,7 +26,6 @@ const SERIES = [
   { shape: 'radial', label: '방사형' },
   { shape: 'radial-spokes', label: '방사형 스포크' },
   { shape: 'watercolor', label: '수채화' },
-  { shape: 'watercolor-flower', label: '수채화 꽃' },
 ];
 
 let eA = 0.3;
@@ -55,10 +54,6 @@ let watercolorColorSeed;
 // [랜덤 생성] 때마다 새 값 → 매번 다른 유기적 형태. errorA 는 그 편차의
 // 세기만 키운다(0=정원).
 let watercolorShapeSeed;
-// "수채화 꽃" 셀 전용 색·형태 시드 — 색: 꽃잎색·암술색(서로 다른 2색),
-// 형태: 꽃잎 윤곽 + 암술이 벗어나는 방향. [랜덤 생성] 때만 갱신.
-let flowerColorSeed;
-let flowerShapeSeed;
 
 function rerollRadialColors() {
   const { lineColor, dotColor } = pickRadialColors();
@@ -69,8 +64,6 @@ function rerollRadialColors() {
   radialSpokeColorSeed = Math.floor(random(1e9));
   watercolorColorSeed = Math.floor(random(1e9));
   watercolorShapeSeed = Math.floor(random(1e9));
-  flowerColorSeed = Math.floor(random(1e9));
-  flowerShapeSeed = Math.floor(random(1e9));
 }
 
 // shape → p5.Graphics 버퍼
@@ -91,8 +84,6 @@ function drawSeries(shape, g, cx, cy, size) {
     drawRadialSpokeDots(g, cx, cy, size, eA, eB, radialSpokeColorSeed);
   } else if (shape === 'watercolor') {
     drawWatercolorBlob(g, cx, cy, size, eA, eB, watercolorColorSeed, showWatercolorPoints, watercolorShapeSeed);
-  } else if (shape === 'watercolor-flower') {
-    drawPistilFlower(g, cx, cy, size, eA, eB, flowerColorSeed, flowerShapeSeed);
   }
 }
 
@@ -116,7 +107,7 @@ function buildBuffers() {
   });
 }
 
-// 현재 eA/eB로 네 버퍼를 전부 다시 그린다.
+// 현재 eA/eB로 버퍼를 전부 다시 그린다.
 function renderAll() {
   SERIES.forEach(({ shape }) => {
     const g = buffers[shape];
@@ -182,7 +173,7 @@ function windowResized() {
 }
 
 // ── 저장 ────────────────────────────────────────────────────
-// 네 그래픽을 각각 별도 PNG로 저장한다.
+// 각 그래픽을 별도 PNG로 저장한다.
 function saveImgs() {
   SERIES.forEach(({ shape }) => {
     buffers[shape].save(`${shape}_A${eA.toFixed(3)}_B${eB.toFixed(3)}.png`);
