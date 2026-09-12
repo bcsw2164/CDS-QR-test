@@ -1,0 +1,37 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #242947;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 화면 비율이 어떻든 항상 정중앙에 정사각형(1:1)으로 고정 — 1080x1080
+   녹화 시 그리드 비율이 깨지지 않도록 vmin(뷰포트 가로/세로 중 작은 쪽)을
+   기준으로 한 변을 정한다. 100vmin이 아니라 84vmin으로 줄여서 짧은 변
+   쪽에도 여백이 생기게 한다(상하좌우 모두 여백). 셀 하나하나를 따로
+   가두지 않고 이 컨테이너를 캔버스 한 장이 그대로 채우므로(sketch.js),
+   그래픽이 커져도 옆 칸을 침범할 수 있고 이 정사각형 바깥에서만 잘린다. */
+#grid-holder {
+  width: 84vmin;
+  height: 84vmin;
+  aspect-ratio: 1 / 1;
+  background: #242947;
+  overflow: hidden;
+}
+
+#grid-holder canvas {
+  display: block;
+}

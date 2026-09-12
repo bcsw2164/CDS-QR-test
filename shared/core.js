@@ -490,10 +490,18 @@ const RADIAL_V2_LAYER_RADIUS_RATIO = 0.7; // 두 번째(짧은) 선 길이 = 원
 // 선(주 선 + 두 번째 선)·tip 위치·중심-거리 원 각도를 계산해서 그대로
 // 반환한다(그리지 않음) — drawRadialBurstFlowerDev가 이걸 두 번(측정용
 // 1차, 최종 2차) 호출해서 잘림 없이 꽉 차는 크기를 구한다.
-function buildRadialDevGeometry(size, errorA, errorB, mirrorSecondary, lineAngleOffset, dotAngleOffset) {
+function buildRadialDevGeometry(
+  size,
+  errorA,
+  errorB,
+  mirrorSecondary,
+  lineAngleOffset,
+  dotAngleOffset,
+  strokeWeightRatio = RADIAL_STROKE_WEIGHT_RATIO
+) {
   const radius = size * RADIAL_RADIUS_RATIO;
   const sweep = map(errorB, 0, 1, 0, RADIAL_SWEEP_MAX);
-  const weight = Math.max(1, size * RADIAL_STROKE_WEIGHT_RATIO);
+  const weight = Math.max(1, size * strokeWeightRatio);
   const arcCount = Math.round(map(errorA, 0, 1, RADIAL_V2_ARC_COUNT_MIN, RADIAL_V2_ARC_COUNT_MAX));
   const dotSize = radius * RADIAL_DOT_SIZE_RATIO;
   const startDistMax = radius * RADIAL_HOOK_START_RATIO;
@@ -581,7 +589,8 @@ function drawRadialBurstFlowerDev(
   lineAngleOffset = 0,
   dotAngleOffset = 0,
   lineGrow = 1,
-  dotGrow = 1
+  dotGrow = 1,
+  strokeWeightRatio = RADIAL_STROKE_WEIGHT_RATIO
 ) {
   // lineGrow/dotGrow (기본 1) — 등장 애니메이션 배율.
   //   lineGrow : 선분(호) + 그 끝을 따라가는 원 (한 덩어리로 같이 움직임)
@@ -589,11 +598,21 @@ function drawRadialBurstFlowerDev(
   // archive의 폭죽 등장에서 선분이 먼저, 중심-거리 원이 살짝 늦게 0→1 로
   // 커지도록 따로 넘긴다. 스포크의 outerGrow/innerGrow 와 같은 방식 —
   // 형태·잘림 방지 계산에는 영향이 없고(그릴 때 캔버스만 스케일) 쓴다.
+  // strokeWeightRatio (기본 RADIAL_STROKE_WEIGHT_RATIO) — 호출부에서 선
+  // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(예: radial-grid/의 더 얇은 선).
 
   // 1차 패스(측정용) — size 그대로 geometry를 만들어서, 선의 모든
   // 정점(+weight/2)과 원 중심(+dotSize/2) 중 원점에서 가장 먼 지점을
   // 구한다.
-  const probe = buildRadialDevGeometry(size, errorA, errorB, mirrorSecondary, lineAngleOffset, dotAngleOffset);
+  const probe = buildRadialDevGeometry(
+    size,
+    errorA,
+    errorB,
+    mirrorSecondary,
+    lineAngleOffset,
+    dotAngleOffset,
+    strokeWeightRatio
+  );
   let maxExtent = 0;
   const consider = (dist, margin) => {
     const extent = dist + margin;
@@ -615,7 +634,8 @@ function drawRadialBurstFlowerDev(
     errorB,
     mirrorSecondary,
     lineAngleOffset,
-    dotAngleOffset
+    dotAngleOffset,
+    strokeWeightRatio
   );
 
   g.push();
