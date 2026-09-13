@@ -345,8 +345,9 @@ function drawRadialBurstFlowerDev(
   //   lineGrow : 선분(호) + 그 끝을 따라가는 원 (한 덩어리로 같이 움직임)
   //   dotGrow  : 중심에서 멀어지는 errorA-거리 원 (선분과 따로 움직임)
   // archive의 폭죽 등장에서 선분이 먼저, 중심-거리 원이 살짝 늦게 0→1 로
-  // 커지도록 따로 넘긴다. 스포크의 outerGrow/innerGrow 와 같은 방식 —
-  // 형태·잘림 방지 계산에는 영향이 없고(그릴 때 캔버스만 스케일) 쓴다.
+  // 커지도록 따로 넘긴다. 스포크의 outerProgress/innerProgress 와 같은
+  // 목적이지만, 이쪽은 그룹 전체를 한 번에 스케일(캔버스 변형)하는 방식이고
+  // 스포크처럼 선분마다 개별 랜덤 지연을 주지는 않는다.
   // strokeWeightRatio (기본 RADIAL_STROKE_WEIGHT_RATIO) — 호출부에서 선
   // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(예: radial-grid/의 더 얇은 선).
 
@@ -478,6 +479,11 @@ const RADIAL_SPOKE_ANGLE_JITTER = 1.6; // errorB=1 일 때 선분 최대 이동�
 const RADIAL_SPOKE_ANGLE_RANGE_MIN = 0.2; // 선분별 이동폭 랜덤 하한(위 최대치 대비 — 선분마다 흔들리는 폭도 제각각)
 const RADIAL_SPOKE_WEIGHT_RATIO = 0.028; // 선분 굵기 = size × 이 비율
 const RADIAL_SPOKE_DOT_RATIO = 0.15; // 끝점 원 지름 = R × 이 비율
+// 폭죽 등장 애니메이션 — 세트(밖지름/안지름) 전체가 한 덩어리로 자라지
+// 않고 선분 하나하나가 제각각 다른 타이밍에 퍼지도록, 선분마다 시작
+// 시점을 0~이 비율 구간에서 랜덤으로 어긋낸다. 나머지 (1 - 이 비율)
+// 구간이 그 선분이 실제로 0→1 로 자라는 데 걸리는 시간이 된다.
+const RADIAL_SPOKE_BURST_STAGGER_RATIO = 0.6;
 
 // mulberry32 — 시드 하나로 결정적인 0~1 난수열을 만드는 작은 PRNG.
 // p5의 전역 random()/randomSeed()를 쓰면 이 함수가 전역 난수 상태를
@@ -501,17 +507,31 @@ function makeRadialSpokeRng(seed) {
 // [랜덤 생성] 때만 새 colorSeed 를 넘기면 슬라이더·리사이즈에는 색이
 // 안 바뀌고 버튼에만 바뀐다. colorSeed 를 안 주면 형태 시드와 동일.
 //
-// outerGrow/innerGrow (기본 1) — 밖지름·안지름 세트의 선분 길이에 각각
-// 곱하는 배율. 폭죽처럼 터지는 등장 애니메이션에서 0(중심에 뭉침)→1(제
-// 크기)로 따로 키우려고 archive 에서 넘긴다. RNG 소비량에는 영향이 없어
-// (길이 계산 마지막에 곱하기만 함) 색·지터·각도는 배율과 무관하게 고정.
+// outerProgress/innerProgress (기본 1) — 밖지름·안지름 세트 공통의 등장
+// 애니메이션 경과(0~1, 선형). 세트 전체가 그대로 곱해지는 배율이 아니라,
+// 선분마다 RADIAL_SPOKE_BURST_STAGGER_RATIO 안에서 랜덤으로 뽑은 자기만의
+// 시작 시점을 지난 뒤부터 남은 구간 동안 개별적으로 0→1 easeOutExpo로
+// 자란다 — 그래서 세트가 하나로 뭉쳐 커지지 않고 선분 하나하나가 제각각
+// 다른 타이밍에 퍼져나가는 것처럼 보인다. 1(정적 렌더 포함)이면 모든
+// 선분이 항상 제 크기. RNG 소비량은 progress 값과 무관하게 항상 동일해
+// (선분마다 시작 시점도 매번 뽑음) 색·지터·각도는 애니메이션 여부와
+// 무관하게 고정.
+// perSpokeBurst — false(기본)면 outerProgress/innerProgress를 세트 전체에
+// 곱해지는 이미 계산된 최종 배율로 쓴다(그리드 진입 애니메이션과 동일한
+// 기존 방식 — 세트가 한 덩어리로 커짐, 호출부에서 easeOutExpo까지 적용해
+// 넘김). true면 위 outerProgress/innerProgress를 세트 공통 경과(0~1,
+// 선형)로 보고 선분마다 개별 랜덤 지연 + easeOutExpo를 적용한다(상세
+// 박스에서 씀). 두 모드 모두 선분당 rnd() 소비량이 같아 애니메이션이
+// 끝난 뒤의 형태(각도·길이)는 동일 — 그리드에서 본 그래픽과 상세 박스에서
+// 여는 그래픽이 항상 같은 모양이 되도록 보장한다.
 function buildRadialSpokeGeometry(
   size,
   errorA,
   errorB,
   colorSeed = RADIAL_SPOKE_SEED,
-  outerGrow = 1,
-  innerGrow = 1
+  outerProgress = 1,
+  innerProgress = 1,
+  perSpokeBurst = false
 ) {
   const rnd = makeRadialSpokeRng(RADIAL_SPOKE_SEED);
   const colorRnd = makeRadialSpokeRng(colorSeed);
@@ -538,25 +558,46 @@ function buildRadialSpokeGeometry(
   // 원마다 랜덤. centerRatio 는 이 층의 중심 반지름 비율(errorA 로 결정),
   // 각 선분 길이는 거기서 ±LEN_JITTER 안에서만 랜덤(잔결). baseOffset 은
   // 세트 전체를 반 칸 돌리는 값(안지름 세트를 밖지름 선분 사이에 끼움).
-  const makeSet = (centerRatio, baseOffset, lineColor, grow) => {
+  const burstDurationFrac = 1 - RADIAL_SPOKE_BURST_STAGGER_RATIO;
+
+  const makeSet = (centerRatio, baseOffset, lineColor, progress) => {
     const arr = [];
     for (let i = 0; i < RADIAL_SPOKE_COUNT; i++) {
-      const len = R * (centerRatio + (rnd() * 2 - 1) * RADIAL_SPOKE_LEN_JITTER) * grow;
+      const lenFull = R * (centerRatio + (rnd() * 2 - 1) * RADIAL_SPOKE_LEN_JITTER);
       const base = -HALF_PI + (i + baseOffset) * step;
       // 이 선분이 흔들릴 수 있는 최대 폭도 선분마다 랜덤(RANGE_MIN~1),
       // 그 안에서 실제 좌우 이동은 또 랜덤. errorB=0 이면 전부 0.
       const spokeJitter = jitterMax * lerp(RADIAL_SPOKE_ANGLE_RANGE_MIN, 1, rnd());
       const angle = base + (rnd() * 2 - 1) * spokeJitter;
-      // grow 는 이 세트의 등장 배율(0~1). 그릴 때 grow<=0 이면 통째로 건너뛰어
-      // 아무것도 안 보이게 하고, 끝점 원 크기도 grow 에 비례시킨다.
+
+      // 이 선분만의 등장 시작 시점(0~STAGGER_RATIO) — perSpokeBurst일 때만
+      // 실제로 쓰지만, 두 모드의 형태(rnd 소비량)를 동일하게 유지하려고
+      // 항상 뽑아둔다.
+      const startAt = rnd() * RADIAL_SPOKE_BURST_STAGGER_RATIO;
+      let grow;
+      if (perSpokeBurst) {
+        // 세트 공통 progress(0~1, 선형)가 이 선분의 시작 시점을 지나야
+        // 자라기 시작해, 선분마다 제각각 다른 순간에 퍼져나가는 것처럼
+        // 보인다(상세 박스 전용).
+        const localT = Math.min(1, Math.max(0, (progress - startAt) / burstDurationFrac));
+        grow = localT >= 1 ? 1 : 1 - Math.pow(2, -10 * localT); // easeOutExpo
+      } else {
+        // 그리드 진입 애니메이션과 동일한 기존 방식 — 세트 전체가 한
+        // 덩어리로, progress를 이미 계산된 최종 배율 그대로 쓴다.
+        grow = progress;
+      }
+      // grow<=0 이면 이 선분은 통째로 건너뛰고, 끝점 원 크기도 grow 에
+      // 비례시킨다.
+      const len = lenFull * grow;
+
       arr.push({ angle, len, lineColor, dotColor: pick(dotOptions), grow });
     }
     return arr;
   };
 
   const spokes = [
-    ...makeSet(outerCenter, 0, outerLineColor, outerGrow),
-    ...makeSet(innerCenter, 0.5, innerLineColor, innerGrow),
+    ...makeSet(outerCenter, 0, outerLineColor, outerProgress),
+    ...makeSet(innerCenter, 0.5, innerLineColor, innerProgress),
   ];
   const weight = Math.max(1, size * RADIAL_SPOKE_WEIGHT_RATIO);
   const dotSize = R * RADIAL_SPOKE_DOT_RATIO;
@@ -812,18 +853,39 @@ function drawWatercolorBlob(
   g.pop();
 }
 
-function drawRadialSpokeDots(g, cx, cy, size, errorA, errorB, colorSeed, outerGrow = 1, innerGrow = 1) {
-  // 크기 보정(스케일) 없이 size 그대로 한 번만 계산 — errorA/errorB 를
-  // 어떻게 바꿔도 전체 크기는 일정하게 유지된다. outerGrow/innerGrow 는
-  // 등장 애니메이션용 세트별 길이 배율(기본 1).
-  const shape = buildRadialSpokeGeometry(size, errorA, errorB, colorSeed, outerGrow, innerGrow);
+// perSpokeBurst — false(기본, 그리드 진입 애니메이션)면 outerProgress/
+// innerProgress를 세트 전체에 곱해지는 이미 계산된 최종 배율(호출부에서
+// easeOutExpo까지 적용해 넘김)로 쓴다. true(상세 박스)면 세트 공통 경과
+// (0~1, 선형)로 보고 선분마다 개별 랜덤 지연 + easeOutExpo를 적용한다.
+// 자세한 설명은 buildRadialSpokeGeometry 참고.
+function drawRadialSpokeDots(
+  g,
+  cx,
+  cy,
+  size,
+  errorA,
+  errorB,
+  colorSeed,
+  outerProgress = 1,
+  innerProgress = 1,
+  perSpokeBurst = false
+) {
+  const shape = buildRadialSpokeGeometry(
+    size,
+    errorA,
+    errorB,
+    colorSeed,
+    outerProgress,
+    innerProgress,
+    perSpokeBurst
+  );
 
   g.push();
   g.translate(cx, cy);
-  g.strokeCap(ROUND);
+  g.strokeCap(SQUARE); // 끝이 둥글지 않고 직선으로 딱 끝남
 
-  // 방사형 선분 — 전부 중앙(0,0)에서 시작. grow<=0(아직 안 터진 세트)은
-  // 건너뛴다 — 길이 0 선분이 ROUND 캡 때문에 중앙에 점처럼 남는 것 방지.
+  // 방사형 선분 — 전부 중앙(0,0)에서 시작. grow<=0(아직 등장 시점 전인
+  // 선분)은 건너뛴다.
   shape.spokes.forEach((s) => {
     if (s.grow <= 0) return;
     g.stroke(s.lineColor);

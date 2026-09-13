@@ -1,9 +1,10 @@
 /* ============================================================
    Signature Archive — sketch.js
    ------------------------------------------------------------
-   아직 실제로 수집된 손그림 데이터가 없어서, errorA/errorB를 임의로
-   생성한 ITEM_COUNT개의 가상 데이터로 아카이브를 미리 본다.
-   그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
+   errorA/errorB는 qr_error_data.json(프로젝트 루트)에 담긴 실제 추출
+   데이터를 그대로 쓴다 — 키(qr_clean_NNN)의 번호가 QR 이미지 번호와
+   동일해 1:1로 매칭된다. ITEM_COUNT는 이 데이터 개수로 정해진다(현재
+   151). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
    페이지와 동일한 규칙).
 
    각 데이터는 1~ITEM_COUNT번 번호(제출 순서)를 갖는다. 탭으로 정렬
@@ -27,14 +28,24 @@
    잡는다. 아이템마다 0~*_BURST_STAGGER_MAX 초의 랜덤 지연(item.burstDelay)
    이 붙어 모든 오브젝트가 동시에 터지지 않고 흩뿌려지듯 순차로 터진다.
      · 2번(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
-       innerGrow)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로 easeOutExpo(확
-       퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가 SPOKE_BURST_SET_DELAY
-       만큼 늦게 시작.
+       innerGrow, perSpokeBurst=false)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로
+       easeOutExpo(확 퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가
+       SPOKE_BURST_SET_DELAY만큼 늦게 시작. 세트 전체가 한 덩어리로 움직인다
+       — 상세 박스(아래 "상세 박스 등장 애니메이션")는 이와 다른 방식.
      · 1번(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
        넘긴다. lineGrow = 선분(호) + 그 끝을 따라가는 원(같이 움직임),
        dotGrow = 중심에서 멀어지는 원(따로). 각각 중심 기준 0→1 로
        easeOutExpo, 선분이 먼저·중심-거리 원이 RADIAL_BURST_SET_DELAY
        만큼 늦게 시작(그래픽 자체는 안 건드리고 캔버스 변형만).
+
+   상세 박스 등장 애니메이션 — 2번(스포크) 탭에서만, 카드를 클릭해 QR
+   면 → 그래픽 면으로 뒤집힐 때 재생된다(flipDetail()). 그리드와 달리
+   drawRadialSpokeDots를 perSpokeBurst=true로 불러, 세트가 한 덩어리로
+   커지지 않고 core.js(buildRadialSpokeGeometry)가 선분마다 개별 랜덤
+   시작 시점(RADIAL_SPOKE_BURST_STAGGER_RATIO)을 뽑아 각자 다른 타이밍에
+   0(중심에 뭉침)→1(제 크기)로 퍼진다. 두 모드 모두 선분당 rnd() 소비량이
+   같아, 애니메이션이 끝난 뒤의 형태는 그리드에서 본 것과 항상 동일하다.
+   1번(방사형) 탭은 상세 박스에서도 정지 프레임 그대로(기존 동작).
 
    보기 방식 탭 (오브젝트 종류와 무관하게 적용):
      수집순   — id(1~ITEM_COUNT) 순서 그대로 배치.
@@ -45,7 +56,7 @@
    자동으로 정한다. 아이템마다 독립된 <canvas>를 하나씩 담는다.
    ============================================================ */
 
-const ITEM_COUNT = 200;
+let ITEM_COUNT = 0; // qrErrorData 로딩 후 그 개수로 정해진다(setup 참고)
 const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율
 
 // 1번(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
@@ -70,6 +81,10 @@ let sortMode = 'collected'; // 'collected' | 'error'
 let radialItems = [];
 let spokeItems = [];
 
+// qr_error_data.json에서 읽은 실제 데이터. { n, errorA, errorB } 를
+// n(QR 번호) 오름차순으로 정렬해서 담아둔다. loadErrorData()가 채운다.
+let qrErrorData = [];
+
 // 등장(폭죽) 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
 // 1번(방사형)·2번(스포크) 탭이 공유한다.
 let burstStart = null;
@@ -91,6 +106,9 @@ function radialGrowFactors(elapsedSec, itemDelay = 0) {
 
 // 2번(스포크) — 경과 시간과 아이템별 랜덤 지연(itemDelay)에서 밖지름/안지름
 // 세트의 현재 길이 배율을 구한다. itemDelay 만큼 이 아이템의 t=0 이 밀린다.
+// 그리드 진입 애니메이션 전용 — 세트 전체가 한 덩어리로 0→1 easeOutExpo
+// (core.js에 perSpokeBurst=false로 넘겨 그대로 최종 배율로 쓰임). 상세
+// 박스 전용 애니메이션은 drawDetailFrame이 따로 계산한다.
 function spokeGrowFactors(elapsedSec, itemDelay = 0) {
   if (burstStart === null) return { outer: 1, inner: 1 };
   const t = elapsedSec - burstStart - itemDelay;
@@ -107,21 +125,44 @@ let gridCells = [];
 // 리사이즈·탭 전환이 겹칠 때 오래된 빌드 결과가 뒤늦게 그려지는 것을 막는 토큰
 let gridBuildToken = 0;
 
-// radial은 형태가 core.js의 generateErrorData()(errorA/errorB)만으로
-// 결정되므로 아이템 생성 로직을 공유한다.
-function generateFlowerItems() {
-  const list = [];
-  for (let i = 0; i < ITEM_COUNT; i++) {
-    const { errorA, errorB } = generateErrorData();
+// qrErrorData 실측값은 대부분 낮은 구간에 몰려있고 소수의 극단치가 범위를
+// 넓게 늘려놓은 형태라(특히 unfilledRate — 중앙값이 전체 폭의 7% 지점),
+// min-max로 최소~최대만 0~1로 펴면 그 쏠림이 그대로 남아 다수가 여전히
+// 좁은 구간에 압축된다. 대신 퍼센타일(순위) 정규화를 쓴다 — 값의 절대
+// 크기가 아니라 151명 중 몇 번째로 큰지(순위)만으로 0~1에 고르게 배치하므로
+// 극단치 크기와 무관하게 전 구간을 고르게 쓰게 된다. 동점은 평균 순위로
+// 묶어 처리(순서를 임의로 가르지 않음).
+function normalizeErrorAxis(values) {
+  const n = values.length;
+  if (n <= 1) return values.map(() => 0);
 
-    list.push({
-      id: i + 1,
-      errorA,
-      errorB,
-      errorScore: (errorA + errorB) / 2,
-    });
+  const order = values.map((_, i) => i).sort((a, b) => values[a] - values[b]);
+  const ranks = new Array(n);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j + 1 < n && values[order[j + 1]] === values[order[i]]) j++;
+    const avgRank = (i + j) / 2; // 동점 구간(i..j)은 순위를 평균내 공유
+    for (let k = i; k <= j; k++) ranks[order[k]] = avgRank;
+    i = j + 1;
   }
-  return list;
+  return ranks.map((r) => r / (n - 1));
+}
+
+// radial은 형태가 errorA/errorB만으로 결정되므로 아이템 생성 로직을
+// 공유한다. qrErrorData(실제 데이터, setup에서 로딩 완료 후 호출)의
+// n을 그대로 id로 써서 QR 번호와 1:1로 맞추고, errorA/errorB는 각각
+// 축별로 정규화한 값을 쓴다.
+function generateFlowerItems() {
+  const normA = normalizeErrorAxis(qrErrorData.map((d) => d.errorA));
+  const normB = normalizeErrorAxis(qrErrorData.map((d) => d.errorB));
+
+  return qrErrorData.map((d, i) => ({
+    id: d.n,
+    errorA: normA[i],
+    errorB: normB[i],
+    errorScore: (normA[i] + normB[i]) / 2,
+  }));
 }
 
 // 방사형(1번) 전용 — generateFlowerItems()에 선·점·선 끝 원 색을
@@ -171,13 +212,17 @@ function getDisplayOrder() {
 
 // 아이템 하나를 g 위 (cx, cy)에 size로 그린다. grow는 등장(폭죽)
 // 애니메이션용 — 2번(스포크)은 { outer, inner } 길이 배율, 1번(방사형)은
-// { line, dot } scale 배율. null이면 제 크기(정적).
-function drawItem(item, g, cx, cy, size, grow = null) {
+// { line, dot } scale 배율. null이면 제 크기(정적). perSpokeBurst는
+// 2번(스포크)에만 해당 — false(기본, 그리드)면 grow.outer/inner를 세트
+// 전체의 최종 배율로, true(상세 박스)면 세트 공통 경과(0~1, 선형)로 보고
+// core.js가 선분마다 개별 랜덤 지연을 준다.
+function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
   if (currentShape === 'radial-spokes') {
-    // 등장 폭죽 애니메이션의 세트별 길이 배율(grow.outer/grow.inner).
+    // grow.outer/grow.inner — perSpokeBurst에 따라 최종 배율 또는 선형
+    // 경과, 둘 중 무엇이든 core.js가 그대로 받아 처리한다.
     const og = grow ? grow.outer : 1;
     const ig = grow ? grow.inner : 1;
-    drawRadialSpokeDots(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, og, ig);
+    drawRadialSpokeDots(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, og, ig, perSpokeBurst);
     return;
   }
   // 방사형(1번) — 선분(+끝 원)과 중심-거리 원을 각각 다른 배율로 넘겨
@@ -293,15 +338,37 @@ function buildGridView(burst = false) {
 
 // ── 그래픽 클릭 → 상세 오버레이(QR + 이름) ─────────────────────
 //
-// 아직 그래픽↔사람 매칭 데이터가 없어서, 지금은 itemId를 그대로
-// QR 이미지 번호에 대응시킨다. 수집된 QR 이미지(QR_IMAGE_COUNT장)보다
-// 오브젝트(ITEM_COUNT개)가 많으므로, 이미지가 끝나면 1번으로 돌아가
-// 순환(모듈러)한다. 실제 매칭 데이터가 모이면 이 부분만 교체하면 된다.
+// qrErrorData의 id가 실제 QR 번호이자 itemId이므로 QR 이미지도 같은
+// 번호로 그대로 대응된다(1:1). ITEM_COUNT와 QR_IMAGE_COUNT가 항상
+// 같은 수(현재 151)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
+// 혹시 둘의 개수가 어긋나는 경우를 대비해 남겨둔다.
 //
-const QR_IMAGE_COUNT = 87; // images/qr/qr_final_001.jpg ~ qr_final_087.jpg
+const QR_IMAGE_COUNT = 151; // images/qr/qr_final_001.jpg ~ qr_final_151.jpg
+
+// qr_error_data.json(프로젝트 루트) 에서 실제 errorA(unfilledRate)/
+// errorB(overflowRate) 데이터를 읽어 n(QR 번호) 오름차순으로 정렬해
+// qrErrorData에 채운다. setup()에서 완료를 기다린 뒤 아이템을 만든다.
+function loadErrorData() {
+  return fetch('../qr_error_data.json')
+    .then((res) => res.json())
+    .then((obj) => {
+      const arr = Object.entries(obj)
+        .map(([key, row]) => {
+          const m = String(key).match(/(\d+)$/);
+          if (!m) return null;
+          return { n: Number(m[1]), errorA: row.unfilledRate, errorB: row.overflowRate };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.n - b.n);
+      qrErrorData = arr;
+    })
+    .catch(() => {
+      qrErrorData = [];
+    });
+}
 
 // qr_name.json(프로젝트 루트) 에서 qr 번호 → 이름 매핑을 읽어둔다.
-// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~87 번만 쓴다.
+// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~151 번만 쓴다.
 // '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
 let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
 
@@ -352,7 +419,16 @@ let detailGfx = null;
 // 360의 배수면 오브젝트 면, 360k+180이면 QR 면. 여는 시점은 QR 면.
 let detailFlipAngle = 0;
 
-// 박스 안에 해당 아이템의 그래픽 오브젝트를 정적으로 한 프레임 그린다.
+// 2번(스포크) 탭에서만: 상세 박스 그래픽에도 그리드와 같은 폭죽 등장
+// 애니메이션을 준다. QR 면(여는 시점)에서는 'collapsed'(중심에 뭉쳐 대기),
+// flipDetail()로 그래픽 면이 드러나는 순간 'running'으로 전환해 재생하고,
+// 다시 QR 면으로 돌아가면 다음 재생을 위해 'collapsed'로 되돌린다.
+// 1번(방사형) 탭은 항상 'none'(정지 프레임)으로, 기존 동작 그대로.
+let detailAnimPhase = 'none'; // 'none' | 'collapsed' | 'running'
+let detailBurstStart = null; // 'running' 시작 시각(초). 그리드의 burstStart와 별개.
+let detailRenderInfo = null; // { g, item, cx, cy, size } — 애니메이션 프레임마다 다시 그리는 데 필요
+
+// 상세 박스 안에 해당 아이템의 그래픽 오브젝트를 새 p5.Graphics 버퍼에 만든다.
 function renderDetailGraphic(itemId) {
   const holder = document.getElementById('detail-graphic');
   if (detailGfx) {
@@ -362,6 +438,7 @@ function renderDetailGraphic(itemId) {
   holder.innerHTML = '';
 
   const item = itemById(itemId);
+  detailRenderInfo = null;
   if (!item) return;
 
   const R = 520; // 렌더 해상도(표시는 CSS가 박스 폭에 맞춰 축소)
@@ -375,13 +452,39 @@ function renderDetailGraphic(itemId) {
   g.canvas.style.width = '100%';
   g.canvas.style.height = '100%';
 
-  g.background(0, 0, 100); // 상세 박스 안에서는 탭 1·2 모두 흰 배경으로 통일
-
   const pad = R * CELL_PADDING_RATIO;
-  drawItem(item, g, R / 2, R / 2, R - pad * 2); // 각도 오프셋 0 = 정지 프레임
+  detailRenderInfo = { g, item, cx: R / 2, cy: R / 2, size: R - pad * 2 };
+
+  // 2번(스포크) 탭은 QR 면부터 보이므로 그래픽은 일단 중심에 뭉친 채
+  // 대기, 1번(방사형) 탭은 기존처럼 바로 정지 프레임으로.
+  detailAnimPhase = currentShape === 'radial-spokes' ? 'collapsed' : 'none';
+  detailBurstStart = null;
+  drawDetailFrame();
 
   holder.appendChild(g.canvas);
   detailGfx = g;
+}
+
+// detailRenderInfo · detailAnimPhase 에 맞춰 상세 박스 그래픽을 한 프레임 그린다.
+function drawDetailFrame() {
+  if (!detailRenderInfo) return;
+  const { g, item, cx, cy, size } = detailRenderInfo;
+  g.background(0, 0, 100); // 상세 박스 안에서는 탭 1·2 모두 흰 배경으로 통일
+
+  // 상세 박스는 그리드와 다른 애니메이션 방식(perSpokeBurst=true) — 선분별
+  // 개별 지연·easeOutExpo는 core.js의 buildRadialSpokeGeometry가 처리하므로,
+  // 여기서는 선형(미가공) 진행도만 넘긴다.
+  let grow = null;
+  if (detailAnimPhase === 'collapsed') {
+    grow = { outer: 0, inner: 0 }; // 중심에 뭉쳐 대기(아직 안 보이는 면)
+  } else if (detailAnimPhase === 'running' && detailBurstStart !== null) {
+    const t = millis() / 1000 - detailBurstStart;
+    grow = {
+      outer: clamp01(t / SPOKE_BURST_DURATION),
+      inner: clamp01((t - SPOKE_BURST_SET_DELAY) / SPOKE_BURST_DURATION),
+    };
+  }
+  drawItem(item, g, cx, cy, size, grow, true);
 }
 
 // 누적 각도를 카드에 적용한다. data-stage 는 참고용(현재 보이는 면).
@@ -407,6 +510,20 @@ function resetDetailFlip() {
 function flipDetail() {
   detailFlipAngle += 180;
   applyDetailFlip();
+
+  // 2번(스포크) 탭에서만: 그래픽 면으로 넘어가는 순간 폭죽 등장 애니메이션을
+  // 재생하고, QR 면으로 돌아가면 다음 재생을 위해 다시 중심에 뭉쳐둔다.
+  if (currentShape === 'radial-spokes' && detailRenderInfo) {
+    const showingGraphic = document.getElementById('detail-media').dataset.stage === 'graphic';
+    if (showingGraphic) {
+      detailAnimPhase = 'running';
+      detailBurstStart = millis() / 1000;
+    } else {
+      detailAnimPhase = 'collapsed';
+      detailBurstStart = null;
+      drawDetailFrame();
+    }
+  }
 }
 
 // itemId 하나로 오버레이 내용을 채운다 — 그래픽 오브젝트를 먼저 보여주고
@@ -440,17 +557,20 @@ function closeDetailOverlay() {
     detailGfx.remove();
     detailGfx = null;
   }
+  detailRenderInfo = null;
+  detailAnimPhase = 'none';
+  detailBurstStart = null;
 }
 
 // ── p5 setup ────────────────────────────────────────────────
-function setup() {
+// errorA/errorB가 실제 데이터(qrErrorData)로 결정되므로, 그 로딩이 끝날
+// 때까지 기다렸다가 아이템을 만들고 그리드를 처음 빌드한다. 그 사이에도
+// 이벤트 리스너는 먼저 걸어둬 UI 자체는 바로 반응하도록 한다.
+async function setup() {
   colorMode(HSB, 360, 100, 100);
   frameRate(30); // 등장 애니메이션용 — 아이템이 많아 매 프레임 다시 그리는 비용을 아낌
 
   loadQrNames(); // qr 번호 → 이름 매핑을 비동기로 읽어둔다(클릭 시점에만 필요)
-
-  radialItems = generateRadialItems();
-  spokeItems = generateSpokeItems();
 
   const shapeButtons = document.querySelectorAll('.shape-btn');
   shapeButtons.forEach((btn) => {
@@ -511,6 +631,11 @@ function setup() {
     else if (e.key === 'Escape') closeDetailOverlay();
   });
 
+  await loadErrorData(); // 실제 errorA/errorB 데이터를 기다린 뒤 아이템 생성
+  ITEM_COUNT = qrErrorData.length;
+  radialItems = generateRadialItems();
+  spokeItems = generateSpokeItems();
+
   buildGridView(true); // 첫 로드에도 1번 탭 폭죽 등장 애니메이션 재생
 }
 
@@ -519,22 +644,33 @@ function windowResized() {
   buildGridView();
 }
 
-// 애니메이션 루프 — 1·2번 탭 모두 평소엔 정적이고, 폭죽 등장 애니메이션
-// 중(burstStart !== null)에만 매 프레임 다시 그리다가 끝나면 멈춘다.
+// 애니메이션 루프 — 그리드(1·2번 탭)와 상세 박스(2번 탭) 모두 평소엔
+// 정적이고, 각자의 폭죽 등장 애니메이션이 진행 중일 때만 매 프레임 다시
+// 그리다가 끝나면 멈춘다.
 function draw() {
-  if (gridCells.length === 0 || burstStart === null) return;
-
   const nowSec = millis() / 1000;
-  renderGridFrame(nowSec);
 
-  // 가장 늦게 시작하는 아이템(STAGGER_MAX)까지 다 커지면 종료.
-  let total = 0;
-  if (currentShape === 'radial') {
-    total = RADIAL_BURST_STAGGER_MAX + RADIAL_BURST_SET_DELAY + RADIAL_BURST_DURATION;
-  } else if (currentShape === 'radial-spokes') {
-    total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
+  if (gridCells.length > 0 && burstStart !== null) {
+    renderGridFrame(nowSec);
+
+    // 가장 늦게 시작하는 아이템(STAGGER_MAX)까지 다 커지면 종료.
+    let total = 0;
+    if (currentShape === 'radial') {
+      total = RADIAL_BURST_STAGGER_MAX + RADIAL_BURST_SET_DELAY + RADIAL_BURST_DURATION;
+    } else if (currentShape === 'radial-spokes') {
+      total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
+    }
+    if (nowSec - burstStart >= total) {
+      burstStart = null; // 애니메이션 종료 → 이후 정적
+    }
   }
-  if (nowSec - burstStart >= total) {
-    burstStart = null; // 애니메이션 종료 → 이후 정적
+
+  if (detailAnimPhase === 'running' && detailBurstStart !== null) {
+    drawDetailFrame();
+    if (nowSec - detailBurstStart >= SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION) {
+      detailAnimPhase = 'none'; // 애니메이션 종료 → 이후 정적(제 크기)
+      detailBurstStart = null;
+      drawDetailFrame(); // 제 크기로 마지막 프레임 확정
+    }
   }
 }

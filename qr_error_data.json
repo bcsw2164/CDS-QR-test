@@ -1,0 +1,606 @@
+{
+  "qr_clean_001": {
+    "unfilledRate": 0.635,
+    "overflowRate": 0.06
+  },
+  "qr_clean_002": {
+    "unfilledRate": 0.33,
+    "overflowRate": 0.104
+  },
+  "qr_clean_003": {
+    "unfilledRate": 0.241,
+    "overflowRate": 0.122
+  },
+  "qr_clean_004": {
+    "unfilledRate": 0.081,
+    "overflowRate": 0.102
+  },
+  "qr_clean_005": {
+    "unfilledRate": 0.042,
+    "overflowRate": 0.042
+  },
+  "qr_clean_006": {
+    "unfilledRate": 0.013,
+    "overflowRate": 0.103
+  },
+  "qr_clean_007": {
+    "unfilledRate": 0.008,
+    "overflowRate": 0.11
+  },
+  "qr_clean_008": {
+    "unfilledRate": 0.016,
+    "overflowRate": 0.126
+  },
+  "qr_clean_009": {
+    "unfilledRate": 0.153,
+    "overflowRate": 0.074
+  },
+  "qr_clean_010": {
+    "unfilledRate": 0.031,
+    "overflowRate": 0.028
+  },
+  "qr_clean_011": {
+    "unfilledRate": 0.081,
+    "overflowRate": 0.112
+  },
+  "qr_clean_012": {
+    "unfilledRate": 0.04,
+    "overflowRate": 0.05
+  },
+  "qr_clean_013": {
+    "unfilledRate": 0.017,
+    "overflowRate": 0.108
+  },
+  "qr_clean_014": {
+    "unfilledRate": 0.983,
+    "overflowRate": 0.006
+  },
+  "qr_clean_015": {
+    "unfilledRate": 0.017,
+    "overflowRate": 0.075
+  },
+  "qr_clean_016": {
+    "unfilledRate": 0.281,
+    "overflowRate": 0.057
+  },
+  "qr_clean_017": {
+    "unfilledRate": 0.034,
+    "overflowRate": 0.047
+  },
+  "qr_clean_018": {
+    "unfilledRate": 0.058,
+    "overflowRate": 0.057
+  },
+  "qr_clean_019": {
+    "unfilledRate": 0.178,
+    "overflowRate": 0.091
+  },
+  "qr_clean_020": {
+    "unfilledRate": 0.71,
+    "overflowRate": 0.008
+  },
+  "qr_clean_021": {
+    "unfilledRate": 0.098,
+    "overflowRate": 0.156
+  },
+  "qr_clean_022": {
+    "unfilledRate": 0.939,
+    "overflowRate": 0.015
+  },
+  "qr_clean_023": {
+    "unfilledRate": 0.597,
+    "overflowRate": 0.204
+  },
+  "qr_clean_024": {
+    "unfilledRate": 0.15,
+    "overflowRate": 0.138
+  },
+  "qr_clean_025": {
+    "unfilledRate": 0.084,
+    "overflowRate": 0.053
+  },
+  "qr_clean_026": {
+    "unfilledRate": 0.099,
+    "overflowRate": 0.106
+  },
+  "qr_clean_027": {
+    "unfilledRate": 0.043,
+    "overflowRate": 0.123
+  },
+  "qr_clean_028": {
+    "unfilledRate": 0.054,
+    "overflowRate": 0.16
+  },
+  "qr_clean_029": {
+    "unfilledRate": 0.167,
+    "overflowRate": 0.134
+  },
+  "qr_clean_030": {
+    "unfilledRate": 0.129,
+    "overflowRate": 0.083
+  },
+  "qr_clean_031": {
+    "unfilledRate": 0.086,
+    "overflowRate": 0.088
+  },
+  "qr_clean_032": {
+    "unfilledRate": 0.151,
+    "overflowRate": 0.04
+  },
+  "qr_clean_033": {
+    "unfilledRate": 0.124,
+    "overflowRate": 0.082
+  },
+  "qr_clean_034": {
+    "unfilledRate": 0.048,
+    "overflowRate": 0.172
+  },
+  "qr_clean_035": {
+    "unfilledRate": 0.014,
+    "overflowRate": 0.125
+  },
+  "qr_clean_036": {
+    "unfilledRate": 0.007,
+    "overflowRate": 0.132
+  },
+  "qr_clean_037": {
+    "unfilledRate": 0.006,
+    "overflowRate": 0.097
+  },
+  "qr_clean_038": {
+    "unfilledRate": 0.01,
+    "overflowRate": 0.091
+  },
+  "qr_clean_039": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.121
+  },
+  "qr_clean_040": {
+    "unfilledRate": 0.028,
+    "overflowRate": 0.109
+  },
+  "qr_clean_041": {
+    "unfilledRate": 0.079,
+    "overflowRate": 0.137
+  },
+  "qr_clean_042": {
+    "unfilledRate": 0.039,
+    "overflowRate": 0.094
+  },
+  "qr_clean_043": {
+    "unfilledRate": 0.017,
+    "overflowRate": 0.122
+  },
+  "qr_clean_044": {
+    "unfilledRate": 0.034,
+    "overflowRate": 0.088
+  },
+  "qr_clean_045": {
+    "unfilledRate": 0.01,
+    "overflowRate": 0.126
+  },
+  "qr_clean_046": {
+    "unfilledRate": 0.049,
+    "overflowRate": 0.047
+  },
+  "qr_clean_047": {
+    "unfilledRate": 0.099,
+    "overflowRate": 0.061
+  },
+  "qr_clean_048": {
+    "unfilledRate": 0.076,
+    "overflowRate": 0.064
+  },
+  "qr_clean_049": {
+    "unfilledRate": 0.088,
+    "overflowRate": 0.048
+  },
+  "qr_clean_050": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.094
+  },
+  "qr_clean_051": {
+    "unfilledRate": 0.033,
+    "overflowRate": 0.108
+  },
+  "qr_clean_052": {
+    "unfilledRate": 0.129,
+    "overflowRate": 0.044
+  },
+  "qr_clean_053": {
+    "unfilledRate": 0.144,
+    "overflowRate": 0.091
+  },
+  "qr_clean_054": {
+    "unfilledRate": 0.054,
+    "overflowRate": 0.094
+  },
+  "qr_clean_055": {
+    "unfilledRate": 0.078,
+    "overflowRate": 0.043
+  },
+  "qr_clean_056": {
+    "unfilledRate": 0.226,
+    "overflowRate": 0.171
+  },
+  "qr_clean_057": {
+    "unfilledRate": 0.017,
+    "overflowRate": 0.136
+  },
+  "qr_clean_058": {
+    "unfilledRate": 0.03,
+    "overflowRate": 0.088
+  },
+  "qr_clean_059": {
+    "unfilledRate": 0.105,
+    "overflowRate": 0.039
+  },
+  "qr_clean_060": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.106
+  },
+  "qr_clean_061": {
+    "unfilledRate": 0.097,
+    "overflowRate": 0.076
+  },
+  "qr_clean_062": {
+    "unfilledRate": 0.086,
+    "overflowRate": 0.041
+  },
+  "qr_clean_063": {
+    "unfilledRate": 0.011,
+    "overflowRate": 0.124
+  },
+  "qr_clean_064": {
+    "unfilledRate": 0.015,
+    "overflowRate": 0.069
+  },
+  "qr_clean_065": {
+    "unfilledRate": 0.082,
+    "overflowRate": 0.06
+  },
+  "qr_clean_066": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.128
+  },
+  "qr_clean_067": {
+    "unfilledRate": 0.004,
+    "overflowRate": 0.131
+  },
+  "qr_clean_068": {
+    "unfilledRate": 0.095,
+    "overflowRate": 0.049
+  },
+  "qr_clean_069": {
+    "unfilledRate": 0.038,
+    "overflowRate": 0.037
+  },
+  "qr_clean_070": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.04
+  },
+  "qr_clean_071": {
+    "unfilledRate": 0.039,
+    "overflowRate": 0.083
+  },
+  "qr_clean_072": {
+    "unfilledRate": 0.049,
+    "overflowRate": 0.08
+  },
+  "qr_clean_073": {
+    "unfilledRate": 0.016,
+    "overflowRate": 0.095
+  },
+  "qr_clean_074": {
+    "unfilledRate": 0.055,
+    "overflowRate": 0.051
+  },
+  "qr_clean_075": {
+    "unfilledRate": 0.025,
+    "overflowRate": 0.134
+  },
+  "qr_clean_076": {
+    "unfilledRate": 0.244,
+    "overflowRate": 0.039
+  },
+  "qr_clean_077": {
+    "unfilledRate": 0.013,
+    "overflowRate": 0.158
+  },
+  "qr_clean_078": {
+    "unfilledRate": 0.089,
+    "overflowRate": 0.081
+  },
+  "qr_clean_079": {
+    "unfilledRate": 0.054,
+    "overflowRate": 0.056
+  },
+  "qr_clean_080": {
+    "unfilledRate": 0.076,
+    "overflowRate": 0.093
+  },
+  "qr_clean_081": {
+    "unfilledRate": 0.072,
+    "overflowRate": 0.067
+  },
+  "qr_clean_082": {
+    "unfilledRate": 0.036,
+    "overflowRate": 0.076
+  },
+  "qr_clean_083": {
+    "unfilledRate": 0.077,
+    "overflowRate": 0.053
+  },
+  "qr_clean_084": {
+    "unfilledRate": 0.407,
+    "overflowRate": 0.066
+  },
+  "qr_clean_085": {
+    "unfilledRate": 0.239,
+    "overflowRate": 0.069
+  },
+  "qr_clean_086": {
+    "unfilledRate": 0.023,
+    "overflowRate": 0.058
+  },
+  "qr_clean_087": {
+    "unfilledRate": 0.06,
+    "overflowRate": 0.067
+  },
+  "qr_clean_088": {
+    "unfilledRate": 0.057,
+    "overflowRate": 0.07
+  },
+  "qr_clean_089": {
+    "unfilledRate": 0.032,
+    "overflowRate": 0.069
+  },
+  "qr_clean_090": {
+    "unfilledRate": 0.088,
+    "overflowRate": 0.075
+  },
+  "qr_clean_091": {
+    "unfilledRate": 0.031,
+    "overflowRate": 0.071
+  },
+  "qr_clean_092": {
+    "unfilledRate": 0.129,
+    "overflowRate": 0.148
+  },
+  "qr_clean_093": {
+    "unfilledRate": 0.021,
+    "overflowRate": 0.127
+  },
+  "qr_clean_094": {
+    "unfilledRate": 0.027,
+    "overflowRate": 0.049
+  },
+  "qr_clean_095": {
+    "unfilledRate": 0.016,
+    "overflowRate": 0.074
+  },
+  "qr_clean_096": {
+    "unfilledRate": 0.063,
+    "overflowRate": 0.058
+  },
+  "qr_clean_097": {
+    "unfilledRate": 0.11,
+    "overflowRate": 0.028
+  },
+  "qr_clean_098": {
+    "unfilledRate": 0.088,
+    "overflowRate": 0.02
+  },
+  "qr_clean_099": {
+    "unfilledRate": 0.023,
+    "overflowRate": 0.044
+  },
+  "qr_clean_100": {
+    "unfilledRate": 0.031,
+    "overflowRate": 0.055
+  },
+  "qr_clean_101": {
+    "unfilledRate": 0.143,
+    "overflowRate": 0.094
+  },
+  "qr_clean_102": {
+    "unfilledRate": 0.116,
+    "overflowRate": 0.036
+  },
+  "qr_clean_103": {
+    "unfilledRate": 0.05,
+    "overflowRate": 0.056
+  },
+  "qr_clean_104": {
+    "unfilledRate": 0.056,
+    "overflowRate": 0.107
+  },
+  "qr_clean_105": {
+    "unfilledRate": 0.065,
+    "overflowRate": 0.068
+  },
+  "qr_clean_106": {
+    "unfilledRate": 0.07,
+    "overflowRate": 0.085
+  },
+  "qr_clean_107": {
+    "unfilledRate": 0.055,
+    "overflowRate": 0.066
+  },
+  "qr_clean_108": {
+    "unfilledRate": 0.172,
+    "overflowRate": 0.082
+  },
+  "qr_clean_109": {
+    "unfilledRate": 0.088,
+    "overflowRate": 0.091
+  },
+  "qr_clean_110": {
+    "unfilledRate": 0.022,
+    "overflowRate": 0.041
+  },
+  "qr_clean_111": {
+    "unfilledRate": 0.102,
+    "overflowRate": 0.138
+  },
+  "qr_clean_112": {
+    "unfilledRate": 0.01,
+    "overflowRate": 0.066
+  },
+  "qr_clean_113": {
+    "unfilledRate": 0.008,
+    "overflowRate": 0.137
+  },
+  "qr_clean_114": {
+    "unfilledRate": 0.031,
+    "overflowRate": 0.146
+  },
+  "qr_clean_115": {
+    "unfilledRate": 0.165,
+    "overflowRate": 0.063
+  },
+  "qr_clean_116": {
+    "unfilledRate": 0.292,
+    "overflowRate": 0.081
+  },
+  "qr_clean_117": {
+    "unfilledRate": 0.063,
+    "overflowRate": 0.07
+  },
+  "qr_clean_118": {
+    "unfilledRate": 0.03,
+    "overflowRate": 0.107
+  },
+  "qr_clean_119": {
+    "unfilledRate": 0.11,
+    "overflowRate": 0.025
+  },
+  "qr_clean_120": {
+    "unfilledRate": 0.131,
+    "overflowRate": 0.16
+  },
+  "qr_clean_121": {
+    "unfilledRate": 0.069,
+    "overflowRate": 0.072
+  },
+  "qr_clean_122": {
+    "unfilledRate": 0.333,
+    "overflowRate": 0.05
+  },
+  "qr_clean_123": {
+    "unfilledRate": 0.052,
+    "overflowRate": 0.055
+  },
+  "qr_clean_124": {
+    "unfilledRate": 0.035,
+    "overflowRate": 0.076
+  },
+  "qr_clean_125": {
+    "unfilledRate": 0.19,
+    "overflowRate": 0.091
+  },
+  "qr_clean_126": {
+    "unfilledRate": 0.052,
+    "overflowRate": 0.096
+  },
+  "qr_clean_127": {
+    "unfilledRate": 0.118,
+    "overflowRate": 0.095
+  },
+  "qr_clean_128": {
+    "unfilledRate": 0.546,
+    "overflowRate": 0.037
+  },
+  "qr_clean_129": {
+    "unfilledRate": 0.122,
+    "overflowRate": 0.033
+  },
+  "qr_clean_130": {
+    "unfilledRate": 0.34,
+    "overflowRate": 0.064
+  },
+  "qr_clean_131": {
+    "unfilledRate": 0.167,
+    "overflowRate": 0.064
+  },
+  "qr_clean_132": {
+    "unfilledRate": 0.227,
+    "overflowRate": 0.022
+  },
+  "qr_clean_133": {
+    "unfilledRate": 0.486,
+    "overflowRate": 0.194
+  },
+  "qr_clean_134": {
+    "unfilledRate": 0.228,
+    "overflowRate": 0.183
+  },
+  "qr_clean_135": {
+    "unfilledRate": 0.484,
+    "overflowRate": 0.189
+  },
+  "qr_clean_136": {
+    "unfilledRate": 0.177,
+    "overflowRate": 0.195
+  },
+  "qr_clean_137": {
+    "unfilledRate": 0.069,
+    "overflowRate": 0.111
+  },
+  "qr_clean_138": {
+    "unfilledRate": 0.723,
+    "overflowRate": 0.138
+  },
+  "qr_clean_139": {
+    "unfilledRate": 0.236,
+    "overflowRate": 0.025
+  },
+  "qr_clean_140": {
+    "unfilledRate": 0.301,
+    "overflowRate": 0.028
+  },
+  "qr_clean_141": {
+    "unfilledRate": 0.069,
+    "overflowRate": 0.13
+  },
+  "qr_clean_142": {
+    "unfilledRate": 0.137,
+    "overflowRate": 0.008
+  },
+  "qr_clean_143": {
+    "unfilledRate": 0.023,
+    "overflowRate": 0.091
+  },
+  "qr_clean_144": {
+    "unfilledRate": 0.055,
+    "overflowRate": 0.061
+  },
+  "qr_clean_145": {
+    "unfilledRate": 0.21,
+    "overflowRate": 0.105
+  },
+  "qr_clean_146": {
+    "unfilledRate": 0.484,
+    "overflowRate": 0.059
+  },
+  "qr_clean_147": {
+    "unfilledRate": 0.102,
+    "overflowRate": 0.07
+  },
+  "qr_clean_148": {
+    "unfilledRate": 0.044,
+    "overflowRate": 0.075
+  },
+  "qr_clean_149": {
+    "unfilledRate": 0.195,
+    "overflowRate": 0.039
+  },
+  "qr_clean_150": {
+    "unfilledRate": 0.207,
+    "overflowRate": 0.103
+  },
+  "qr_clean_151": {
+    "unfilledRate": 0.159,
+    "overflowRate": 0.081
+  }
+}
