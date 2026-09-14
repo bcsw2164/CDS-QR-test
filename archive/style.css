@@ -189,6 +189,15 @@ body {
   transform: translate(-50%, -50%);
 }
 
+/* 검은 사각형 안쪽에 흰 사각형을 띄워 인터페이스가 살짝 분리된 듯한
+   느낌을 준다 — QR 파인더 패턴처럼 검은 테두리만 남기는 형태. */
+.corner::after {
+  content: '';
+  position: absolute;
+  inset: 28%;
+  background: #fff;
+}
+
 .corner-tl {
   top: 0;
   left: 0;
