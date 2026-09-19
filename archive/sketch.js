@@ -4,7 +4,7 @@
    errorA/errorB는 qr_error_data.json(프로젝트 루트)에 담긴 실제 추출
    데이터를 그대로 쓴다 — 키(qr_clean_NNN)의 번호가 QR 이미지 번호와
    동일해 1:1로 매칭된다. ITEM_COUNT는 이 데이터 개수로 정해진다(현재
-   151). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
+   173). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
    페이지와 동일한 규칙).
 
    각 데이터는 1~ITEM_COUNT번 번호(제출 순서)를 갖는다. 탭으로 정렬
@@ -129,7 +129,7 @@ let gridBuildToken = 0;
 // 넓게 늘려놓은 형태라(특히 unfilledRate — 중앙값이 전체 폭의 7% 지점),
 // min-max로 최소~최대만 0~1로 펴면 그 쏠림이 그대로 남아 다수가 여전히
 // 좁은 구간에 압축된다. 대신 퍼센타일(순위) 정규화를 쓴다 — 값의 절대
-// 크기가 아니라 151명 중 몇 번째로 큰지(순위)만으로 0~1에 고르게 배치하므로
+// 크기가 아니라 173명 중 몇 번째로 큰지(순위)만으로 0~1에 고르게 배치하므로
 // 극단치 크기와 무관하게 전 구간을 고르게 쓰게 된다. 동점은 평균 순위로
 // 묶어 처리(순서를 임의로 가르지 않음).
 function normalizeErrorAxis(values) {
@@ -340,10 +340,10 @@ function buildGridView(burst = false) {
 //
 // qrErrorData의 id가 실제 QR 번호이자 itemId이므로 QR 이미지도 같은
 // 번호로 그대로 대응된다(1:1). ITEM_COUNT와 QR_IMAGE_COUNT가 항상
-// 같은 수(현재 151)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
+// 같은 수(현재 173)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
 // 혹시 둘의 개수가 어긋나는 경우를 대비해 남겨둔다.
 //
-const QR_IMAGE_COUNT = 151; // images/qr/qr_final_001.jpg ~ qr_final_151.jpg
+const QR_IMAGE_COUNT = 173; // images/qr/qr_final_001.jpg ~ qr_final_173.jpg
 
 // qr_error_data.json(프로젝트 루트) 에서 실제 errorA(unfilledRate)/
 // errorB(overflowRate) 데이터를 읽어 n(QR 번호) 오름차순으로 정렬해
@@ -368,9 +368,15 @@ function loadErrorData() {
 }
 
 // qr_name.json(프로젝트 루트) 에서 qr 번호 → 이름 매핑을 읽어둔다.
-// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~151 번만 쓴다.
+// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~173 번만 쓴다.
 // '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
 let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
+
+// [수집 순번 표시] 상세 오버레이에 "No.n"(왼쪽)·이름(오른쪽)을 나눠 붙일지
+// 여부. 추후 필요 없어지면 이 줄만 false로 바꾸면 번호 표기 이전 상태
+// (가운데 정렬된 이름만)로 그대로 돌아간다 — style.css의 ".detail-box
+// p.has-number" 블록과 세트이니 완전히 지울 땐 그 블록도 함께 지운다.
+const SHOW_QR_NUMBER_PREFIX = false;
 
 function loadQrNames() {
   fetch('../qr_name.json')
@@ -531,7 +537,24 @@ function flipDetail() {
 function fillDetail(itemId) {
   const n = qrIndexOf(itemId);
   document.getElementById('detail-qr').src = qrImagePath(itemId);
-  document.getElementById('detail-name').textContent = qrNames[n] || '익명';
+  const displayName = qrNames[n] || '익명';
+  const nameEl = document.getElementById('detail-name');
+  // [수집 순번 표시] SHOW_QR_NUMBER_PREFIX 참고 — 지울 땐 이 if/else 블록을
+  // else 쪽 한 줄(nameEl.textContent = displayName;)로 바꾸면 원래대로 돌아간다.
+  if (SHOW_QR_NUMBER_PREFIX) {
+    nameEl.classList.add('has-number');
+    nameEl.textContent = '';
+    const noSpan = document.createElement('span');
+    noSpan.className = 'detail-no';
+    noSpan.textContent = `No.${n}`;
+    const personSpan = document.createElement('span');
+    personSpan.className = 'detail-person';
+    personSpan.textContent = displayName;
+    nameEl.append(noSpan, personSpan);
+  } else {
+    nameEl.classList.remove('has-number');
+    nameEl.textContent = displayName;
+  }
   renderDetailGraphic(itemId);
   resetDetailFlip(); // QR 면부터 시작(클릭 시 한 방향으로 뒤집혀 오브젝트 표시)
 }

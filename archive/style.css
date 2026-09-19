@@ -316,3 +316,19 @@ body {
   letter-spacing: 0.06em;
   color: #111;
 }
+
+/* [수집 순번 표시] sketch.js의 SHOW_QR_NUMBER_PREFIX가 true일 때만 붙는
+   클래스 — 번호(No.n)는 왼쪽, 이름은 오른쪽에 배치한다. 번호 표시를
+   없앨 때는 이 블록을 지우면(플래그도 false로) 위 .detail-box p의
+   가운데 정렬로 자동 복구된다. */
+.detail-box p.has-number {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  align-self: stretch;
+  width: 100%;
+  /* QR 사진 자체의 여백(코너 파인더 안쪽 여백)만큼 좌우로 들여써서,
+     No.n / 이름 텍스트가 QR 패턴의 실제 좌우 끝보다 밖으로 튀어나가지
+     않게 한다. 이미지마다 살짝 다를 수 있어 대략치(7%)로 맞춤. */
+  padding: 0 7%;
+}
