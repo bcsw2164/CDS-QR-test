@@ -95,9 +95,12 @@ const RADIAL_DOT_SIZE_RATIO = 0.35; // 원 하나의 지름 = radius × 이 비�
 // RADIAL_COLOR_PALETTE에서 서로 다른 색 2개를 무작위로 뽑는다(선 색,
 // 점 색 — 절대 겹치지 않음). 새 아이템/새 세션을 생성할 때 한 번만
 // 호출해서 그 결과를 고정해 쓴다.
-function pickRadialColors() {
-  const i = Math.floor(random(RADIAL_COLOR_PALETTE.length));
-  let j = Math.floor(random(RADIAL_COLOR_PALETTE.length - 1));
+// rnd — 0~1 난수를 반환하는 함수(기본은 p5의 전역 random()). archive/
+// 처럼 새로고침해도 색이 안 바뀌어야 하는 곳은 makeRadialSpokeRng(seed)로
+// 만든 로컬 RNG를 넘겨서 아이템마다 항상 같은 색이 나오게 한다.
+function pickRadialColors(rnd = () => random()) {
+  const i = Math.floor(rnd() * RADIAL_COLOR_PALETTE.length);
+  let j = Math.floor(rnd() * (RADIAL_COLOR_PALETTE.length - 1));
   if (j >= i) j += 1; // i를 건너뛰어서 j !== i를 보장
   return { lineColor: RADIAL_COLOR_PALETTE[i], dotColor: RADIAL_COLOR_PALETTE[j] };
 }

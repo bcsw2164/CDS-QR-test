@@ -57,7 +57,12 @@
    ============================================================ */
 
 let ITEM_COUNT = 0; // qrErrorData 로딩 후 그 개수로 정해진다(setup 참고)
-const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율
+const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율(그리드 썸네일 + 2번 탭 상세 박스)
+
+// 1번(방사형) 탭 상세 박스 전용 그래픽 크기(캔버스 대비 비율). 2번(스포크)은
+// CELL_PADDING_RATIO 그대로 써서 캔버스의 94%를 채우는데, 1번은 그보다 커
+// 보인다는 피드백으로 상세 박스에서만 더 줄인다(그리드 썸네일은 그대로).
+const DETAIL_RADIAL_SIZE_RATIO = 0.85;
 
 // 1번(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
 // 선분(+선 끝 원)과 중심-거리 원을 각각 중심 기준 scale 0→1 로 easeOutExpo
@@ -149,6 +154,11 @@ function normalizeErrorAxis(values) {
   return ranks.map((r) => r / (n - 1));
 }
 
+// 탭1·탭2 색 고정용 시드 솔트 — item.id에 더해서 makeRadialSpokeRng에
+// 넘기는 값. 이 값을 바꾸면 모든 아이템의 색이 한꺼번에 다시 뽑힌다
+// (같은 값을 유지하는 한 새로고침해도 항상 동일한 색).
+const COLOR_SEED_SALT = 819842174;
+
 // radial은 형태가 errorA/errorB만으로 결정되므로 아이템 생성 로직을
 // 공유한다. qrErrorData(실제 데이터, setup에서 로딩 완료 후 호출)의
 // n을 그대로 id로 써서 QR 번호와 1:1로 맞추고, errorA/errorB는 각각
@@ -167,30 +177,33 @@ function generateFlowerItems() {
 
 // 방사형(1번) 전용 — generateFlowerItems()에 선·점·선 끝 원 색을
 // 더한다. 선·점 색은 오차 데이터와 무관하게 core.js의 pickRadialColors()
-// 로 완전히 무작위로 뽑고(팔레트 안에서 선·점이 겹치지 않게), 선 끝을
-// 따라가는 원(tipColor)은 그 둘과 겹치지 않는 색을 팔레트에서 하나 더
-// 뽑는다(drawRadialBurstFlowerDev용). 아이템마다 한 번만 뽑아 고정한다.
+// 로 뽑고(팔레트 안에서 선·점이 겹치지 않게), 선 끝을 따라가는 원
+// (tipColor)은 그 둘과 겹치지 않는 색을 팔레트에서 하나 더 뽑는다
+// (drawRadialBurstFlowerDev용). item.id로 만든 로컬 RNG를 써서 새로고침
+// 해도 같은 id는 항상 같은 색이 나오도록 고정한다.
 function generateRadialItems() {
   const list = generateFlowerItems();
   list.forEach((item) => {
-    const { lineColor, dotColor } = pickRadialColors();
+    const rnd = makeRadialSpokeRng(item.id + COLOR_SEED_SALT);
+    const { lineColor, dotColor } = pickRadialColors(rnd);
     item.lineColor = lineColor;
     item.dotColor = dotColor;
     const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
-    item.tipColor = tipOptions[Math.floor(random(tipOptions.length))];
-    item.burstDelay = random(0, RADIAL_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연
+    item.tipColor = tipOptions[Math.floor(rnd() * tipOptions.length)];
+    item.burstDelay = random(0, RADIAL_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연(모양에는 영향 없음이라 랜덤 유지)
   });
   return list;
 }
 
 // 방사형 스포크(2번) 전용 — generateFlowerItems()에 색 시드만 더한다.
 // drawRadialSpokeDots는 형태를 core.js의 고정 시드로, 색(선분 두 세트·
-// 끝점 원)을 이 colorSeed로 뽑는다. 아이템마다 한 번만 뽑아 고정.
+// 끝점 원)을 이 colorSeed로 뽑는다. colorSeed를 item.id로 고정해서
+// 새로고침해도 같은 id는 항상 같은 색이 나오게 한다.
 function generateSpokeItems() {
   const list = generateFlowerItems();
   list.forEach((item) => {
-    item.colorSeed = Math.floor(random(1e9));
-    item.burstDelay = random(0, SPOKE_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연
+    item.colorSeed = item.id + COLOR_SEED_SALT;
+    item.burstDelay = random(0, SPOKE_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연(모양에는 영향 없음이라 랜덤 유지)
   });
   return list;
 }
@@ -462,8 +475,9 @@ function renderDetailGraphic(itemId) {
   g.canvas.style.width = '100%';
   g.canvas.style.height = '100%';
 
-  const pad = R * CELL_PADDING_RATIO;
-  detailRenderInfo = { g, item, cx: R / 2, cy: R / 2, size: R - pad * 2 };
+  const size =
+    currentShape === 'radial' ? R * DETAIL_RADIAL_SIZE_RATIO : R - R * CELL_PADDING_RATIO * 2;
+  detailRenderInfo = { g, item, cx: R / 2, cy: R / 2, size };
 
   // 2번(스포크) 탭은 QR 면부터 보이므로 그래픽은 일단 중심에 뭉친 채
   // 대기, 1번(방사형) 탭은 기존처럼 바로 정지 프레임으로.
