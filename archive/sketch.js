@@ -38,8 +38,8 @@
        easeOutExpo, 선분이 먼저·중심-거리 원이 RADIAL_BURST_SET_DELAY
        만큼 늦게 시작(그래픽 자체는 안 건드리고 캔버스 변형만).
 
-   상세 박스 등장 애니메이션 — 2번(스포크) 탭에서만, 카드를 클릭해 QR
-   면 → 그래픽 면으로 뒤집힐 때 재생된다(flipDetail()). 그리드와 달리
+   상세 박스 등장 애니메이션 — 2번(스포크) 탭에서만, 자동 전환으로 QR
+   면 → 그래픽 면으로 뒤집힐 때 재생된다(showDetailStage()). 그리드와 달리
    drawRadialSpokeDots를 perSpokeBurst=true로 불러, 세트가 한 덩어리로
    커지지 않고 core.js(buildRadialSpokeGeometry)가 선분마다 개별 랜덤
    시작 시점(RADIAL_SPOKE_BURST_STAGGER_RATIO)을 뽑아 각자 다른 타이밍에
@@ -421,15 +421,15 @@ function itemById(id) {
 // 상세 박스 안에 그려두는 그래픽 오브젝트 버퍼. 열 때마다 새로 만들고
 // 닫을 때/다음 항목으로 넘어갈 때 폐기한다.
 let detailGfx = null;
-// 박스를 클릭할 때마다 카드를 같은 방향으로 180도씩 돌린다(누적 각도).
-// 360의 배수면 오브젝트 면, 360k+180이면 QR 면. 여는 시점은 QR 면.
+// 자동 전환 때마다 카드를 같은 방향으로 180도씩 돌린다(누적 각도).
+// 360의 배수면 그래픽 면, 360k+180이면 QR 면. 여는 시점은 그래픽 면.
 let detailFlipAngle = 0;
 
 // 2번(스포크) 탭에서만: 상세 박스 그래픽에도 그리드와 같은 폭죽 등장
-// 애니메이션을 준다. QR 면(여는 시점)에서는 'collapsed'(중심에 뭉쳐 대기),
-// flipDetail()로 그래픽 면이 드러나는 순간 'running'으로 전환해 재생하고,
-// 다시 QR 면으로 돌아가면 다음 재생을 위해 'collapsed'로 되돌린다.
-// 1번(방사형) 탭은 항상 'none'(정지 프레임)으로, 기존 동작 그대로.
+// 애니메이션을 준다. QR 면일 때는 'collapsed'(중심에 뭉쳐 대기),
+// showDetailStage('graphic')으로 그래픽 면이 드러나는 순간 'running'으로
+// 전환해 재생하고, 다시 QR 면으로 돌아가면 다음 재생을 위해 'collapsed'로
+// 되돌린다. 1번(방사형) 탭은 항상 'none'(정지 프레임)으로, 기존 동작 그대로.
 let detailAnimPhase = 'none'; // 'none' | 'collapsed' | 'running'
 let detailBurstStart = null; // 'running' 시작 시각(초). 그리드의 burstStart와 별개.
 let detailRenderInfo = null; // { g, item, cx, cy, size } — 애니메이션 프레임마다 다시 그리는 데 필요
@@ -447,8 +447,12 @@ function renderDetailGraphic(itemId) {
   detailRenderInfo = null;
   if (!item) return;
 
-  const R = 520; // 렌더 해상도(표시는 CSS가 박스 폭에 맞춰 축소)
-  const density = Math.min(window.devicePixelRatio || 1, 2);
+  const R = 520; // 렌더 해상도(표시는 CSS가 박스 폭에 맞춰 축소) — 표시 크기보다
+  // 이미 넉넉해서 pixelDensity를 기기 배율까지 올릴 필요가 없다. 스포크(2번) 탭은
+  // 뒤집히는 CSS 트랜지션과 동시에 이 캔버스를 매 프레임 다시 그리므로, 배율을
+  // 올리면(예: 최대 1040×1040) 프레임당 그릴 픽셀이 늘어 트랜지션과 메인 스레드를
+  // 다투다 가끔 미세하게 끊기는 원인이 된다 — 1로 고정해 그 비용을 줄인다.
+  const density = 1;
   const g = createGraphics(R, R);
   g.pixelDensity(density);
   g.colorMode(HSB, 360, 100, 100);
@@ -500,40 +504,92 @@ function applyDetailFlip() {
   document.getElementById('detail-flipper').style.transform = `rotateY(${detailFlipAngle}deg)`;
 }
 
-// QR 면으로 즉시 맞춘다(오버레이 열 때/항목 이동 시). 트랜지션을 잠깐
-// 꺼서 플립 애니메이션 없이 곧바로 QR 면이 보이게 한다 — 안 그러면
-// 새 항목의 오브젝트가 잠깐 보였다가 QR로 넘어가는 잔상이 생긴다.
+// 그래픽 면으로 즉시 맞춘다(오버레이 열 때/항목 이동 시). 트랜지션을 잠깐
+// 꺼서 플립 애니메이션 없이 곧바로 그래픽 면이 보이게 한다 — 안 그러면
+// 이전 항목의 QR이 잠깐 보였다가 그래픽으로 넘어가는 잔상이 생긴다.
 function resetDetailFlip() {
   const flipper = document.getElementById('detail-flipper');
   flipper.style.transition = 'none';
-  detailFlipAngle = 180; // QR 면
+  detailFlipAngle = 0; // 그래픽 면
   applyDetailFlip();
-  flipper.offsetHeight; // 리플로우 강제 → 이후 클릭부터 다시 트랜지션 적용
+  flipper.offsetHeight; // 리플로우 강제 → 이후 전환부터 다시 트랜지션 적용
   flipper.style.transition = '';
+
+  // 2번(스포크) 탭: 그래픽 면이 바로 보이는 시점이므로 폭죽 등장 애니메이션을
+  // 즉시 재생한다.
+  if (currentShape === 'radial-spokes' && detailRenderInfo) {
+    detailAnimPhase = 'running';
+    detailBurstStart = millis() / 1000;
+  }
 }
 
-// 박스 클릭 시 같은 방향으로 한 번 더 뒤집는다.
-function flipDetail() {
+// #detail-flipper의 CSS transition(transform 0.6s)과 맞춰둔 값 — 그래픽
+// 면이 화면에서 사라지는 시점을 이 트랜지션이 끝난 뒤로 미루는 데 쓴다.
+const DETAIL_FLIP_TRANSITION_MS = 600;
+
+// 카드를 지정한 면(stage: 'graphic' | 'qr')으로 맞춘다. 이미 그 면이면
+// 아무것도 하지 않는다 — 자동 전환 타이머가 매번 호출하므로.
+function showDetailStage(stage) {
+  const showingGraphic = (detailFlipAngle / 180) % 2 === 0;
+  const wantGraphic = stage === 'graphic';
+  if (showingGraphic === wantGraphic) return;
+
+  const flipAngleAtCall = detailFlipAngle; // 아래 지연 콜백에서 중간에 또 안 바뀌었는지 확인용
   detailFlipAngle += 180;
   applyDetailFlip();
 
   // 2번(스포크) 탭에서만: 그래픽 면으로 넘어가는 순간 폭죽 등장 애니메이션을
   // 재생하고, QR 면으로 돌아가면 다음 재생을 위해 다시 중심에 뭉쳐둔다.
   if (currentShape === 'radial-spokes' && detailRenderInfo) {
-    const showingGraphic = document.getElementById('detail-media').dataset.stage === 'graphic';
-    if (showingGraphic) {
+    if (wantGraphic) {
       detailAnimPhase = 'running';
       detailBurstStart = millis() / 1000;
     } else {
-      detailAnimPhase = 'collapsed';
-      detailBurstStart = null;
-      drawDetailFrame();
+      // QR로 넘어갈 때: 여기서 바로 'collapsed'로 그려버리면 카드가 채 돌기도
+      // 전에 그래픽이 순간 사라져 보인다(플립 중엔 backface-visibility로
+      // 어차피 안 보이므로, 다 그려진 그래픽을 그대로 둔 채 회전만 시킨다).
+      // 회전이 끝난 뒤에야 다음 재생을 위해 중심으로 되돌린다.
+      setTimeout(() => {
+        if (detailFlipAngle !== flipAngleAtCall + 180) return; // 그사이 다시 바뀌었으면 손대지 않음
+        detailAnimPhase = 'collapsed';
+        detailBurstStart = null;
+        drawDetailFrame();
+      }, DETAIL_FLIP_TRANSITION_MS);
     }
   }
 }
 
+// 그래픽 → 2초 뒤 QR → 2초 뒤 그래픽 ... 오버레이가 열려 있는 동안 계속
+// 반복한다. 항목을 바꾸거나(fillDetail) 오버레이를 닫으면(closeDetailOverlay)
+// stopDetailAutoCycle()로 멈추고, 새 항목을 열 때 다시 그래픽부터 시작한다.
+const DETAIL_AUTO_STAGE_MS = 2200;
+let detailAutoTimer = null;
+
+function stopDetailAutoCycle() {
+  if (detailAutoTimer !== null) {
+    clearTimeout(detailAutoTimer);
+    detailAutoTimer = null;
+  }
+}
+
+function scheduleDetailAutoStage(stage) {
+  detailAutoTimer = setTimeout(() => {
+    showDetailStage(stage);
+    scheduleDetailAutoStage(stage === 'qr' ? 'graphic' : 'qr');
+  }, DETAIL_AUTO_STAGE_MS);
+}
+
+// resetDetailFlip()이 이미 그래픽 면으로 맞춰둔 상태에서 시작 — 2초 뒤
+// QR로 전환하는 타이머만 걸면 된다.
+function startDetailAutoCycle() {
+  stopDetailAutoCycle();
+  scheduleDetailAutoStage('qr');
+}
+
 // itemId 하나로 오버레이 내용을 채운다 — 그래픽 오브젝트를 먼저 보여주고
-// (stage='graphic'), 이름·QR 이미지는 준비만 해둔다. 열고 닫기는 안 건드림.
+// (stage='graphic'), 이름은 채우고 QR 이미지는 로드를 미리 시작해둔다
+// (그래픽이 보이는 2초 동안 백그라운드에서 받아지므로 QR로 전환될 때
+// 지연 없이 바로 보인다). 열고 닫기는 안 건드림.
 function fillDetail(itemId) {
   const n = qrIndexOf(itemId);
   document.getElementById('detail-qr').src = qrImagePath(itemId);
@@ -556,7 +612,8 @@ function fillDetail(itemId) {
     nameEl.textContent = displayName;
   }
   renderDetailGraphic(itemId);
-  resetDetailFlip(); // QR 면부터 시작(클릭 시 한 방향으로 뒤집혀 오브젝트 표시)
+  resetDetailFlip(); // 그래픽 면부터 시작
+  startDetailAutoCycle(); // 그래픽 → 2초 후 QR → 2초 후 그래픽 ... 자동 반복
 }
 
 // 넘어가기 전엔 브라우저 캐시에 없어 로드 지연(이전 QR이 잠깐 보임)이
@@ -594,6 +651,7 @@ function stepDetail(dir) {
 }
 
 function closeDetailOverlay() {
+  stopDetailAutoCycle(); // 페이지(오버레이)를 벗어나면 자동 전환도 멈춘다
   document.getElementById('detail-overlay').classList.remove('open');
   if (detailGfx) {
     detailGfx.remove();
@@ -645,13 +703,6 @@ async function setup() {
   // 박스 밖 어두운 배경을 클릭하면 닫힘
   document.getElementById('detail-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'detail-overlay') closeDetailOverlay();
-  });
-
-  // 박스(그래픽/QR 영역)를 클릭하면 같은 방향으로 한 번 뒤집는다.
-  // < , > 버튼 클릭은 제외(각자 핸들러가 처리).
-  document.querySelector('.detail-box').addEventListener('click', (e) => {
-    if (e.target.closest('.detail-nav')) return;
-    flipDetail();
   });
 
   // < , > 버튼 — 이전/다음 사람의 이미지로. 버튼 클릭이 배경 닫기로
