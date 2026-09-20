@@ -559,12 +559,30 @@ function fillDetail(itemId) {
   resetDetailFlip(); // QR 면부터 시작(클릭 시 한 방향으로 뒤집혀 오브젝트 표시)
 }
 
+// 넘어가기 전엔 브라우저 캐시에 없어 로드 지연(이전 QR이 잠깐 보임)이
+// 생기므로, 열 때/이동할 때마다 양옆(이전·다음) QR 이미지를 미리
+// 백그라운드에서 받아둔다. 한 번 받은 경로는 다시 요청하지 않는다.
+const preloadedQrPaths = new Set();
+function preloadQr(itemId) {
+  const path = qrImagePath(itemId);
+  if (preloadedQrPaths.has(path)) return;
+  preloadedQrPaths.add(path);
+  new Image().src = path;
+}
+function preloadDetailNeighbors() {
+  if (!detailOrderIds.length) return;
+  const len = detailOrderIds.length;
+  preloadQr(detailOrderIds[(detailPos + 1) % len]);
+  preloadQr(detailOrderIds[(detailPos - 1 + len) % len]);
+}
+
 function openDetailOverlay(itemId) {
   detailOrderIds = currentOrderedIds();
   detailPos = detailOrderIds.indexOf(Number(itemId));
   if (detailPos < 0) detailPos = 0;
   fillDetail(itemId);
   document.getElementById('detail-overlay').classList.add('open');
+  preloadDetailNeighbors();
 }
 
 // dir: -1(이전) | +1(다음). 목록 양 끝에서 반대편으로 순환한다.
@@ -572,6 +590,7 @@ function stepDetail(dir) {
   if (!detailOrderIds.length) return;
   detailPos = (detailPos + dir + detailOrderIds.length) % detailOrderIds.length;
   fillDetail(detailOrderIds[detailPos]);
+  preloadDetailNeighbors();
 }
 
 function closeDetailOverlay() {
