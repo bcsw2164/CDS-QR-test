@@ -3,44 +3,390 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Signature Archive</title>
+    <title>QR++</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    />
     <style>
-      * {
+      /* ── 리셋 ───────────────────────────────────────────── */
+      *, *::before, *::after {
+        box-sizing: border-box;
         margin: 0;
         padding: 0;
-        box-sizing: border-box;
       }
 
-      html,
+      /* ── 기본 ───────────────────────────────────────────── */
+      :root {
+        --c-bg:     #fff;
+        --c-fg:     #111;
+        --border-w: 4px;
+        --nav-h:    56px;
+        --pad-x:    20px;
+      }
+
+      html { font-size: 16px; }
+
       body {
-        width: 100%;
-        height: 100%;
-        background: #fff;
+        background: var(--c-bg);
+        color: var(--c-fg);
+        font-family: 'Pretendard', sans-serif;
+        overflow-x: hidden; /* 그래픽이 좌우로 넘칠 때 수평 스크롤 방지 */
+      }
+
+      /* ── 네비게이션 ────────────────────────────────────── */
+      #nav {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 200;
+        height: var(--nav-h);
+        background: var(--c-bg);
+        border-bottom: var(--border-w) solid var(--c-fg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 var(--pad-x);
+      }
+
+      #nav-logo {
+        font-size: clamp(22px, 5vw, 28px);
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        color: var(--c-fg);
+        text-decoration: none;
+        user-select: none;
+      }
+
+      /* 2×2 그리드 아이콘 버튼 */
+      #menu-btn {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 5px;
+        width: 28px;
+        height: 28px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      #menu-btn span {
+        display: block;
+        width: 11px;
+        height: 11px;
+        background: var(--c-fg);
+      }
+
+      /* ── 메뉴 오버레이 ─────────────────────────────────── */
+      #menu-overlay {
+        position: fixed;
+        inset: 0;
+        top: var(--nav-h);
+        background: var(--c-bg);
+        border-top: var(--border-w) solid var(--c-fg);
+        z-index: 190;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition: opacity 0.2s, transform 0.2s;
+      }
+
+      body.menu-open #menu-overlay {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      .menu-item {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 var(--pad-x);
+        border-bottom: var(--border-w) solid var(--c-fg);
+        font-size: clamp(28px, 7vw, 42px);
+        font-weight: 900;
+        color: var(--c-fg);
+        text-decoration: none;
+        letter-spacing: -0.02em;
+        transition: background 0.15s;
+      }
+
+      .menu-item:last-child { border-bottom: none; }
+
+      .menu-item::after {
+        content: '→';
+        font-size: 0.7em;
+        font-weight: 400;
+        opacity: 0.5;
+      }
+
+      .menu-item:hover,
+      .menu-item:active {
+        background: var(--c-fg);
+        color: var(--c-bg);
+      }
+
+      /* ── 메인 ───────────────────────────────────────────── */
+      #main {
+        padding-top: var(--nav-h);
+      }
+
+      #section-main {
+        position: relative;
+        /* 그래픽이 좌우·상하로 넘치는 부분을 여기서 자른다. 섹션이 화면
+           전체 너비이므로 좌우 클리핑 = 화면 끝에서 잘리는 효과가 되고,
+           세로로도 잘라줘야 absolute 그래픽 때문에 페이지가 늘어나지 않는다. */
         overflow: hidden;
       }
 
-      #intro-video {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        cursor: pointer;
+      /* 텍스트 + 그래픽이 놓이는 영역. 그래픽의 top(%)은 이 영역 높이를
+         기준으로 잡히므로, 아래 스크롤 여백을 늘리거나 줄여도 그래픽과
+         텍스트의 상대 배치는 그대로 유지된다. */
+      #text-area {
+        position: relative;
+      }
+
+      /* 스크롤 회전을 충분히 볼 수 있도록 텍스트 아래에 남기는 빈 여백 */
+      #scroll-spacer {
+        height: 110dvh;
+      }
+
+      .text-block {
+        min-height: 65dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 var(--pad-x);
+        position: relative;
+        z-index: 1; /* 그래픽보다 위에 */
+      }
+
+      .main-text {
+        text-align: center;
+        font-size: clamp(14px, 3.8vw, 17px);
+        font-weight: 500;
+        line-height: 1.9;
+        max-width: 240px;
+        word-break: keep-all;
+        color: var(--c-fg);
+      }
+
+      /* ── 스포크 그래픽 래퍼 ────────────────────────────── */
+      .spoke-wrap {
+        position: absolute;
+        pointer-events: none;
+        will-change: transform; /* GPU 레이어로 올려 rotation 성능 확보 */
+      }
+
+      /* ── 반응형 ─────────────────────────────────────────── */
+      @media (min-width: 600px) {
+        :root {
+          --nav-h: 64px;
+          --pad-x: 32px;
+        }
+
+        .main-text {
+          max-width: 300px;
+        }
       }
     </style>
   </head>
   <body>
-    <!-- 최초 접속 시 보여주는 인트로 영상 — 계속 반복 재생되다가 화면을
-         탭하면 사라지고 아카이브로 이동. 영상 파일: intro.mp4 (1:1 비율). -->
-    <video id="intro-video" src="intro.mp4" autoplay muted loop playsinline></video>
-    <script>
-      const video = document.getElementById('intro-video');
 
-      function goToArchive() {
-        window.location.href = 'archive/index.html';
+    <!-- ── 네비게이션 ───────────────────────────────────── -->
+    <nav id="nav">
+      <a id="nav-logo" href="index.html">QR++</a>
+      <button id="menu-btn" aria-label="메뉴" aria-expanded="false">
+        <span></span><span></span><span></span><span></span>
+      </button>
+    </nav>
+
+    <!-- ── 메뉴 오버레이 ────────────────────────────────── -->
+    <div id="menu-overlay" aria-hidden="true">
+      <a class="menu-item" href="archive/index.html">Archive</a>
+      <a class="menu-item" href="behind/index.html">Behind</a>
+    </div>
+
+    <!-- ── 메인 ─────────────────────────────────────────── -->
+    <main id="main">
+      <section id="section-main">
+
+        <div id="text-area">
+          <!-- 스포크 그래픽 캔버스는 JS가 여기에 추가 -->
+
+          <div class="text-block">
+            <p class="main-text">
+              동일한 QR 패턴을 여러 사람이 복제하며 생긴 오차와 흔적을
+              데이터화하고, 이를 새로운 그래픽으로 재구성합니다.
+            </p>
+          </div>
+
+          <div class="text-block">
+            <p class="main-text">
+              QR은 정보 전달을 위한 기계의 언어를 넘어 새로운 시각 언어이자
+              생성 예술의 매체로 확장됩니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- 스크롤 회전을 보기 위한 빈 여백 -->
+        <div id="scroll-spacer"></div>
+
+      </section>
+    </main>
+
+    <!-- ── p5.js + core.js ──────────────────────────────── -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="shared/core.js"></script>
+
+    <script>
+      /* ── 메뉴 토글 ──────────────────────────────────── */
+      const menuBtn     = document.getElementById('menu-btn');
+      const menuOverlay = document.getElementById('menu-overlay');
+
+      menuBtn.addEventListener('click', () => {
+        const open = document.body.classList.toggle('menu-open');
+        menuBtn.setAttribute('aria-expanded', open);
+        menuOverlay.setAttribute('aria-hidden', !open);
+      });
+
+      menuOverlay.querySelectorAll('.menu-item').forEach(el => {
+        el.addEventListener('click', () => {
+          document.body.classList.remove('menu-open');
+          menuBtn.setAttribute('aria-expanded', 'false');
+          menuOverlay.setAttribute('aria-hidden', 'true');
+        });
+      });
+
+      /* ── 스포크 그래픽 설정 ──────────────────────────
+         크기는 화면 너비에 비례(vw)하되 min/max로 잠가서, 좁은 폰부터
+         넓은 데스크톱까지 비율이 무너지지 않게 한다.
+           대 — 화면 너비의 약 1.8배 (중심이 화면 밖에 있고 긴 살만 들어옴)
+           중 — 화면 너비의 약 0.8배
+           소 — 화면 너비의 약 0.33배
+
+         size:   [minPx, vw배수, maxPx]
+         offset: size 대비 비율 — 0.58이면 그래픽 너비의 58%가 화면 밖으로
+                 나가 중심이 가장자리 바깥에 놓인다.
+      ─────────────────────────────────────────────────── */
+      const SIZE_L = [560, 1.8,  980]; // 대
+      const SIZE_M = [260, 0.8,  420]; // 중
+      const SIZE_S = [115, 0.33, 175]; // 소
+
+      // [side, size, top(%), offsetRatio, errorA, errorB, colorSeed, rotDir, rotSpeed]
+      const SPOKE_CFG = [
+        // 왼쪽 — 대 / 소 / 중
+        ['left',  SIZE_L,  0, 0.58, 0.32, 0.22, 1001,  1, 0.055],
+        ['left',  SIZE_S, 33, 0.22, 0.68, 0.55, 1002, -1, 0.11 ],
+        ['left',  SIZE_M, 63, 0.42, 0.48, 0.38, 1003,  1, 0.045],
+        // 오른쪽 — 중 / 대 / 소
+        ['right', SIZE_M, 12, 0.38, 0.22, 0.62, 1004, -1, 0.07 ],
+        ['right', SIZE_L, 40, 0.60, 0.78, 0.28, 1005,  1, 0.05 ],
+        ['right', SIZE_S, 74, 0.25, 0.52, 0.72, 1006, -1, 0.09 ],
+      ];
+
+      // [minPx, vw배수, maxPx] → 현재 화면 너비 기준 실제 px
+      function resolveSize([minPx, vwFactor, maxPx]) {
+        return Math.round(Math.max(minPx, Math.min(maxPx, window.innerWidth * vwFactor)));
       }
 
-      video.addEventListener('error', goToArchive); // 영상 로드 실패 시 그냥 바로 이동
-      video.addEventListener('click', goToArchive); // 탭하면 건너뛰기
+      let spokeEls = [];
+
+      /* 화면 너비에 맞춰 그래픽을 전부 다시 만든다(최초 1회 + 리사이즈).
+         errorA/errorB/colorSeed가 고정이라 크기만 달라지고 모양·색은 동일. */
+      function buildSpokes() {
+        const area = document.getElementById('text-area');
+
+        // 이전 버퍼 정리 — 안 하면 리사이즈마다 캔버스가 쌓인다.
+        spokeEls.forEach(({ el, gfx }) => {
+          gfx.remove();
+          el.remove();
+        });
+        spokeEls = [];
+
+        const density = Math.min(window.devicePixelRatio || 1, 2);
+
+        SPOKE_CFG.forEach(([side, sizeSpec, topPct, offRatio, eA, eB, seed, dir, speed]) => {
+          const size = resolveSize(sizeSpec);
+          const xOff = -Math.round(size * offRatio); // 화면 밖으로 나가는 양
+
+          /* 래퍼 div — 위치 지정 */
+          const wrap = document.createElement('div');
+          wrap.className = 'spoke-wrap';
+          wrap.style.width  = `${size}px`;
+          wrap.style.height = `${size}px`;
+          wrap.style.top    = `${topPct}%`;
+          wrap.style[side]  = `${xOff}px`; // left 또는 right
+
+          /* p5.Graphics 생성 + 스포크 드로잉 */
+          const g = createGraphics(size, size);
+          g.pixelDensity(density);
+          g.colorMode(HSB, 360, 100, 100);
+          // 배경을 칠하지 않는다 — p5.Graphics는 기본이 투명이라 페이지
+          // 흰 배경이 그대로 비친다. 여기서 background()로 흰색을 칠하면
+          // 캔버스의 정사각형 영역이 불투명해져서, 겹쳐 놓인 다른 그래픽의
+          // 살·점을 사각형 모서리로 잘라먹는다.
+
+          drawRadialSpokeDots(
+            g,
+            size / 2, size / 2, // cx, cy
+            size * 0.93,        // 캔버스 대비 여백 조금 두기
+            eA, eB, seed
+          );
+
+          g.canvas.style.display = 'block';
+          g.canvas.style.width   = '100%';
+          g.canvas.style.height  = '100%';
+
+          wrap.appendChild(g.canvas);
+          area.appendChild(wrap);
+
+          spokeEls.push({ el: wrap, gfx: g, dir, speed });
+        });
+
+        applyRotation(); // 리사이즈 직후에도 현재 스크롤 각도를 유지
+      }
+
+      /* 현재 스크롤 위치를 각 그래픽의 회전각으로 반영 */
+      function applyRotation() {
+        const sy = window.scrollY;
+        spokeEls.forEach(({ el, dir, speed }) => {
+          el.style.transform = `rotate(${sy * speed * dir}deg)`;
+        });
+      }
+
+      /* ── p5 global setup ─────────────────────────────── */
+      function setup() {
+        noCanvas(); // 메인 캔버스 불필요
+        colorMode(HSB, 360, 100, 100);
+
+        buildSpokes();
+        noLoop(); // 정적 그래픽 — 애니메이션 루프 불필요
+
+        /* ── 스크롤 → 회전 애니메이션 ────────────────── */
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(() => {
+            applyRotation();
+            ticking = false;
+          });
+        }, { passive: true });
+      }
+
+      /* 화면 너비가 바뀌면 크기를 다시 계산해 새로 그린다.
+         연속 리사이즈마다 전부 다시 그리면 비싸므로 살짝 묶어서 처리. */
+      let resizeTimer = null;
+      function windowResized() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(buildSpokes, 150);
+      }
     </script>
   </body>
 </html>
