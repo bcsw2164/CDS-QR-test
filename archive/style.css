@@ -93,11 +93,12 @@ body {
 }
 
 /* 비하인드 — 스크롤과 무관하게 항상 우측 하단에 떠 있는 버튼.
-   채움 없이 테두리만 있는 스타일. */
+   채움 없이 테두리만 있는 스타일. behind/style.css의 #archive-fab과
+   위치(right/bottom)를 동일하게 맞춘다. */
 #behind-fab {
   position: fixed;
-  right: 28px;
-  bottom: 20px;
+  right: 16px;
+  bottom: 16px;
   z-index: 50;
   padding: clamp(8px, 1.4vmin, 12px) clamp(14px, 2.8vmin, 20px);
   background: transparent;

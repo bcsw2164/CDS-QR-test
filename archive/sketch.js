@@ -4,7 +4,7 @@
    errorA/errorB는 qr_error_data.json(프로젝트 루트)에 담긴 실제 추출
    데이터를 그대로 쓴다 — 키(qr_clean_NNN)의 번호가 QR 이미지 번호와
    동일해 1:1로 매칭된다. ITEM_COUNT는 이 데이터 개수로 정해진다(현재
-   173). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
+   184). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
    페이지와 동일한 규칙).
 
    각 데이터는 1~ITEM_COUNT번 번호(제출 순서)를 갖는다. 탭으로 정렬
@@ -134,7 +134,7 @@ let gridBuildToken = 0;
 // 넓게 늘려놓은 형태라(특히 unfilledRate — 중앙값이 전체 폭의 7% 지점),
 // min-max로 최소~최대만 0~1로 펴면 그 쏠림이 그대로 남아 다수가 여전히
 // 좁은 구간에 압축된다. 대신 퍼센타일(순위) 정규화를 쓴다 — 값의 절대
-// 크기가 아니라 173명 중 몇 번째로 큰지(순위)만으로 0~1에 고르게 배치하므로
+// 크기가 아니라 184명 중 몇 번째로 큰지(순위)만으로 0~1에 고르게 배치하므로
 // 극단치 크기와 무관하게 전 구간을 고르게 쓰게 된다. 동점은 평균 순위로
 // 묶어 처리(순서를 임의로 가르지 않음).
 function normalizeErrorAxis(values) {
@@ -353,10 +353,10 @@ function buildGridView(burst = false) {
 //
 // qrErrorData의 id가 실제 QR 번호이자 itemId이므로 QR 이미지도 같은
 // 번호로 그대로 대응된다(1:1). ITEM_COUNT와 QR_IMAGE_COUNT가 항상
-// 같은 수(현재 173)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
+// 같은 수(현재 184)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
 // 혹시 둘의 개수가 어긋나는 경우를 대비해 남겨둔다.
 //
-const QR_IMAGE_COUNT = 173; // images/qr/qr_final_001.jpg ~ qr_final_173.jpg
+const QR_IMAGE_COUNT = 184; // images/qr/qr_final_001.jpg ~ qr_final_184.jpg
 
 // qr_error_data.json(프로젝트 루트) 에서 실제 errorA(unfilledRate)/
 // errorB(overflowRate) 데이터를 읽어 n(QR 번호) 오름차순으로 정렬해
@@ -381,7 +381,7 @@ function loadErrorData() {
 }
 
 // qr_name.json(프로젝트 루트) 에서 qr 번호 → 이름 매핑을 읽어둔다.
-// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~173 번만 쓴다.
+// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~184 번만 쓴다.
 // '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
 let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
 
@@ -628,11 +628,13 @@ function fillDetail(itemId) {
   renderDetailGraphic(itemId);
   resetDetailFlip(); // 그래픽 면부터 시작
   startDetailAutoCycle(); // 그래픽 → 2초 후 QR → 2초 후 그래픽 ... 자동 반복
+  updateDetailNavButtons();
 }
 
 // 넘어가기 전엔 브라우저 캐시에 없어 로드 지연(이전 QR이 잠깐 보임)이
 // 생기므로, 열 때/이동할 때마다 양옆(이전·다음) QR 이미지를 미리
 // 백그라운드에서 받아둔다. 한 번 받은 경로는 다시 요청하지 않는다.
+// 양 끝(첫/마지막 항목)에서는 순환하지 않으므로 없는 쪽은 건너뛴다.
 const preloadedQrPaths = new Set();
 function preloadQr(itemId) {
   const path = qrImagePath(itemId);
@@ -642,9 +644,17 @@ function preloadQr(itemId) {
 }
 function preloadDetailNeighbors() {
   if (!detailOrderIds.length) return;
-  const len = detailOrderIds.length;
-  preloadQr(detailOrderIds[(detailPos + 1) % len]);
-  preloadQr(detailOrderIds[(detailPos - 1 + len) % len]);
+  if (detailPos + 1 < detailOrderIds.length) preloadQr(detailOrderIds[detailPos + 1]);
+  if (detailPos - 1 >= 0) preloadQr(detailOrderIds[detailPos - 1]);
+}
+
+// 첫 항목이면 이전(<) 버튼을, 마지막 항목이면 다음(>) 버튼을 숨겨서
+// 양 끝에서 순환하지 않고 멈춘 것처럼 보이게 한다.
+function updateDetailNavButtons() {
+  const atFirst = detailPos <= 0;
+  const atLast = detailPos >= detailOrderIds.length - 1;
+  document.getElementById('detail-prev').style.display = atFirst ? 'none' : '';
+  document.getElementById('detail-next').style.display = atLast ? 'none' : '';
 }
 
 function openDetailOverlay(itemId) {
@@ -656,10 +666,14 @@ function openDetailOverlay(itemId) {
   preloadDetailNeighbors();
 }
 
-// dir: -1(이전) | +1(다음). 목록 양 끝에서 반대편으로 순환한다.
+// dir: -1(이전) | +1(다음). 목록 양 끝(첫/마지막)에서는 반대편으로
+// 순환하지 않고 멈춘다 — 버튼도 updateDetailNavButtons()로 숨겨지지만,
+// 키보드 방향키 입력에 대비해 여기서도 범위를 벗어나면 그대로 무시한다.
 function stepDetail(dir) {
   if (!detailOrderIds.length) return;
-  detailPos = (detailPos + dir + detailOrderIds.length) % detailOrderIds.length;
+  const next = detailPos + dir;
+  if (next < 0 || next >= detailOrderIds.length) return;
+  detailPos = next;
   fillDetail(detailOrderIds[detailPos]);
   preloadDetailNeighbors();
 }
