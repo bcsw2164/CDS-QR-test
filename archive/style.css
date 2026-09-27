@@ -92,30 +92,13 @@ body {
   color: #fff;
 }
 
-/* 비하인드 — 스크롤과 무관하게 항상 우측 하단에 떠 있는 버튼.
-   채움 없이 테두리만 있는 스타일. behind/style.css의 #archive-fab과
-   위치(right/bottom)를 동일하게 맞춘다. */
-#behind-fab {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 50;
-  padding: clamp(8px, 1.4vmin, 12px) clamp(14px, 2.8vmin, 20px);
-  background: transparent;
-  border: 4px solid #fff;
-  color: #fff;
-  font-family: 'Pretendard', sans-serif;
-  font-weight: 900;
-  font-size: clamp(18px, 2.8vmin, 24px);
-  text-decoration: none;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-#behind-fab:hover {
-  background: rgba(255, 255, 255, 0.12);
+/* QR 상세 오버레이(z-index 100)가 열려 있는 동안에는 메뉴 버튼을 숨긴다.
+   메뉴는 z-index 200이라 그냥 두면 모달 위에 버튼이 떠서, 상세를 보다가
+   엉뚱하게 메뉴가 열린다. :has()를 못 쓰는 구형 브라우저에서는 이 규칙만
+   무시되고 나머지 동작은 그대로다. */
+body:has(#detail-overlay.open) #menu-btn {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* 수집순 / 오차율순 — 실제 CSS Grid. 열 수는 화면 너비에 맞춰
@@ -261,7 +244,7 @@ body {
   height: 100%;
 }
 
-/* 이전/다음 버튼 — 흰 fill · 검은 stroke(비하인드 버튼과 같은 톤).
+/* 이전/다음 버튼 — 흰 fill · 검은 stroke(크레딧 버튼과 같은 톤).
    상세 박스(.detail-box, position:relative)의 좌우 바깥쪽에 딱 붙는다. */
 .detail-nav {
   position: absolute;
@@ -311,10 +294,10 @@ body {
 }
 
 .detail-box p {
-  font-family: 'NEXON Lv2 Gothic', 'Pretendard', sans-serif;
-  font-weight: 500;
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
+  font-weight: 700;
   font-size: clamp(18px, 3.6vmin, 28px);
-  letter-spacing: 0.06em;
+  letter-spacing: -0.01em;
   color: #111;
 }
 

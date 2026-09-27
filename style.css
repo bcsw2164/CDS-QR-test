@@ -77,58 +77,172 @@ body {
   width: 100%;
   height: 100%;
   background: var(--c-fg);
+  transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* 메뉴를 열면 네 점이 버튼 한가운데로 모여 하나로 겹친다.
+   닫으면 같은 경로로 흩어진다.
+
+   72%는 '자기 크기의 72%'다. transform의 퍼센트는 그 요소 자신의
+   크기를 기준으로 하므로, 버튼이 커지거나 작아져도 이동 거리가
+   같은 비율로 따라와 항상 정확히 가운데에서 만난다.
+
+   숫자가 나온 근거 — 버튼 한 변을 S, 칸 사이 간격을 G라 하면
+   점 하나의 크기는 (S-G)/2 이고, 점 중심에서 버튼 중심까지의
+   거리는 (S+G)/4 이다. 둘의 비가 이동 비율이 된다:
+     (S+G)/4 ÷ (S-G)/2 = (S+G) / 2(S-G)
+   S와 G가 같은 비율로 clamp되어 있어 이 값은 화면 크기와 무관하게
+   72% 근처로 일정하다(28px/5px → 71.7%, 44px/8px → 72.2%).
+
+   왼쪽 위부터 오른쪽·아래 순서라, 각자 중심을 향하도록 부호를 준다. */
+body.menu-open #menu-btn span:nth-child(1) { transform: translate( 72%,  72%); }
+body.menu-open #menu-btn span:nth-child(2) { transform: translate(-72%,  72%); }
+body.menu-open #menu-btn span:nth-child(3) { transform: translate( 72%, -72%); }
+body.menu-open #menu-btn span:nth-child(4) { transform: translate(-72%, -72%); }
 
 /* ── 메뉴 오버레이 ─────────────────────────────────── */
 #menu-overlay {
   position: fixed;
   inset: 0;
   top: var(--nav-h);
-  background: var(--c-bg);
-  border-top: var(--border-w) solid var(--c-fg);
+  /* 위쪽 테두리를 두지 않는다 — 이 상자는 네비 바로 아래(top: nav-h)에서
+     시작하는데, 네비에 이미 border-bottom이 있다. 여기에 border-top을
+     더하면 두 선이 맞닿아 굵기가 2배로 보인다(메뉴를 열 때만 나타나는
+     '선이 하나 더 생기는' 증상). 네비가 z-index 200으로 항상 위에 있어
+     그쪽 테두리만으로 경계가 충분하다. */
   z-index: 190;
   display: flex;
   flex-direction: column;
-  opacity: 0;
+  /* 항목들이 네비 아래 선에 바로 붙지 않도록 띄운다. 커튼(::before)은
+     absolute라 이 여백의 영향을 받지 않고 상자 전체를 그대로 덮는다. */
+  padding-top: clamp(48px, 4vw, 128px); /* ← 네비 아래 첫 항목까지의 거리 */
+  /* 배경은 이 상자가 아니라 아래 ::before(커튼)가 칠한다 */
+  background: transparent;
   pointer-events: none;
-  transform: translateY(-8px);
-  transition: opacity 0.2s, transform 0.2s;
 }
 
 body.menu-open #menu-overlay {
-  opacity: 1;
   pointer-events: auto;
+}
+
+/* 검은 커튼. 상자 자체를 움직이면 안에 든 글자까지 같이 늘어나므로,
+   배경 역할만 하는 가짜 요소를 따로 두고 이것만 세로로 편다.
+   transform-origin: top → 위 모서리에 고정된 채 아래로 펼쳐진다.
+
+   position:absolute를 준 이유는 두 가지다. 부모가 flex라 그냥 두면
+   ::before가 flex 항목으로 끼어들어 메뉴 항목들을 밀어내고, 절대
+   위치로 빼야 레이아웃에서 빠진 채 상자 전체를 덮는다.
+   z-index:-1은 메뉴 글자 뒤로 보내는 것 — 부모가 z-index를 갖고 있어
+   쌓임 맥락이 있으므로 이 상자 밖으로 빠져나가지는 않는다.
+
+   scaleY는 GPU에서 처리돼 height 애니메이션보다 훨씬 부드럽다. */
+#menu-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--c-fg);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.menu-open #menu-overlay::before {
+  transform: scaleY(1);
+}
+
+/* 메뉴 항목을 한 덩어리로 묶는 상자. 항목 사이 간격은 여기 gap
+   하나로만 조절한다.
+
+   글자 크기를 항목이 아니라 이 상자에 둔 이유는 gap 때문이다. em은
+   '그 요소의 글자 크기' 기준인데, 이 상자가 글자 크기를 갖고 있지
+   않으면 gap: 0.5em이 기본값 16px 기준(8px 고정)으로 잡혀 화면이
+   커져도 간격이 그대로다. 여기에 두면 항목들이 상속받아 쓰면서
+   gap도 같은 크기를 따라간다. */
+#menu-list {
+  display: flex;
+  flex-direction: column;
+  /* clamp(최소, 화면비례, 최대) — 가운데 값이 실제로 쓰이는 크기이고
+     양끝은 너무 작아지거나 커지는 것만 막는 안전장치다.
+     [주의] 최소가 최대보다 크면 clamp는 오류 없이 최소값만 돌려준다.
+     그러면 화면이 바뀌어도 크기가 고정돼 버린다. */
+  font-size: clamp(32px, 12.3vw, 80px); /* ← 글자 크기 */
+  gap: 0.4em;                           /* ← 항목 사이 간격 */
+}
+
+/* 검은 커튼 위에 놓이므로 흰 글자로 뒤집는다. 오른쪽 정렬이라
+   글자 끝이 padding-right 값만큼 화면 오른쪽 끝에서 떨어진다. */
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--pad-x);
+  /* 메뉴 글자의 오른쪽 여백만 따로 조절한다. 위 padding 줄보다
+     반드시 아래에 있어야 한다 — 순서가 바뀌면 padding이 이 값을
+     덮어써서 무시된다.
+
+     기본값인 --pad-x(네비와 공유)를 그대로 쓰면 글자 끝이 네비
+     메뉴 버튼의 오른쪽 끝과 세로로 맞는다. 이 값을 키우면 그
+     정렬은 깨지는 대신 글자가 화면 끝에서 더 멀어진다. */
+  padding-right: clamp(30px, 8vw, 68px); /* ← 우측 여백 */
+  font-weight: 900;
+  line-height: 1.1; /* 항목 자체 높이. 사이 간격은 위 gap이 맡는다 */
+  color: var(--c-bg);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  /* 표시만 대문자로 바꾼다. HTML의 글자는 About/Archive/Credit/Apply 그대로라
+     검색·복사·스크린리더에는 원래 표기가 남는다. */
+  text-transform: uppercase;
+
+  /* 커튼이 다 내려온 뒤에 글자가 떠오르도록 지연을 준다. 열 때는
+     아래 menu-open 규칙이 지연을 덮어쓰고, 닫을 때는 이 값(지연 0)이
+     적용돼 글자가 먼저 사라진 뒤 커튼이 걷힌다. */
+  opacity: 0;
+  transform: translateY(-0.3em);
+  transition: opacity 0.28s, transform 0.28s;
+}
+
+/* 항목마다 조금씩 늦게 떠오르게 해서 순서대로 나타나는 느낌을 준다.
+   지연은 커튼(0.42s)이 거의 다 내려온 시점부터 시작한다.
+   항목을 더 넣으면 아래에 한 줄씩 이어서 추가하면 된다. */
+body.menu-open .menu-item {
+  opacity: 1;
   transform: translateY(0);
 }
 
-.menu-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--pad-x);
-  border-bottom: var(--border-w) solid var(--c-fg);
-  font-size: clamp(28px, 7vw, 42px);
-  font-weight: 900;
-  color: var(--c-fg);
-  text-decoration: none;
-  letter-spacing: -0.02em;
-  transition: background 0.15s;
+body.menu-open .menu-item:nth-child(1) { transition-delay: 0.30s; }
+body.menu-open .menu-item:nth-child(2) { transition-delay: 0.38s; }
+body.menu-open .menu-item:nth-child(3) { transition-delay: 0.46s; }
+body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
+
+/* 현재 보고 있는 페이지 표시 — 글자 왼쪽에 네모 점.
+   HTML의 aria-current="page" 하나로 표시가 결정되므로, 표식을 옮길 때는
+   그 속성만 옮기면 된다(스크린리더도 같은 속성을 읽는다).
+
+   크기·간격을 em으로 두어 #menu-list의 글자 크기를 따라간다.
+   background를 currentColor로 두면 hover에서 글자색이 뒤집힐 때 점도
+   같이 뒤집힌다. */
+.menu-item[aria-current='page']::before {
+  content: '';
+  flex-shrink: 0;
+  width: 0.26em;
+  height: 0.26em;
+  margin-right: 0.42em; /* ← 점과 글자 사이 거리 */
+  background: var(--dot-color, currentColor);
 }
 
-.menu-item:last-child { border-bottom: none; }
-
-.menu-item::after {
-  content: '→';
-  font-size: 0.7em;
-  font-weight: 100;
-  opacity: 0.5;
-}
+/* 점 색은 p5 그래픽이 쓰는 팔레트(shared/core.js의 RADIAL_COLOR_PALETTE)에서
+   가져온다. 항목은 HTML의 data-key로 구분하므로, 항목 순서를 바꿔도
+   색이 따라 움직이지 않는다. */
+.menu-item[data-key='about']   { --dot-color: #f299c1; } /* 핑크 */
+.menu-item[data-key='archive'] { --dot-color: #fee987; } /* 노랑 */
+.menu-item[data-key='credit']  { --dot-color: #7ecaac; } /* 초록 */
+.menu-item[data-key='apply']   { --dot-color: #f58b6e; } /* 주황 */
 
 .menu-item:hover,
 .menu-item:active {
-  background: var(--c-fg);
-  color: var(--c-bg);
+  background: var(--c-bg);
+  color: var(--c-fg);
 }
 
 /* ── 메인 ───────────────────────────────────────────── */
@@ -158,6 +272,19 @@ body.menu-open #menu-overlay {
    배치에 영향을 주지 않는다. 문단을 더하거나 빼도 그래픽은 안 밀린다. */
 #text-area {
   position: relative;
+
+  /* 마무리 문단 아래에 반드시 남겨둘 여백.
+
+     #section-main의 min-height(195dvh)에서 콘텐츠를 뺀 '남는 공간'에
+     기대면 기기마다 여백이 들쭉날쭉해진다. QR 영상 높이는 화면 폭을
+     따라 커지는데 세로 기준은 dvh라서, 아이패드 가로에서는 영상만
+     100dvh를 넘겨 195dvh를 거의 다 먹고 여백이 사라지고, 아이폰
+     세로에서는 크게 남기 때문이다.
+     그래서 여백을 여기서 직접 잡아준다 — 이 패딩만큼은 어느 기기에서든
+     문단 아래에 확보된다. 패딩은 이 상자의 '아래쪽'만 늘리므로, 위쪽
+     모서리를 기준으로 dvh로 배치되는 그래픽 위치에는 영향이 없다.
+     여백을 더/덜 주고 싶으면 이 값 하나만 조절하면 된다. */
+  padding-bottom: clamp(96px, 24dvh, 300px);
 }
 
 .text-block {
@@ -181,24 +308,16 @@ body.menu-open #menu-overlay {
   z-index: 1; /* 그래픽보다 위에 */
 }
 
-/* 두 문단을 하나로 묶는 상자. 둘 다 흐름 안에 있어 이 상자의 높이가
-   '문단1 + 간격 + 문단2' 전체가 되고, .text-block의 align-items:center가
-   그 덩어리를 통째로 가운데 놓는다 → 두 문단의 무게중심이 화면
-   정중앙에 온다. 기기 높이·네비 높이·문단 줄 수가 달라져도 자동. */
+/* 첫 문단을 담는 상자. .text-block의 align-items:center가 이 상자를
+   가운데 놓아 문단이 화면 정중앙에 온다. 기기 높이·네비 높이·문단
+   줄 수가 달라져도 자동.
+   문단을 더 넣으면 그만큼 덩어리가 커지고, 그 덩어리의 무게중심이
+   가운데로 잡힌다(= 첫 문단은 그만큼 위로 밀린다). */
 .text-anchor {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-/* 문단 사이 간격. .text-anchor에 gap으로 주지 않고 여기에 margin으로
-   두는 이유는, em이 '그 요소의 글자 크기' 기준이기 때문이다.
-   .text-anchor는 본문 글자 크기를 갖고 있지 않아 gap: 6em이 16px
-   기준(96px 고정)으로 잡히지만, 문단 자신에게 걸면 clamp로 커지는
-   본문 크기를 따라가 어느 기기에서나 같은 비율이 유지된다. */
-.text-sub {
-  margin-top: 6em; /* ← 문단 사이 간격 */
 }
 
 .main-text {
@@ -212,7 +331,7 @@ body.menu-open #menu-overlay {
   /* Wanted Sans는 400 미만이 존재하지 않는다(400·500·600·700·800·
      900·1000만 정의됨). 300 이하를 적으면 조용히 400으로 대체돼
      값을 낮춰도 더 얇아지지 않으니, 400이 사실상 하한이다. */
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.7; /* 단위 없는 배수라 글자 크기를 따라간다 */
   /* 두 상한 중 작은 쪽을 단 폭으로 쓴다.
@@ -227,7 +346,7 @@ body.menu-open #menu-overlay {
      화면은 단이 넓어지며 절이 한 줄로 펴진다. em 단독으로 두면 글자
      크기가 상한(30px)에 걸린 뒤 단 폭이 고정돼 가로 화면에서만
      덩그러니 좁아 보인다. */
-  max-width: min(84vw, 34em);
+  max-width: min(68vw, 34em);
   word-break: keep-all;
   color: var(--c-fg);
 }
@@ -275,6 +394,46 @@ body.menu-open #menu-overlay {
   height: auto;     /* 영상 비율 유지 */
 }
 
+/* 영상 아래 설명 문구. 본문 두 문단과 똑같이 보이도록 .main-text를
+   그대로 쓰고, 여기서는 배치에 필요한 것만 더한다(글꼴·크기·굵기·
+   단 폭·줄바꿈 규칙은 전부 .main-text 그대로).
+
+   margin-inline: auto — 본문 두 문단은 .text-anchor의 flex 정렬로
+   가운데 놓이지만, 이 문단은 그 바깥의 일반 블록이라 직접 가운데로
+   보내야 한다.
+
+   position+z-index — 스포크 그래픽은 absolute라 그냥 두면 흐름에 있는
+   이 문단 위에 그려져 글자를 덮는다(.text-block이 z-index:1을 갖고
+   있는 것도 같은 이유). 여기만 3인 이유는, 이 문단 자리에 걸치는
+   5번 그래픽이 SPOKES_ABOVE_VIDEO로 z-index:2를 받기 때문이다.
+   1로 두면 그 그래픽에 묻힌다.
+     1 = 영상 래퍼·텍스트 블록
+     2 = 영상 위로 올린 그래픽
+     3 = 이 문단  ← 가장 위
+
+   max-width — 본문(.main-text)보다 넓게 잡는다. 문장이 길어서 본문
+   폭으로는 '수집했고,'가 홀로 한 줄로 떨어져 나간다. 절(.clause)
+   단위 줄바꿈은 그대로 두고 단 폭만 넓혀 첫 절이 한 줄에 들어가게
+   했다. 줄이 길어져도 짧은 줄은 가운데 정렬이라 표시에는 문제없다. */
+.video-caption {
+  margin-top: 2.5em; /* ← 영상과의 간격. em이라 글자 크기를 따라간다 */
+  margin-inline: auto;
+  max-width: min(94vw, 42em);
+  position: relative;
+  z-index: 3;
+}
+
+/* 아카이브 버튼 아래에 놓이는 마무리 문단. 본문 첫 문단과 같은
+   .main-text를 쓰되, .text-anchor 바깥의 일반 블록이라 가운데 정렬과
+   쌓임 순서를 직접 지정해야 한다(.video-caption과 같은 이유).
+   단 폭은 본문 그대로라 여기서 따로 손대지 않는다. */
+.text-closing {
+  margin-top: 3.5em; /* ← 아카이브 버튼과의 간격 */
+  margin-inline: auto;
+  position: relative;
+  z-index: 3;
+}
+
 /* ── 스포크 그래픽 래퍼 ──────────────────────────────
    크기·위치·회전은 sketch.js가 인라인 스타일로 넣는다. */
 .spoke-wrap {
@@ -284,36 +443,65 @@ body.menu-open #menu-overlay {
 }
 
 /* ── 아카이브로 넘어가는 버튼 ──────────────────────
-   archive/style.css의 #behind-fab, behind/style.css의 #archive-fab과
-   같은 규격(여백·글자 크기·900 굵기)에 더해, behind/style.css의
-   #archive-fab과 동일하게 mix-blend-mode: difference로 색반전을 준다
-   — 테두리·글자를 흰색으로 고정해두면 흰 배경 위에선 검게(255 diff 255
-   = 0), 어두운 배경(영상 등) 위에선 밝게 보여 배경이 바뀌어도 항상
-   대비가 유지된다.
-   가운데 정렬은 left:50% + translateX(-50%) — 버튼 너비가 글자
-   길이에 따라 달라져도 항상 정확히 가운데에 선다. */
+   아카이브/크레딧 페이지의 우측 하단 메뉴 버튼과
+   같은 규격(여백·글자 크기·900 굵기).
+
+   화면에 고정하지 않고 설명 문구 아래에 흐름으로 놓는다. 그래서
+   position:fixed 대신 block + width:fit-content + margin-inline:auto로
+   가운데 정렬한다 — 글자 길이가 바뀌어도 버튼 폭이 글자에 맞춰지고
+   항상 가운데에 선다(fit-content가 없으면 블록이 가로를 꽉 채운다).
+
+   z-index는 설명 문구와 같은 3. 스포크 그래픽에 덮이지 않게 하려는
+   것이고, 메뉴 오버레이(190)보다는 낮아 메뉴를 열면 가려진다.
+
+   저쪽 두 버튼과 달리 mix-blend-mode를 쓰지 않는다 — 아래 반전
+   애니메이션이 배경·글자 색을 직접 바꾸는데, 거기에 블렌드까지
+   얹히면 결과 색을 예측할 수 없기 때문이다. 대신 배경을 항상
+   불투명하게 채워서, 뒤로 그래픽이 지나가도 글자가 묻히지 않는다. */
 #archive-fab {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: clamp(20px, 3.5vw, 36px);
-  z-index: 50; /* 메뉴 오버레이(190)보다 아래 — 메뉴 열면 가려진다 */
-  padding: clamp(8px, 1.4vmin, 12px) clamp(14px, 2.8vmin, 20px);
-  /* 채움 없이 테두리만 — 기존 두 버튼과 동일 */
-  background: transparent;
-  border: var(--border-w) solid #fff;
-  color: #fff;
+  display: block;
+  width: fit-content;
+  margin: 2.2em auto 0; /* ← 위 문구와의 간격 */
+  position: relative;
+  z-index: 3;
+  /* em이라 아래 font-size 하나만 바꾸면 여백도 같은 비율로 따라온다.
+     px이나 vmin으로 두면 글자와 여백이 따로 놀아 두 군데를 맞춰야 한다. */
+  padding: 0.42em 1.1em;
+  border: var(--border-w) solid var(--c-fg);
+  /* 애니메이션이 꺼졌을 때(아래 prefers-reduced-motion)의 기본 상태 */
+  background: var(--c-bg);
+  color: var(--c-fg);
   font-family: 'Pretendard', sans-serif;
   font-weight: 900;
-  font-size: clamp(18px, 2.8vmin, 24px);
+  /* vmin이 아니라 vw 기준. vmin은 가로·세로 중 짧은 쪽을 보는데,
+     세로로 긴 폰에서는 상한·하한에 금방 걸려 기기가 달라져도 크기가
+     거의 고정된다. 본문(.main-text)과 같은 vw로 맞춰, 화면 너비를
+     따라 본문과 같은 비율로 커지고 작아지게 한다. */
+  font-size: clamp(16px, 4.6vw, 34px); /* ← 이 값만 바꾸면 버튼 전체가 따라온다 */
   letter-spacing: -0.02em;
   text-decoration: none;
   white-space: nowrap;
-  mix-blend-mode: difference;
-  transition: background 0.15s;
+
+  /* 누를 수 있는 것임을 알리는 반전 깜빡임. 테두리만 있는 형태라
+     그냥 두면 장식으로 보일 수 있어 1초 주기로 흑백을 뒤집는다.
+     hover 효과는 두지 않는다 — 주로 모바일에서 보는 페이지라 마우스를
+     올리는 동작 자체가 없고, 터치 기기에서는 탭한 뒤 hover 상태가
+     남아 눌린 것처럼 보이는 부작용만 생긴다. */
+  animation: fab-flash 1.7s infinite;
 }
 
-#archive-fab:hover,
-#archive-fab:active {
-  background: rgba(255, 255, 255, 0.15);
+/* 안쪽 채움과 글자 색을 통째로 맞바꾼다.
+     흰 채움 + 검은 글자  ↔  검은 채움 + 흰 글자
+   49%→51% 구간(전체의 2%, 1초 기준 20ms)에서만 색이 넘어가므로
+   부드럽게 섞이지 않고 딱 끊어져 보인다. 이 폭을 넓히면 서서히
+   물드는 느낌이 된다. */
+@keyframes fab-flash {
+  0%,  49%  { background: var(--c-bg); color: var(--c-fg); }
+  51%, 100% { background: var(--c-fg); color: var(--c-bg); }
+}
+
+/* 기기에서 '동작 줄이기'를 켠 사용자에게는 깜빡임을 끈다.
+   위 기본 상태(흰 채움 + 검은 글자)로 고정된다. */
+@media (prefers-reduced-motion: reduce) {
+  #archive-fab { animation: none; }
 }

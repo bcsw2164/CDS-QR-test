@@ -1,0 +1,177 @@
+/* ============================================================
+   공용 메뉴 — 우측 하단 버전
+   ------------------------------------------------------------
+   메인 페이지(style.css)의 네비 메뉴와 디자인·동작이 같고, 위치만
+   우측 상단 → 우측 하단으로 옮긴 것이다. 그래서 커튼도 위에서
+   내려오는 대신 아래에서 올라오고, 항목도 아래쪽에 모인다.
+
+   아카이브/크레딧 두 페이지가 같이 쓴다. 각 페이지의 style.css보다
+   뒤에 불러야 한다 — 기존 버튼 규칙과 겹칠 때 이 파일이 이기도록.
+   ============================================================ */
+
+:root {
+  --menu-fg: #111; /* 커튼 색 */
+  --menu-bg: #fff; /* 커튼 위 글자 색 */
+  /* 버튼을 화면 모서리에서 띄우는 거리. 아래 #menu-btn과 항목
+     우측 여백이 이 값을 공유해서 세로로 정렬된다. */
+  --menu-inset: clamp(16px, 4vw, 40px);
+}
+
+/* ── 2×2 그리드 아이콘 버튼 ────────────────────────
+   mix-blend-mode: difference — 밑에 깔린 배경색을 반전시킨다.
+   아카이브의 밝은 배경, 크레딧의 검은 배경, 메뉴를 열었을 때의 검은
+   커튼 위에서까지 색을 바꾸지 않고 항상 대비가 생긴다. */
+#menu-btn {
+  position: fixed;
+  right: var(--menu-inset);
+  bottom: var(--menu-inset);
+  z-index: 200;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: clamp(5px, 1.3vw, 8px);
+  width: clamp(28px, 7.4vw, 44px);
+  height: clamp(28px, 7.4vw, 44px);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  mix-blend-mode: difference;
+}
+
+/* 칸을 꽉 채우게 두면 버튼 크기만 바꿔도 네 사각형이 같이 따라온다 */
+#menu-btn span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 메뉴를 열면 네 점이 버튼 한가운데로 모여 하나로 겹친다.
+   72%의 근거는 메인 style.css의 같은 규칙에 적어둔 설명과 동일하다 —
+   버튼 크기가 변해도 이동 거리가 같은 비율로 따라오므로 항상 정확히
+   가운데에서 만난다. */
+body.menu-open #menu-btn span:nth-child(1) { transform: translate( 72%,  72%); }
+body.menu-open #menu-btn span:nth-child(2) { transform: translate(-72%,  72%); }
+body.menu-open #menu-btn span:nth-child(3) { transform: translate( 72%, -72%); }
+body.menu-open #menu-btn span:nth-child(4) { transform: translate(-72%, -72%); }
+
+/* ── 메뉴 오버레이 ─────────────────────────────────
+   항목을 아래쪽에 모으므로 justify-content: flex-end.
+   padding-bottom은 버튼 자리를 비워두는 몫이다. */
+#menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: clamp(88px, 22vw, 170px); /* ← 버튼과 마지막 항목 사이 거리 */
+  background: transparent;
+  pointer-events: none;
+}
+
+body.menu-open #menu-overlay {
+  pointer-events: auto;
+}
+
+/* 검은 커튼. 상자 자체를 움직이면 안의 글자까지 늘어나므로 배경
+   역할만 하는 가짜 요소를 따로 두고 이것만 세로로 편다.
+   transform-origin: bottom → 아래 모서리에 고정된 채 위로 펼쳐진다
+   (메인은 top에서 아래로 내려온다. 버튼 위치에 맞춘 차이다). */
+#menu-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--menu-fg);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.menu-open #menu-overlay::before {
+  transform: scaleY(1);
+}
+
+/* 항목 묶음. 글자 크기를 항목이 아니라 이 상자에 두는 이유는 gap이
+   em 단위라서다 — 여기 두면 항목들이 상속받아 쓰면서 간격도 같은
+   크기를 따라간다. */
+#menu-list {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(32px, 12.3vw, 80px); /* ← 글자 크기 */
+  gap: 0.4em;                           /* ← 항목 사이 간격 */
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 clamp(30px, 8vw, 68px); /* ← 우측 여백 */
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 900;
+  line-height: 1.1; /* 항목 자체 높이. 사이 간격은 위 gap이 맡는다 */
+  color: var(--menu-bg);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  /* 표시만 대문자로 — HTML의 글자는 그대로라 검색·스크린리더에는
+     원래 표기가 남는다. */
+  text-transform: uppercase;
+
+  /* 커튼이 다 올라온 뒤에 글자가 떠오르도록 지연을 준다. 열 때는
+     아래 menu-open 규칙이 지연을 덮어쓰고, 닫을 때는 이 값(지연 0)이
+     적용돼 글자가 먼저 사라진 뒤 커튼이 걷힌다. */
+  opacity: 0;
+  transform: translateY(0.3em);
+  transition: opacity 0.28s, transform 0.28s;
+}
+
+body.menu-open .menu-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 아래에서 올라오는 커튼이라 가까운 쪽(마지막 항목)부터 뜨게 한다.
+   항목을 더 넣으면 한 줄씩 이어서 추가하면 된다. */
+body.menu-open .menu-item:nth-last-child(1) { transition-delay: 0.30s; }
+body.menu-open .menu-item:nth-last-child(2) { transition-delay: 0.38s; }
+body.menu-open .menu-item:nth-last-child(3) { transition-delay: 0.46s; }
+body.menu-open .menu-item:nth-last-child(4) { transition-delay: 0.54s; }
+
+/* 현재 보고 있는 페이지 표시 — 글자 왼쪽에 네모 점.
+   HTML의 aria-current="page" 하나로 표시가 결정되므로, 표식을 옮길 때는
+   그 속성만 옮기면 된다(스크린리더도 같은 속성을 읽는다).
+
+   크기·간격을 em으로 두어 #menu-list의 글자 크기를 따라간다.
+   background를 currentColor로 두면 hover에서 글자색이 뒤집힐 때 점도
+   같이 뒤집힌다. */
+.menu-item[aria-current='page']::before {
+  content: '';
+  flex-shrink: 0;
+  width: 0.26em;
+  height: 0.26em;
+  margin-right: 0.42em; /* ← 점과 글자 사이 거리 */
+  background: var(--dot-color, currentColor);
+}
+
+/* 점 색은 p5 그래픽이 쓰는 팔레트(shared/core.js의 RADIAL_COLOR_PALETTE)에서
+   가져온다. 항목은 HTML의 data-key로 구분하므로, 항목 순서를 바꿔도
+   색이 따라 움직이지 않는다. */
+.menu-item[data-key='about']   { --dot-color: #f299c1; } /* 핑크 */
+.menu-item[data-key='archive'] { --dot-color: #fee987; } /* 노랑 */
+.menu-item[data-key='credit']  { --dot-color: #7ecaac; } /* 초록 */
+.menu-item[data-key='apply']   { --dot-color: #f58b6e; } /* 주황 */
+
+.menu-item:hover,
+.menu-item:active {
+  background: var(--menu-bg);
+  color: var(--menu-fg);
+}
+
+/* 메뉴가 열려 있는 동안에는 뒤 페이지가 스크롤되지 않게 잠근다.
+   크레딧 페이지처럼 세로로 긴 문서에서 커튼 뒤가 움직이는 걸 막는다. */
+body.menu-open {
+  overflow: hidden;
+}

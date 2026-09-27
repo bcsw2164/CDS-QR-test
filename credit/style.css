@@ -1,0 +1,161 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #000;
+}
+
+/* 크레딧 조절값 — 이 세 개만 만지면 전체 리듬이 바뀐다.
+   --credit-gap: 이름 줄 사이 간격
+   --credit-size: 이름 글자 크기
+   --credit-cols: 한 줄에 놓을 이름 수(1 = 한 사람당 한 줄) */
+:root {
+  --credit-gap: clamp(18px, 3.2vmin, 40px);
+  --credit-size: clamp(26px, 5.2vmin, 56px);
+  --credit-cols: 1;
+}
+
+#credit-wrap {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 상단 문구 배너 — 오른쪽에서 왼쪽으로 끊김 없이 흐르는 마퀴.
+   그룹을 통째로 2번 반복해두고 트랙을 -50%만큼 옮기면, 두 번째 그룹이
+   정확히 첫 번째 그룹 자리로 들어와서 이어지는 것처럼 보인다. */
+#marquee {
+  width: 100%;
+  overflow: hidden;
+  border-bottom: 4px solid #111;
+  background: #fff;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 50s linear infinite;
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.marquee-track span {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px clamp(24px, 6vmin, 80px) 8px 0;
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 800;
+  font-size: clamp(16px, 4vmin, 40px);
+  color: #111;
+}
+
+/* 참여 인원 '184' — 아카이브 그래픽 팔레트(shared/core.js의
+   RADIAL_COLOR_PALETTE) 5색을 번갈아 입힌다.
+
+   step-end가 핵심이다. 기본값(ease 등)으로 두면 색이 키프레임 사이를
+   보간하면서 팔레트에 없는 중간색들이 지나가 '자연스럽게 번지는' 느낌이
+   되는데, step-end는 다음 키프레임 시점까지 현재 색을 그대로 붙잡고
+   있다가 딱 끊어 바꾼다. 그래서 아래 5색만 정확히 번갈아 나온다.
+
+   각 색이 머무는 시간 = 아래 duration ÷ 5. 지금은 0.5초씩이다. */
+.count {
+  font-weight: inherit; /* <b>의 기본 굵기 대신 마퀴 글자 굵기를 따른다 */
+  animation: count-palette 2.5s step-end infinite;
+}
+
+@keyframes count-palette {
+  0%   { color: #f299c1; } /* 핑크 */
+  20%  { color: #7ecaac; } /* 초록 */
+  40%  { color: #f58b6e; } /* 주황 */
+  60%  { color: #4d6787; } /* 네이비 */
+  80%  { color: #fee987; } /* 노랑 */
+  100% { color: #f299c1; } /* 처음 색으로 되돌아와 끊김 없이 반복 */
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── 크레딧 본문 ───────────────────────────────────────────── */
+#credit {
+  flex: 1;
+  width: 100%;
+  font-family: 'Pretendard', sans-serif;
+  color: #fff;
+}
+
+/* 이름 레이어(#credit-names)와 사진 레이어(#photo-layer)가 겹치는 무대.
+   사진은 position: absolute로 이 박스 안을 떠다니고, 높이는 이름 쪽이
+   결정한다. */
+#credit-stage {
+  position: relative;
+  width: 100%;
+  padding: clamp(48px, 10vmin, 120px) clamp(16px, 8vw, 160px);
+}
+
+#photo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* 텍스트 뒤에 듬성듬성 깔리는 흑백 사진.
+   검은 배경 위라 opacity를 낮추면 자연스럽게 어둡게 가라앉는다. */
+.photo-cell {
+  position: absolute;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1a1a1a;
+}
+
+.photo-cell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(100%) contrast(1.05);
+  opacity: 0.4;
+}
+
+/* 이름 목록 — 한 칸에 한 사람. 간격은 --credit-gap 하나로 조절한다. */
+#credit-names {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--credit-cols), minmax(0, 1fr));
+  gap: var(--credit-gap);
+  justify-items: center;
+  width: 100%;
+}
+
+.credit-name {
+  font-size: var(--credit-size);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  text-align: center;
+  word-break: keep-all;
+  transition: opacity 0.15s;
+}
+
+.credit-name:hover {
+  opacity: 0.55;
+}

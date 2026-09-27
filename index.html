@@ -38,8 +38,20 @@
 
     <!-- ── 메뉴 오버레이 ────────────────────────────────── -->
     <div id="menu-overlay" aria-hidden="true">
-      <a class="menu-item" href="archive/index.html">Archive</a>
-      <a class="menu-item" href="behind/index.html">Behind</a>
+      <!-- 항목들을 한 덩어리로 묶는다. 항목 사이 간격은 이 상자의
+           gap 하나로 조절한다(style.css의 #menu-list). -->
+      <div id="menu-list">
+        <a class="menu-item" data-key="about" href="index.html" aria-current="page">About</a>
+        <a class="menu-item" data-key="archive" href="archive/index.html">Archive</a>
+        <a class="menu-item" data-key="credit" href="credit/index.html">Credit</a>
+        <!-- Apply — 외부 구글 폼. 새 탭으로 열어 이 사이트를 벗어나지 않게
+             한다. rel="noopener"는 새 탭이 window.opener로 이 페이지를
+             건드리지 못하게 막는 보안 조치다. -->
+        <a class="menu-item" data-key="apply"
+           href="https://docs.google.com/forms/d/e/1FAIpQLSeOAERlk3hNw2IOnEcZyU76RGW8_SGniRNc4jonOmi9ew3ZWg/viewform?usp=header"
+           target="_blank"
+           rel="noopener noreferrer">Apply</a>
+      </div>
     </div>
 
     <!-- ── 메인 ─────────────────────────────────────────── -->
@@ -55,17 +67,10 @@
                자리에서 끊긴다. <br>과 달리 절 안쪽 줄바꿈은 화면 너비에
                맡겨둘 수 있다. -->
           <div class="text-block">
-            <!-- 두 문단을 .text-anchor로 묶어 한 덩어리로 다룬다.
-                 이 덩어리 전체가 화면 정중앙에 놓인다. -->
             <div class="text-anchor">
               <p class="main-text">
                 <span class="clause">동일한 QR 패턴을 여러 사람이 복제하며 생긴 오차와 흔적을 데이터화하고,</span>
                 <span class="clause">이를 새로운 그래픽으로 재구성합니다.</span>
-              </p>
-
-              <p class="main-text text-sub">
-                <span class="clause">QR은 정보 전달을 위한 기계의 언어를 넘어</span>
-                <span class="clause">새로운 시각 언어이자 생성 예술의 매체로 확장됩니다.</span>
               </p>
             </div>
           </div>
@@ -81,14 +86,29 @@
                    preload="none"
                    disablepictureinpicture></video>
           </div>
+
+          <!-- 영상 아래 설명 문구. #qr-video-wrap 안이 아니라 바깥에
+               둬야 한다 — 그 래퍼에는 mix-blend-mode: multiply가 걸려
+               있어서, 안에 넣으면 글자까지 배경과 곱해져 버린다. -->
+          <p class="main-text video-caption">
+            <span class="clause">온·오프라인을 통해 총 184개의 QR을 수집했고,</span>
+            <span class="clause">이를 모아 아카이브 했습니다.</span>
+          </p>
+
+          <!-- 아카이브로 넘어가는 버튼. 화면에 고정하지 않고 위 문구
+               아래에 흐름으로 놓아, 스크롤해서 여기까지 내려와야
+               나타난다. -->
+          <a id="archive-fab" href="archive/index.html">아카이브</a>
+
+          <!-- 마무리 문단 — 버튼 아래. -->
+          <p class="main-text text-closing">
+            <span class="clause">QR은 정보 전달을 위한 기계의 언어를 넘어</span>
+            <span class="clause">새로운 시각 언어이자 생성 예술의 매체로 확장됩니다.</span>
+          </p>
         </div>
 
       </section>
     </main>
-
-    <!-- 아카이브로 넘어가는 버튼 — 화면 하단 가운데 고정.
-         #section-main의 overflow:hidden에 잘리지 않도록 <main> 바깥에 둔다. -->
-    <a id="archive-fab" href="archive/index.html">아카이브</a>
 
     <!-- ── 스크립트 ─────────────────────────────────────
          순서가 중요하다. sketch.js가 p5의 createGraphics·noCanvas와

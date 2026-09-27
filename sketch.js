@@ -80,30 +80,43 @@ if (qrVideo && 'IntersectionObserver' in window) {
    같은 크기로 보인다. 아래 size 값은 그 보정을 반영한 것이다.
 
    보이는 지름 기준 (viewportUnit 대비):
-     2번 2.10 / 1번 0.82 / 4번 0.68 / 5번 0.62 / 3번 0.30
+     특대 2.10 / 중대 0.99 / 대 0.82 / 중 0.68 / 소 0.30
+
+   목록은 top이 작은 것부터, 즉 화면 위에서 아래로 내려가는 순서로
+   적어둔다. 값을 고친 뒤 순서가 어긋나면 이 순서대로 다시 정렬할 것 —
+   배치를 눈으로 좇기 쉬워진다. (순서 자체는 동작에 영향을 주지 않는다.
+   아래 SPOKES_ABOVE_VIDEO도 순서가 아니라 colorSeed로 지목하므로
+   자유롭게 옮겨도 된다.)
    ─────────────────────────────────────────────────── */
-// [side, size, top(dvh), offset, errorA, errorB, colorSeed, rotDir, rotSpeed]
 const SPOKE_CFG = [
-  // ── 첫 화면 (텍스트와 같은 화면) ──
+  //  side     size     top  offset  errA  errB  seed  dir  speed
   // 대 — 좌상단. top이 음수라 위쪽 일부가 네비에 가려진 채 시작한다
-  ['left',  [370, 1.15,  920], -12,  0.48, 0.50, 0.30, 1001,  1, 0.055],
+  ['left',  [370, 1.15,  920], -16, 0.48,  0.50, 0.30, 1001,  1, 0.055],
   // 특대 — 우측. 가장 큰 그래픽, 두 문단 오른쪽을 가로지른다
-  ['right', [820, 2.56, 2040],  13,  0.70, 0.85, 0.25, 1004, -1, 0.045],
-  // ── 아래 여백 구간 (스크롤하며 차례로 나타남) ──
+  ['right', [820, 2.56, 2040],  -5, 0.70,  0.85, 0.25, 1004, -1, 0.045],
   // 소 — 좌측, 화면 안쪽에 작게
-  ['left',  [160, 0.50,  400],  60,  0.14, 0.15, 0.50, 1002,  1, 0.11 ],
-  // 중 — 우측, QR 영상 위에 겹친다
-  ['right', [310, 0.97,  775],  93,  0.467, 0.45, 0.55, 1006, -1, 0.075],
+  ['left',  [160, 0.50,  400],  58, 0.14,  0.15, 0.50, 1002,  1, 0.11 ],
   // 중대 — 좌하단
-  ['left',  [265, 0.83,  665], 128,  0.29, 0.60, 0.45, 1003,  1, 0.06 ],
+  ['left',  [425, 1.33, 1065],  76, 0.488, 0.60, 0.45, 1003,  1, 0.06 ],
+  // 중 — 우측, QR 영상 위에 겹친다
+  ['right', [310, 0.87,  775], 115, 0.367, 0.45, 0.55, 1006, -1, 0.075],
+  // 대 — 좌하단. 마무리 문단 아래가 허전해서 채운 그래픽.
+  // offset 0.42로 왼쪽 절반 가까이가 화면 밖으로 나가고, 아래쪽은
+  // #section-main의 overflow:hidden에 걸려 잘린다(= 모서리에서 삐져나온 모양).
+  ['left',  [360, 1.12,  900], 162, 0.42,  0.45, 0.55, 1007,  1, 0.07 ],
 ];
 
-/* QR 영상보다 위에 그릴 그래픽 번호(위 목록에서 1부터 센다).
-   영상 래퍼가 z-index:1 이라, 여기 적힌 것만 2로 올려 영상 위에
-   겹치게 한다. 나머지는 영상 아래에 깔린다.
+/* QR 영상보다 위에 그릴 그래픽을 colorSeed(위 목록 8번째 값)로 지목한다.
+   영상 래퍼가 z-index:1 이라, 여기 적힌 것만 2로 올려 영상 위에 겹치게
+   한다. 나머지는 영상 아래에 깔린다.
+
+   목록 순번(1,2,3…) 대신 colorSeed를 쓰는 이유는, 순번으로 두면 위
+   목록의 줄 순서를 바꿀 때마다 엉뚱한 그래픽이 지목되기 때문이다.
+   colorSeed는 그래픽마다 고유하고 위치와 무관해서 안전하다.
+
    [참고] 영상 위로 올라간 그래픽은 영상의 multiply 블렌드 대상에서
    빠진다 — 영상보다 나중에 그려지므로 배경이 아니라 전경이 된다. */
-const SPOKES_ABOVE_VIDEO = [4];
+const SPOKES_ABOVE_VIDEO = [1006]; // 중 — 우측
 
 /* 그래픽 크기의 기준이 되는 단위.
 
@@ -147,7 +160,7 @@ function buildSpokes() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const densityFor = (size) => (size > 1200 ? 1 : dpr);
 
-  SPOKE_CFG.forEach(([side, sizeSpec, topDvh, offRatio, eA, eB, seed, dir, speed], i) => {
+  SPOKE_CFG.forEach(([side, sizeSpec, topDvh, offRatio, eA, eB, seed, dir, speed]) => {
     const size = resolveSize(sizeSpec);
     const xOff = -Math.round(size * offRatio); // 화면 밖으로 나가는 양
 
@@ -157,7 +170,7 @@ function buildSpokes() {
     wrap.style.width  = `${size}px`;
     wrap.style.height = `${size}px`;
     // 영상(z-index:1)보다 위로 올릴 그래픽만 2로
-    if (SPOKES_ABOVE_VIDEO.includes(i + 1)) wrap.style.zIndex = '2';
+    if (SPOKES_ABOVE_VIDEO.includes(seed)) wrap.style.zIndex = '2';
     /* %가 아니라 dvh — %로 두면 부모(#text-area) 높이에 묶여서,
        문단 구성이나 블록 높이를 손댈 때마다 그래픽이 통째로
        밀린다. dvh는 화면 높이 기준이라 텍스트 구조와 무관하게
