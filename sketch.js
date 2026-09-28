@@ -31,29 +31,74 @@ menuOverlay.querySelectorAll('.menu-item').forEach((el) => {
   });
 });
 
-/* ── QR 영상 — 화면에 들어올 때만 재생 ─────────────
-   autoplay 속성 대신 이 방식을 쓰는 이유:
-     1) preload="none"과 함께라서 첫 화면 로딩을 막지 않는다.
-        play()를 부르는 순간에야 파일을 받기 시작한다.
-     2) 화면 밖으로 나가면 멈춘다 — autoplay는 보이지 않는
-        동안에도 디코딩을 계속해 스크롤이 무거워진다.
-        이 페이지는 스포크 그래픽 5개가 스크롤마다 회전하므로
-        그 부하를 같이 지고 가면 체감이 크다. */
+/* ── QR 영상 — 미리 버퍼링하고, 화면에 들어올 때만 재생 ──
+   예전에는 preload="none" + rootMargin 200px 하나로만 처리했다.
+   그러면 영상이 거의 눈앞에 올 때까지 단 1바이트도 받지 않아서,
+   스크롤해 내려온 순간부터 파일을 받기 시작한다. 파일이 크면
+   그 자리에서 몇 초 동안 빈 칸만 보인다 — "처음 접속하면 영상이
+   너무 늦게 뜬다"의 직접적인 원인이다.
+
+   그래서 로딩 단계를 셋으로 나눴다.
+     1) 첫 화면 페인트까지는 preload="none" 그대로 — 영상이
+        글꼴·스크립트와 대역폭을 다투지 않게 한다.
+     2) load 이벤트 뒤 한가해지면 preload="auto"로 올려
+        백그라운드에서 조용히 앞부분을 받아둔다.
+     3) 실제 재생/정지는 지금처럼 화면 진입 여부로 판단하되,
+        rootMargin을 크게 잡아 더 일찍 시작한다.
+
+   데이터 절약 모드나 2G/3G에서는 2)를 건너뛴다 — 그런 회선에서
+   수십 MB를 미리 받아두는 건 손해다. */
 const qrVideo = document.getElementById('qr-video');
 
-if (qrVideo && 'IntersectionObserver' in window) {
-  new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (e.isIntersecting) {
-        // 자동재생 차단(사용자 제스처 없음)은 조용히 넘긴다.
-        qrVideo.play().catch(() => {});
-      } else {
-        qrVideo.pause();
-      }
-    });
-  }, { rootMargin: '200px' }).observe(qrVideo); // 조금 일찍 받아두기
-} else if (qrVideo) {
-  qrVideo.play().catch(() => {});
+/* 느린 회선·데이터 절약 모드 감지. 지원하지 않는 브라우저면 false. */
+function prefersLightLoading() {
+  const c = navigator.connection;
+  if (!c) return false;
+  return c.saveData === true || /(^|-)2g$/.test(c.effectiveType || '');
+}
+
+if (qrVideo) {
+  /* ── 1·2단계: 한가해지면 버퍼링 시작 ── */
+  const startBuffering = () => {
+    if (prefersLightLoading()) return;
+    qrVideo.preload = 'auto';
+    qrVideo.load(); // preload 속성 변경을 실제 네트워크 요청으로 반영
+  };
+
+  const scheduleBuffering = () => {
+    // requestIdleCallback이 없으면(사파리) 짧은 타이머로 대체.
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(startBuffering, { timeout: 2000 });
+    } else {
+      setTimeout(startBuffering, 300);
+    }
+  };
+
+  if (document.readyState === 'complete') scheduleBuffering();
+  else window.addEventListener('load', scheduleBuffering, { once: true });
+
+  /* 첫 프레임이 준비되면 표시 — 그 전까지는 CSS가 빈 칸을 가려둔다. */
+  qrVideo.addEventListener('loadeddata', () => {
+    qrVideo.classList.add('is-ready');
+  }, { once: true });
+
+  /* ── 3단계: 화면에 들어올 때만 재생 ──
+     화면 밖에서 계속 디코딩하면 스포크 그래픽 회전과 부하가 겹쳐
+     스크롤이 무거워지므로, 벗어나면 멈춘다. */
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          // 자동재생 차단(사용자 제스처 없음)은 조용히 넘긴다.
+          qrVideo.play().catch(() => {});
+        } else {
+          qrVideo.pause();
+        }
+      });
+    }, { rootMargin: '150% 0px' }).observe(qrVideo); // 한 화면 반쯤 앞서 시작
+  } else {
+    qrVideo.play().catch(() => {});
+  }
 }
 
 /* ── 스포크 그래픽 설정 ──────────────────────────

@@ -663,7 +663,28 @@ function openDetailOverlay(itemId) {
   if (detailPos < 0) detailPos = 0;
   fillDetail(itemId);
   document.getElementById('detail-overlay').classList.add('open');
+  lockBodyScroll();
   preloadDetailNeighbors();
+}
+
+// ── 배경 스크롤 잠금 ────────────────────────────────────────
+// 페이지 스크롤 주체가 문서로 바뀌었기 때문에(style.css의 html/body 주석
+// 참고), 상세 오버레이가 열린 동안 뒤 그리드가 같이 밀리지 않도록 막는다.
+// body를 position:fixed로 띄우면 스크롤 위치가 0으로 튀므로, 현재 위치를
+// 음수 top으로 붙여 두었다가 닫을 때 그 자리로 되돌린다.
+let scrollLockY = 0;
+
+function lockBodyScroll() {
+  scrollLockY = window.scrollY;
+  document.body.style.setProperty('--scroll-lock-top', `-${scrollLockY}px`);
+  document.body.classList.add('detail-open');
+}
+
+function unlockBodyScroll() {
+  if (!document.body.classList.contains('detail-open')) return;
+  document.body.classList.remove('detail-open');
+  document.body.style.removeProperty('--scroll-lock-top');
+  window.scrollTo(0, scrollLockY);
 }
 
 // dir: -1(이전) | +1(다음). 목록 양 끝(첫/마지막)에서는 반대편으로
@@ -681,6 +702,7 @@ function stepDetail(dir) {
 function closeDetailOverlay() {
   stopDetailAutoCycle(); // 페이지(오버레이)를 벗어나면 자동 전환도 멈춘다
   document.getElementById('detail-overlay').classList.remove('open');
+  unlockBodyScroll();
   if (detailGfx) {
     detailGfx.remove();
     detailGfx = null;
@@ -695,6 +717,12 @@ function closeDetailOverlay() {
 // 때까지 기다렸다가 아이템을 만들고 그리드를 처음 빌드한다. 그 사이에도
 // 이벤트 리스너는 먼저 걸어둬 UI 자체는 바로 반응하도록 한다.
 async function setup() {
+  // 이 스케치는 그리드 셀마다 createGraphics()로 따로 그리므로 메인 캔버스가
+  // 필요 없다. 명시하지 않으면 p5가 100x100 기본 캔버스를 body 끝에 붙이는데,
+  // 예전에는 body의 overflow:hidden에 가려 안 보였지만 문서 스크롤로 바뀐
+  // 지금은 페이지 맨 아래에 빈 100px이 딸려 붙는다.
+  noCanvas();
+
   colorMode(HSB, 360, 100, 100);
   frameRate(30); // 등장 애니메이션용 — 아이템이 많아 매 프레임 다시 그리는 비용을 아낌
 
@@ -761,7 +789,15 @@ async function setup() {
 }
 
 // 화면 회전/리사이즈 시 열 수·셀 크기가 바뀔 수 있으므로 다시 빌드
+// 셀 크기는 가로폭에만 좌우된다(높이는 aspect-ratio 1:1). 그리고 iOS
+// 사파리는 스크롤할 때 툴바가 접혔다 펴지면서 높이만 계속 바뀌는데, 그때마다
+// 그리드를 통째로 다시 만들면 비용이 크고 화면도 깜빡인다. 그래서 폭이
+// 실제로 달라졌을 때만 다시 빌드한다.
+let lastGridWidth = window.innerWidth;
+
 function windowResized() {
+  if (window.innerWidth === lastGridWidth) return;
+  lastGridWidth = window.innerWidth;
   buildGridView();
 }
 

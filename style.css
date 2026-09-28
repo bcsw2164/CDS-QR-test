@@ -394,6 +394,15 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   height: auto;     /* 영상 비율 유지 */
 }
 
+/* 첫 프레임이 준비되면 sketch.js가 .is-ready를 붙인다.
+   메타데이터(= 영상 크기)를 받기 전에는 height:auto가 0이라 아래
+   문단이 위로 붙었다가 영상이 뜨는 순간 확 밀려난다. 준비 전까지만
+   정사각 비율로 자리를 잡아두면 그 점프가 사라진다. 준비된 뒤에는
+   이 규칙이 빠지므로 실제 영상 비율이 그대로 쓰인다. */
+#qr-video:not(.is-ready) {
+  aspect-ratio: 1 / 1;
+}
+
 /* 영상 아래 설명 문구. 본문 두 문단과 똑같이 보이도록 .main-text를
    그대로 쓰고, 여기서는 배치에 필요한 것만 더한다(글꼴·크기·굵기·
    단 폭·줄바꿈 규칙은 전부 .main-text 그대로).

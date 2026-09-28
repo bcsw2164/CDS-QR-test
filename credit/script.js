@@ -10,6 +10,9 @@
    ============================================================ */
 
 const PHOTO_COUNT = 21;
+/* 첫 화면 근처에 놓이는 장수. 이만큼만 즉시 받고 나머지는 lazy로 미룬다.
+   사진은 위에서부터 차례로 배치되므로 앞 번호가 곧 첫 화면이다. */
+const EAGER_COUNT = 3;
 const NAME_JSON = '../qr_name.json';
 
 function pad2(n) {
@@ -117,9 +120,24 @@ function layoutPhotos() {
     cell.style.width = `${width}px`;
 
     const img = document.createElement('img');
-    img.src = `images/onsite/${pad2(i)}.jpg`;
     img.alt = '';
-    img.loading = 'lazy';
+
+    /* [중요] loading·decoding·fetchPriority는 반드시 src보다 먼저 정한다.
+       브라우저는 src가 정해지는 순간 그 시점의 loading 값으로 "지금 받을지
+       미룰지"를 결정해 버린다. 예전 코드는 src를 먼저 주고 뒤이어
+       loading='lazy'를 붙였는데, 그때는 이미 늦어서 lazy가 무시되고
+       21장(약 9MB)이 한꺼번에 내려받기 큐에 들어갔다. 연결 수가 한정돼
+       있으니 서로 밀려 첫 화면 사진마저 늦게 떴다 — "크레딧 사진이 초기에
+       잘 안 뜬다"의 원인이다.
+
+       첫 EAGER_COUNT장만 즉시 받고 나머지는 스크롤에 맞춰 받는다. */
+    const isFirstScreen = i <= EAGER_COUNT;
+    img.loading = isFirstScreen ? 'eager' : 'lazy';
+    img.decoding = 'async';
+    if ('fetchPriority' in img) {
+      img.fetchPriority = isFirstScreen ? 'high' : 'low';
+    }
+    img.src = `images/onsite/${pad2(i)}.jpg`;
 
     cell.appendChild(img);
     layer.appendChild(cell);

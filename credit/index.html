@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Credit</title>
+    <!-- 첫 화면에 놓이는 사진 3장을 미리 예약한다.
+         사진 배치(script.js의 layoutPhotos)는 이름 JSON을 받아 화면에
+         뿌린 뒤에야 시작하므로, 그냥 두면 사진 요청이 그만큼 늦게 출발한다.
+         여기서 미리 걸어두면 HTML을 읽는 순간부터 받기 시작해, 실제로
+         <img>가 만들어질 때는 이미 캐시에 들어와 있다.
+         (script.js의 EAGER_COUNT와 장수를 맞출 것) -->
+    <link rel="preload" as="image" href="images/onsite/01.jpg" />
+    <link rel="preload" as="image" href="images/onsite/02.jpg" />
+    <link rel="preload" as="image" href="images/onsite/03.jpg" />
+
     <link rel="stylesheet" href="style.css" />
     <!-- 우측 하단 메뉴 — style.css 뒤에 와야 버튼 규칙이 덮이지 않는다 -->
     <link rel="stylesheet" href="../shared/menu.css" />
