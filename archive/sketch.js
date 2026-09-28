@@ -23,20 +23,25 @@
        동일하게 검게. 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이
        한 번 재생되고(아래 "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다.
 
-   폭죽 등장 애니메이션 — 1·2번 탭 버튼(또는 그 탭에서 정렬 변경, 첫
-   로드)을 누르면 buildGridView(true)가 첫 렌더 시점을 t=0(burstStart)으로
-   잡는다. 아이템마다 0~*_BURST_STAGGER_MAX 초의 랜덤 지연(item.burstDelay)
-   이 붙어 모든 오브젝트가 동시에 터지지 않고 흩뿌려지듯 순차로 터진다.
+   등장 애니메이션 — 탭 버튼(또는 그 탭에서 정렬 변경, 첫 로드)을 누르면
+   buildGridView(true)가 첫 렌더 시점을 t=0(burstStart)으로 잡고, 같은
+   자리에서 assignBurstDelays()가 아이템별 지연(item.burstDelay)을 새로
+   배정한다 — 그래서 탭을 누를 때마다 등장 순서가 달라진다.
+
+   두 탭은 이름대로 성격이 다르다(상수 정의부의 표 참고). BURST는 사건,
+   BLOOM은 과정이다.
      · burst(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
        innerGrow, perSpokeBurst=false)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로
        easeOutExpo(확 퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가
-       SPOKE_BURST_SET_DELAY만큼 늦게 시작. 세트 전체가 한 덩어리로 움직인다
-       — 상세 박스(아래 "상세 박스 등장 애니메이션")는 이와 다른 방식.
+       SPOKE_BURST_SET_DELAY만큼 늦게 시작. 지연은 완전 랜덤이라 184개가
+       동시다발로 흩뿌려진다. 세트 전체가 한 덩어리로 움직인다 — 상세
+       박스(아래 "상세 박스 등장 애니메이션")는 이와 다른 방식.
      · bloom(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
-       넘긴다. lineGrow = 선분(호) + 그 끝을 따라가는 원(같이 움직임),
-       dotGrow = 중심에서 멀어지는 원(따로). 각각 중심 기준 0→1 로
-       easeOutExpo, 선분이 먼저·중심-거리 원이 RADIAL_BURST_SET_DELAY
-       만큼 늦게 시작(그래픽 자체는 안 건드리고 캔버스 변형만).
+       넘긴다. dotGrow = 중심에서 멀어지는 원(먼저), lineGrow = 선분(호) +
+       그 끝을 따라가는 원(RADIAL_BURST_SET_DELAY만큼 늦게). 각각 중심 기준
+       0→1 로 easeOutCubic(완만하게 자람). 지연이 격자 배치 순서에 비례해서
+       한쪽에서부터 쓸려 지나가듯 열린다(그래픽 자체는 안 건드리고 캔버스
+       변형만).
 
    상세 박스 등장 애니메이션 — burst(스포크) 탭에서만, 자동 전환으로 QR
    면 → 그래픽 면으로 뒤집힐 때 재생된다(showDetailStage()). 그리드와 달리
@@ -64,21 +69,50 @@ const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여�
 // 보인다는 피드백으로 상세 박스에서만 더 줄인다(그리드 썸네일은 그대로).
 const DETAIL_RADIAL_SIZE_RATIO = 0.85;
 
-// bloom(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
-// 선분(+선 끝 원)과 중심-거리 원을 각각 중심 기준 scale 0→1 로 easeOutExpo
-// 하며 키우되, burst(스포크)처럼 중심-거리 원이 RADIAL_BURST_SET_DELAY 만큼
-// 늦게 시작.
-const RADIAL_BURST_DURATION = 0.5; // 한 그룹이 0→제 크기까지 걸리는 시간(초)
-const RADIAL_BURST_SET_DELAY = 0.18; // 선분 시작 후 중심-거리 원이 시작되기까지 지연(초)
-const RADIAL_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연
+/* 두 탭의 등장 애니메이션 — 이름이 곧 성격이다.
+   BURST는 사건이고 BLOOM은 과정이다. 터짐은 한순간에 끝나고 피어남은
+   시간이 걸린다. 아래 상수와 easing이 그 한 문장을 숫자로 옮긴 것이라,
+   값을 만질 때도 이 대비가 유지되는지를 기준으로 보면 된다.
 
-// burst(방사형 스포크) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
+                  BURST(스포크)        BLOOM(방사형)
+     지속 시간     0.35초 (짧게)        0.9초 (길게)
+     easing        easeOutExpo          easeOutCubic
+                   (확 튀고 급감속)     (완만하게 자람)
+     아이템 지연   0~0.5초 완전 랜덤    격자 순서를 따라가는 물결
+     세트 순서     밖 → 안              점 → 선
+     인상          동시에 흩뿌려짐      한쪽에서부터 천천히 열림       */
+
+// ── BLOOM(방사형) ──
+// 중심-거리 원이 먼저 자리를 잡고, 그 뒤로 호가 펼쳐진다(점 → 선). 원래는
+// 반대 순서였는데, 바깥으로 터져 나가는 대신 안에서부터 열리는 쪽이 개화에
+// 가까워서 뒤집었다. easing도 easeOutExpo에서 바꿨다 — expo는 첫 프레임에
+// 이미 절반 넘게 커져 버려서 "자란다"가 아니라 "튀어나온다"로 읽힌다.
+const RADIAL_BURST_DURATION = 0.9; // 한 그룹이 0→제 크기까지 걸리는 시간(초)
+const RADIAL_BURST_SET_DELAY = 0.22; // 중심-거리 원 시작 후 선분이 시작되기까지 지연(초)
+// 아이템 지연은 랜덤이 아니라 격자 배치 순서에 비례한다(assignBurstDelays).
+// 첫 칸이 0, 마지막 칸이 이 값 — 좌상단에서 우하단으로 쓸려 지나가듯 열린다.
+const RADIAL_BURST_STAGGER_MAX = 1.1;
+// 다만 순수 비례만 쓰면 줄이 자로 잰 듯 맞아떨어져 기계적으로 보인다.
+// 칸마다 이 폭 안에서 흐트러뜨려 물결의 가장자리를 풀어준다.
+//
+// 이 값이 물결 간격보다 충분히 커야 한다. 184칸을 STAGGER_MAX에 나누면
+// 이웃 칸 사이는 1.1/183 ≒ 0.006초뿐이라, 흔들림이 작으면 한 줄이 통째로
+// 동시에 열리는 것처럼 보인다. 아래 값이면 이웃끼리 수십 칸 분량으로
+// 뒤섞이면서도 전체가 흘러가는 방향은 그대로 남는다.
+const RADIAL_BURST_STAGGER_JITTER = 0.45;
+// 시작 시점만 어긋내면 여전히 "같은 속도로 자라는 것들이 시차를 두고
+// 나온다"로 보인다. 그래서 자라는 속도 자체도 칸마다 다르게 준다 —
+// 각 아이템의 지속 시간이 DURATION × (1 ± 이 비율) 안에서 뽑힌다.
+// 개체마다 제 속도로 열려야 한 덩어리로 안 읽힌다.
+const RADIAL_BURST_DURATION_VARY = 0.3;
+
+// ── BURST(방사형 스포크) ──
 // 각 선분 세트가 길이 0(중심에 뭉침)에서 제 크기로 easeOutExpo(빠르게
 // 확 퍼졌다가 감속)로 커지고, 밖지름 세트가 먼저·안지름 세트가
 // SPOKE_BURST_SET_DELAY 만큼 늦게 시작한다.
-const SPOKE_BURST_DURATION = 0.5; // 한 세트가 0→제 크기까지 걸리는 시간(초)
-const SPOKE_BURST_SET_DELAY = 0.18; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
-const SPOKE_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
+const SPOKE_BURST_DURATION = 0.35; // 한 세트가 0→제 크기까지 걸리는 시간(초)
+const SPOKE_BURST_SET_DELAY = 0.12; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
+const SPOKE_BURST_STAGGER_MAX = 0.5; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
 
 // 첫 화면에 뜨는 탭. index.html에서 .active가 붙어 있는 첫 버튼의
 // data-shape 값과 반드시 같아야 한다 — 다르면 버튼은 1번이 켜져 있는데
@@ -104,17 +138,26 @@ let qrErrorData = [];
 let burstStart = null;
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+// BURST용 — 시작하자마자 확 튀고 급격히 감속한다.
 const easeOutExpo = (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
+// BLOOM용 — expo보다 시작이 훨씬 완만해서 "자란다"에 가깝게 읽힌다.
+// 1을 넘지 않는 곡선이라 셀 밖으로 잘릴 걱정도 없다(easeOutBack 같은
+// 탄성 곡선은 scale에 쓰면 bloom이 칸을 꽉 채우고 있어 잘린다).
+const easeOutCubic = (t) => (t >= 1 ? 1 : 1 - Math.pow(1 - t, 3));
 
-// bloom(방사형) — 아이템별 랜덤 지연(itemDelay)을 반영한 현재 scale 배율.
-//   line : 선분(호) + 그 끝을 따라가는 원 (같이 움직임)
-//   dot  : 중심에서 멀어지는 errorA-거리 원 (RADIAL_BURST_SET_DELAY 만큼 늦게)
-function radialGrowFactors(elapsedSec, itemDelay = 0) {
+// bloom(방사형) — 아이템별 지연(itemDelay)과 지속 시간(itemDuration)을
+// 반영한 현재 scale 배율.
+//   dot  : 중심에서 멀어지는 errorA-거리 원 (먼저 자리를 잡는다)
+//   line : 선분(호) + 그 끝을 따라가는 원 (RADIAL_BURST_SET_DELAY 만큼 늦게)
+// itemDuration은 assignBurstDelays()가 칸마다 다르게 뽑아둔 값이라, 시작
+// 시점뿐 아니라 열리는 속도까지 개체마다 다르다.
+function radialGrowFactors(elapsedSec, itemDelay = 0, itemDuration = RADIAL_BURST_DURATION) {
   if (burstStart === null) return { line: 1, dot: 1 };
   const t = elapsedSec - burstStart - itemDelay;
+  const d = itemDuration || RADIAL_BURST_DURATION;
   return {
-    line: easeOutExpo(clamp01(t / RADIAL_BURST_DURATION)),
-    dot: easeOutExpo(clamp01((t - RADIAL_BURST_SET_DELAY) / RADIAL_BURST_DURATION)),
+    dot: easeOutCubic(clamp01(t / d)),
+    line: easeOutCubic(clamp01((t - RADIAL_BURST_SET_DELAY) / d)),
   };
 }
 
@@ -222,7 +265,7 @@ function generateRadialItems() {
     item.dotColor = dotColor;
     const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
     item.tipColor = tipOptions[Math.floor(rnd() * tipOptions.length)];
-    item.burstDelay = random(0, RADIAL_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연(모양에는 영향 없음이라 랜덤 유지)
+    item.burstDelay = 0; // 실제 값은 애니메이션을 재생할 때마다 assignBurstDelays()가 채운다
   });
   return list;
 }
@@ -235,7 +278,7 @@ function generateSpokeItems() {
   const list = generateFlowerItems();
   list.forEach((item) => {
     item.colorSeed = item.id + COLOR_SEED_SALT;
-    item.burstDelay = random(0, SPOKE_BURST_STAGGER_MAX); // 등장 애니메이션 개별 지연(모양에는 영향 없음이라 랜덤 유지)
+    item.burstDelay = 0; // 실제 값은 애니메이션을 재생할 때마다 assignBurstDelays()가 채운다
   });
   return list;
 }
@@ -308,6 +351,53 @@ function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
   g.pop();
 }
 
+// 등장 애니메이션을 재생할 때마다(= buildGridView(true)) 아이템별 지연을
+// 새로 배정한다.
+//
+// [왜 아이템 생성 시점이 아니라 여기인가]
+// 예전에는 generateRadialItems/generateSpokeItems에서 한 번만 뽑았는데, 그
+// 둘은 setup()에서 딱 한 번 돌기 때문에 새로고침해야만 순서가 바뀌었다.
+// 페이지 안에서는 탭을 아무리 눌러도 184개가 늘 같은 순서로 등장했다.
+// 여기서 뽑으면 탭 전환·정렬 변경마다 새로 흩어진다. 리사이즈는 burst 없이
+// 부르므로(windowResized) 영향받지 않는다 — 화면을 돌렸다고 다시 터지면
+// 곤란하다.
+//
+// [이래도 되는 이유]
+// burstDelay는 등장 순서만 정하고 형태·색·회전에는 관여하지 않는다.
+// 애니메이션이 끝나면 모든 아이템이 똑같이 grow=1에 도달하므로 최종 화면은
+// 항상 같다. 색·회전이 시드로 고정된 것과 모순이 아니다 — 그쪽은 '그 개체가
+// 무엇인지'라 남아야 하고, 지연은 '어떻게 등장했는지'라 지나가면 그만이다.
+//
+// order: 화면에 놓이는 순서(getDisplayOrder()의 결과) → items 인덱스.
+// 정렬 모드가 바뀌면 이 배열도 바뀌므로 물결 방향이 자동으로 따라간다.
+function assignBurstDelays(order) {
+  const items = currentItems();
+
+  if (currentShape === 'radial-spokes') {
+    // BURST — 완전 랜덤. 184개가 제각각 터져 동시다발로 흩뿌려진다.
+    order.forEach((idx) => {
+      items[idx].burstDelay = random(0, SPOKE_BURST_STAGGER_MAX);
+    });
+    return;
+  }
+
+  // BLOOM — 격자 순서에 비례하는 물결. 첫 칸이 0, 마지막 칸이 STAGGER_MAX라
+  // 좌상단에서 우하단으로 쓸려 지나가듯 열린다. 거기에 두 가지를 더한다.
+  //   1) 시작 시점 흔들림(JITTER) — 이웃 칸끼리 뒤섞여 한 줄이 통째로
+  //      열리는 것처럼 보이지 않게 한다.
+  //   2) 지속 시간 편차(DURATION_VARY) — 칸마다 자라는 속도가 달라서,
+  //      같은 순간에 시작한 둘도 서로 다른 시점에 다 자란다.
+  // 1번만 있으면 "같은 속도로 자라는 것들이 시차를 두고 나오는" 느낌이라
+  // 여전히 한 덩어리로 읽힌다. 둘을 같이 써야 개체마다 제 속도로 열린다.
+  const n = order.length;
+  order.forEach((idx, pos) => {
+    const wave = n > 1 ? (pos / (n - 1)) * RADIAL_BURST_STAGGER_MAX : 0;
+    items[idx].burstDelay = wave + random(0, RADIAL_BURST_STAGGER_JITTER);
+    items[idx].burstDuration =
+      RADIAL_BURST_DURATION * random(1 - RADIAL_BURST_DURATION_VARY, 1 + RADIAL_BURST_DURATION_VARY);
+  });
+}
+
 // 셀별로 만들어뒀던 p5.Graphics 버퍼를 전부 폐기
 function clearGridCells() {
   gridCells.forEach(({ gfx }) => gfx.remove());
@@ -326,8 +416,9 @@ function renderGridFrame(elapsedSec) {
     let grow = null;
     if (bursting && currentShape === 'radial-spokes') {
       grow = spokeGrowFactors(elapsedSec, item.burstDelay);
-    } else if (bursting && currentShape === 'radial') {
-      grow = radialGrowFactors(elapsedSec, item.burstDelay);
+    } else if (bursting) {
+      // bloom·ring이 같은 타이밍(RADIAL_BURST_*)을 공유한다.
+      grow = radialGrowFactors(elapsedSec, item.burstDelay, item.burstDuration);
     }
     drawItem(item, gfx, cellSize / 2, cellSize / 2, size, grow);
   });
@@ -356,6 +447,11 @@ function buildGridView(burst = false) {
   const items = currentItems();
   const myToken = ++gridBuildToken;
 
+  // 애니메이션을 재생하는 호출일 때만 지연을 새로 배정한다. 리사이즈(burst
+  // 없이 부름)에서는 손대지 않으므로, 진행 중이던 애니메이션의 순서가
+  // 중간에 뒤바뀌지 않는다.
+  if (burst) assignBurstDelays(order);
+
   const frag = document.createDocumentFragment();
   const cellEls = [];
   for (let i = 0; i < order.length; i++) {
@@ -370,7 +466,7 @@ function buildGridView(burst = false) {
   requestAnimationFrame(() => {
     if (myToken !== gridBuildToken) return; // 그 사이 새 빌드가 시작됐으면 이 결과는 버림
 
-    if (burst && (currentShape === 'radial' || currentShape === 'radial-spokes')) {
+    if (burst) {
       burstStart = millis() / 1000; // t=0 을 첫 렌더에 맞춘다
     }
 
@@ -859,10 +955,17 @@ function draw() {
     renderGridFrame(nowSec);
 
     // 가장 늦게 시작하는 아이템(STAGGER_MAX)까지 다 커지면 종료.
+    // bloom은 물결 지연 위에 JITTER가 얹히고 지속 시간도 칸마다 다르므로,
+    // 가장 늦게 시작해서 가장 느리게 자라는 최악의 조합을 기준으로 잡는다 —
+    // 빼먹으면 마지막 칸 몇 개가 다 자라기 전에 루프가 멈춘다.
     let total = 0;
-    if (currentShape === 'radial') {
-      total = RADIAL_BURST_STAGGER_MAX + RADIAL_BURST_SET_DELAY + RADIAL_BURST_DURATION;
-    } else if (currentShape === 'radial-spokes') {
+    if (currentShape !== 'radial-spokes') {
+      total =
+        RADIAL_BURST_STAGGER_MAX +
+        RADIAL_BURST_STAGGER_JITTER +
+        RADIAL_BURST_SET_DELAY +
+        RADIAL_BURST_DURATION * (1 + RADIAL_BURST_DURATION_VARY);
+    } else {
       total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
     }
     if (nowSec - burstStart >= total) {
