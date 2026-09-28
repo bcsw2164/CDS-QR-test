@@ -58,11 +58,33 @@ function prefersLightLoading() {
 }
 
 if (qrVideo) {
+  /* 재생을 원하는 상태인가(= 화면 안에 있는가). play()가 거절당했을 때
+     나중에 다시 시도할지 판단하는 기준이 된다. */
+  let wantsPlay = false;
+
+  const tryPlay = () => {
+    if (!wantsPlay) return;
+    // 자동재생 차단(사용자 제스처 없음, iOS 저전력 모드 등)은 조용히 넘긴다.
+    // 아래 first-gesture 핸들러가 다음 터치 때 다시 시도한다.
+    qrVideo.play().catch(() => {});
+  };
+
   /* ── 1·2단계: 한가해지면 버퍼링 시작 ── */
   const startBuffering = () => {
     if (prefersLightLoading()) return;
+    if (qrVideo.preload === 'auto') return; // 이미 올려놨으면 그만
     qrVideo.preload = 'auto';
-    qrVideo.load(); // preload 속성 변경을 실제 네트워크 요청으로 반영
+
+    /* [주의] load()는 미디어 요소를 처음 상태로 되돌린다 — 재생 중이면
+       멈추고 currentTime도 0으로 돌아간다. 아래 IntersectionObserver는
+       스크립트가 실행되자마자 콜백을 한 번 돌리므로, 영상이 첫 화면에
+       보이는 경우 play()가 이미 시작된 뒤에 이 함수가 불린다. 거기서
+       무조건 load()를 하면 방금 시작한 재생이 취소되고, 관찰자는 계속
+       교차 상태라 다시 발화하지 않아 영영 멈춰 있게 된다.
+       그래서 아직 아무것도 안 받았고 재생 요청도 없을 때만 부른다. */
+    if (!wantsPlay && qrVideo.readyState === 0) qrVideo.load();
+
+    tryPlay();
   };
 
   const scheduleBuffering = () => {
@@ -82,23 +104,38 @@ if (qrVideo) {
     qrVideo.classList.add('is-ready');
   }, { once: true });
 
+  /* 버퍼가 차오를 때마다 재생을 다시 시도한다. preload="none"으로 시작하는
+     탓에 첫 play()가 데이터보다 먼저 불릴 수 있고, 회선이 끊겼다 이어지면
+     저절로 재개되지 않는 경우도 있다. */
+  qrVideo.addEventListener('canplay', tryPlay);
+
+  /* iOS 저전력 모드에서는 muted 영상이어도 자동재생이 막힌다. 이때는
+     사용자의 첫 터치가 곧 제스처가 되므로 그 시점에 한 번 더 시도한다.
+     이미 재생 중이면 play()는 아무 일도 하지 않는다. */
+  const retryOnGesture = () => tryPlay();
+  window.addEventListener('touchstart', retryOnGesture, { once: true, passive: true });
+  window.addEventListener('click', retryOnGesture, { once: true });
+
   /* ── 3단계: 화면에 들어올 때만 재생 ──
      화면 밖에서 계속 디코딩하면 스포크 그래픽 회전과 부하가 겹쳐
      스크롤이 무거워지므로, 벗어나면 멈춘다. */
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
       entries.forEach((e) => {
-        if (e.isIntersecting) {
-          // 자동재생 차단(사용자 제스처 없음)은 조용히 넘긴다.
-          qrVideo.play().catch(() => {});
-        } else {
-          qrVideo.pause();
-        }
+        wantsPlay = e.isIntersecting;
+        if (wantsPlay) tryPlay();
+        else qrVideo.pause();
       });
     }, { rootMargin: '150% 0px' }).observe(qrVideo); // 한 화면 반쯤 앞서 시작
   } else {
-    qrVideo.play().catch(() => {});
+    wantsPlay = true;
+    tryPlay();
   }
+
+  /* 탭을 벗어났다 돌아오면 사파리가 재생을 멈춰둔 채로 두기도 한다. */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) tryPlay();
+  });
 }
 
 /* ── 스포크 그래픽 설정 ──────────────────────────

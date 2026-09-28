@@ -145,8 +145,7 @@ body.menu-open .menu-item:nth-last-child(4) { transition-delay: 0.54s; }
    그 속성만 옮기면 된다(스크린리더도 같은 속성을 읽는다).
 
    크기·간격을 em으로 두어 #menu-list의 글자 크기를 따라간다.
-   background를 currentColor로 두면 hover에서 글자색이 뒤집힐 때 점도
-   같이 뒤집힌다. */
+   background는 currentColor라 글자색이 바뀌면 점도 같이 따라간다. */
 .menu-item[aria-current='page']::before {
   content: '';
   flex-shrink: 0;
@@ -163,12 +162,6 @@ body.menu-open .menu-item:nth-last-child(4) { transition-delay: 0.54s; }
 .menu-item[data-key='archive'] { --dot-color: #fee987; } /* 노랑 */
 .menu-item[data-key='credit']  { --dot-color: #7ecaac; } /* 초록 */
 .menu-item[data-key='apply']   { --dot-color: #f58b6e; } /* 주황 */
-
-.menu-item:hover,
-.menu-item:active {
-  background: var(--menu-bg);
-  color: var(--menu-fg);
-}
 
 /* 메뉴가 열려 있는 동안에는 뒤 페이지가 스크롤되지 않게 잠근다.
    크레딧 페이지처럼 세로로 긴 문서에서 커튼 뒤가 움직이는 걸 막는다. */
