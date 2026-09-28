@@ -42,7 +42,7 @@ body {
   flex-shrink: 0;
 }
 
-/* 시리즈 선택(1, 2, ...) — 여백 없이 화면 양 끝을 꽉 채우는 세그먼트.
+/* 시리즈 선택(burst, bloom, ...) — 여백 없이 화면 양 끝을 꽉 채우는 세그먼트.
    버튼이 flex:1로 균등 분할하므로 개수가 늘어나도(최대 10개 예정)
    가로 한 줄 안에서 계속 세로로만 쪼개진다. */
 .shape-row {
@@ -51,15 +51,27 @@ body {
   width: 100%;
 }
 
+/* 세트 이름(BURST / BLOOM)이 버튼의 전부다. 표시만 대문자로 바꾸고
+   HTML에는 소문자를 그대로 둔다 — 메뉴 항목(shared/menu.css)과 같은
+   방식이라, 검색·스크린리더에는 원래 표기가 남는다.
+
+   글자 크기는 예전 숫자(최대 38px)보다 낮춰 잡았다. 숫자는 한 글자라
+   크게 둬도 됐지만 다섯 글자짜리 단어를 같은 크기로 두면 좁은 폰에서
+   두 버튼이 가로로 붙어 버린다. 320px 화면에서도 한 줄에 들어가는 값이다. */
 .shape-btn {
   flex: 1;
-  padding: clamp(12px, 2.2vmin, 18px) 0;
+  padding: clamp(14px, 2.6vmin, 20px) 0;
   background: #fff;
   border: none;
   color: #111;
   font-family: 'Pretendard', sans-serif;
   font-weight: 800;
-  font-size: clamp(28px, 5vmin, 38px);
+  font-size: clamp(19px, 3.4vmin, 28px);
+  text-transform: uppercase;
+  /* 대문자는 글자 사이가 답답해 보여 소문자와 달리 자간을 살짝 벌린다. */
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.15s,
@@ -90,7 +102,9 @@ body {
   background: #fff;
   border: none;
   color: #111;
-  font-family: 'Pretendard', sans-serif;
+  /* 위 시리즈 버튼(Pretendard)과 글꼴을 달리해 두 줄의 역할을 구분한다.
+     메인 페이지 본문(.main-text)과 같은 Wanted Sans다. */
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
   font-weight: 800;
   font-size: clamp(13px, 2.2vmin, 17px);
   cursor: pointer;

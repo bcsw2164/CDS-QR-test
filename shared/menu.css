@@ -10,8 +10,10 @@
    ============================================================ */
 
 :root {
-  --menu-fg: #111; /* 커튼 색 */
-  --menu-bg: #fff; /* 커튼 위 글자 색 */
+  /* 이름을 fg/bg가 아니라 역할로 둔다 — 예전에는 커튼이 검정이라 fg가
+     곧 커튼 색이었는데, 흰 커튼으로 뒤집으면서 그 짝이 어긋났다. */
+  --menu-curtain: #fff; /* 커튼 색 */
+  --menu-ink: #111; /* 커튼 위 글자 색 */
   /* 버튼을 화면 모서리에서 띄우는 거리. 아래 #menu-btn과 항목
      우측 여백이 이 값을 공유해서 세로로 정렬된다. */
   --menu-inset: clamp(16px, 4vw, 40px);
@@ -19,8 +21,9 @@
 
 /* ── 2×2 그리드 아이콘 버튼 ────────────────────────
    mix-blend-mode: difference — 밑에 깔린 배경색을 반전시킨다.
-   아카이브의 밝은 배경, 크레딧의 검은 배경, 메뉴를 열었을 때의 검은
-   커튼 위에서까지 색을 바꾸지 않고 항상 대비가 생긴다. */
+   아카이브의 밝은 배경, 크레딧의 검은 배경, 메뉴를 열었을 때의 흰
+   커튼 위에서까지 색을 바꾸지 않고 항상 대비가 생긴다. 흰 커튼 위에서는
+   흰 사각형이 반전돼 검게 보이므로, 커튼 색을 바꿔도 손댈 것이 없다. */
 #menu-btn {
   position: fixed;
   right: var(--menu-inset);
@@ -76,7 +79,7 @@ body.menu-open #menu-overlay {
   pointer-events: auto;
 }
 
-/* 검은 커튼. 상자 자체를 움직이면 안의 글자까지 늘어나므로 배경
+/* 흰 커튼. 상자 자체를 움직이면 안의 글자까지 늘어나므로 배경
    역할만 하는 가짜 요소를 따로 두고 이것만 세로로 편다.
    transform-origin: bottom → 아래 모서리에 고정된 채 위로 펼쳐진다
    (메인은 top에서 아래로 내려온다. 버튼 위치에 맞춘 차이다). */
@@ -85,7 +88,7 @@ body.menu-open #menu-overlay {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--menu-fg);
+  background: var(--menu-curtain);
   transform: scaleY(0);
   transform-origin: bottom;
   transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
@@ -113,7 +116,7 @@ body.menu-open #menu-overlay::before {
   font-family: 'Pretendard', sans-serif;
   font-weight: 900;
   line-height: 1.1; /* 항목 자체 높이. 사이 간격은 위 gap이 맡는다 */
-  color: var(--menu-bg);
+  color: var(--menu-ink);
   text-decoration: none;
   letter-spacing: -0.02em;
   /* 표시만 대문자로 — HTML의 글자는 그대로라 검색·스크린리더에는

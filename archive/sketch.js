@@ -13,13 +13,13 @@
    오브젝트 종류 탭:
      1 방사형 — 방사형 다발 꽃잎. core.js의 drawRadialBurstFlowerDev(디벨롭
        버전, 두 번째 선이 좌우반전으로 마는 최종 픽스 모양)를 쓴다 —
-       overview의 "방사형" 셀과 동일한 그래픽. 2번 탭과 마찬가지로 탭에
+       overview의 "방사형" 셀과 동일한 그래픽. burst 탭과 마찬가지로 탭에
        들어올 때 폭죽처럼 터지는 등장 애니메이션이 한 번 재생되고(아래
        "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다. 회전 애니메이션은
        삭제됨.
      2 방사형 스포크 — core.js의 drawRadialSpokeDots. overview의 "방사형
        스포크" 셀과 동일한 그래픽(중심에서 뻗는 선분 두 세트 + 끝점 원).
-       아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 1번과
+       아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 bloom과
        동일하게 검게. 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이
        한 번 재생되고(아래 "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다.
 
@@ -27,25 +27,25 @@
    로드)을 누르면 buildGridView(true)가 첫 렌더 시점을 t=0(burstStart)으로
    잡는다. 아이템마다 0~*_BURST_STAGGER_MAX 초의 랜덤 지연(item.burstDelay)
    이 붙어 모든 오브젝트가 동시에 터지지 않고 흩뿌려지듯 순차로 터진다.
-     · 2번(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
+     · burst(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
        innerGrow, perSpokeBurst=false)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로
        easeOutExpo(확 퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가
        SPOKE_BURST_SET_DELAY만큼 늦게 시작. 세트 전체가 한 덩어리로 움직인다
        — 상세 박스(아래 "상세 박스 등장 애니메이션")는 이와 다른 방식.
-     · 1번(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
+     · bloom(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
        넘긴다. lineGrow = 선분(호) + 그 끝을 따라가는 원(같이 움직임),
        dotGrow = 중심에서 멀어지는 원(따로). 각각 중심 기준 0→1 로
        easeOutExpo, 선분이 먼저·중심-거리 원이 RADIAL_BURST_SET_DELAY
        만큼 늦게 시작(그래픽 자체는 안 건드리고 캔버스 변형만).
 
-   상세 박스 등장 애니메이션 — 2번(스포크) 탭에서만, 자동 전환으로 QR
+   상세 박스 등장 애니메이션 — burst(스포크) 탭에서만, 자동 전환으로 QR
    면 → 그래픽 면으로 뒤집힐 때 재생된다(showDetailStage()). 그리드와 달리
    drawRadialSpokeDots를 perSpokeBurst=true로 불러, 세트가 한 덩어리로
    커지지 않고 core.js(buildRadialSpokeGeometry)가 선분마다 개별 랜덤
    시작 시점(RADIAL_SPOKE_BURST_STAGGER_RATIO)을 뽑아 각자 다른 타이밍에
    0(중심에 뭉침)→1(제 크기)로 퍼진다. 두 모드 모두 선분당 rnd() 소비량이
    같아, 애니메이션이 끝난 뒤의 형태는 그리드에서 본 것과 항상 동일하다.
-   1번(방사형) 탭은 상세 박스에서도 정지 프레임 그대로(기존 동작).
+   bloom(방사형) 탭은 상세 박스에서도 정지 프레임 그대로(기존 동작).
 
    보기 방식 탭 (오브젝트 종류와 무관하게 적용):
      수집순   — id(1~ITEM_COUNT) 순서 그대로 배치.
@@ -57,22 +57,22 @@
    ============================================================ */
 
 let ITEM_COUNT = 0; // qrErrorData 로딩 후 그 개수로 정해진다(setup 참고)
-const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율(그리드 썸네일 + 2번 탭 상세 박스)
+const CELL_PADDING_RATIO = 0.03; // 칸 안에서 그래픽이 차지하는 여백 비율(그리드 썸네일 + burst 탭 상세 박스)
 
-// 1번(방사형) 탭 상세 박스 전용 그래픽 크기(캔버스 대비 비율). 2번(스포크)은
-// CELL_PADDING_RATIO 그대로 써서 캔버스의 94%를 채우는데, 1번은 그보다 커
+// bloom(방사형) 탭 상세 박스 전용 그래픽 크기(캔버스 대비 비율). burst(스포크)은
+// CELL_PADDING_RATIO 그대로 써서 캔버스의 94%를 채우는데, bloom은 그보다 커
 // 보인다는 피드백으로 상세 박스에서만 더 줄인다(그리드 썸네일은 그대로).
 const DETAIL_RADIAL_SIZE_RATIO = 0.85;
 
-// 1번(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
+// bloom(방사형) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
 // 선분(+선 끝 원)과 중심-거리 원을 각각 중심 기준 scale 0→1 로 easeOutExpo
-// 하며 키우되, 2번(스포크)처럼 중심-거리 원이 RADIAL_BURST_SET_DELAY 만큼
+// 하며 키우되, burst(스포크)처럼 중심-거리 원이 RADIAL_BURST_SET_DELAY 만큼
 // 늦게 시작.
 const RADIAL_BURST_DURATION = 0.5; // 한 그룹이 0→제 크기까지 걸리는 시간(초)
 const RADIAL_BURST_SET_DELAY = 0.18; // 선분 시작 후 중심-거리 원이 시작되기까지 지연(초)
 const RADIAL_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연
 
-// 2번(방사형 스포크) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
+// burst(방사형 스포크) 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션.
 // 각 선분 세트가 길이 0(중심에 뭉침)에서 제 크기로 easeOutExpo(빠르게
 // 확 퍼졌다가 감속)로 커지고, 밖지름 세트가 먼저·안지름 세트가
 // SPOKE_BURST_SET_DELAY 만큼 늦게 시작한다.
@@ -80,7 +80,16 @@ const SPOKE_BURST_DURATION = 0.5; // 한 세트가 0→제 크기까지 걸리�
 const SPOKE_BURST_SET_DELAY = 0.18; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
 const SPOKE_BURST_STAGGER_MAX = 0.7; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
 
-let currentShape = 'radial'; // 'radial' | 'radial-spokes'
+// 첫 화면에 뜨는 탭. index.html에서 .active가 붙어 있는 첫 버튼의
+// data-shape 값과 반드시 같아야 한다 — 다르면 버튼은 1번이 켜져 있는데
+// 그래픽은 다른 탭 것이 그려진다.
+//
+// 아래 주석들은 두 세트를 탭 번호가 아니라 이름으로 부른다. 번호는
+// index.html의 버튼 순서를 바꾸면 따라 바뀌지만 이름은 그대로라, 순서를
+// 손볼 때마다 주석을 고칠 일이 없다.
+//   burst = 'radial-spokes' (중심에서 뻗는 직선 선분 두 겹)
+//   bloom = 'radial'        (말리는 호 + 중심에서 멀어지는 원)
+let currentShape = 'radial-spokes'; // 'radial' | 'radial-spokes'
 let sortMode = 'collected'; // 'collected' | 'error'
 
 let radialItems = [];
@@ -91,13 +100,13 @@ let spokeItems = [];
 let qrErrorData = [];
 
 // 등장(폭죽) 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
-// 1번(방사형)·2번(스포크) 탭이 공유한다.
+// bloom(방사형)·burst(스포크) 탭이 공유한다.
 let burstStart = null;
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeOutExpo = (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
-// 1번(방사형) — 아이템별 랜덤 지연(itemDelay)을 반영한 현재 scale 배율.
+// bloom(방사형) — 아이템별 랜덤 지연(itemDelay)을 반영한 현재 scale 배율.
 //   line : 선분(호) + 그 끝을 따라가는 원 (같이 움직임)
 //   dot  : 중심에서 멀어지는 errorA-거리 원 (RADIAL_BURST_SET_DELAY 만큼 늦게)
 function radialGrowFactors(elapsedSec, itemDelay = 0) {
@@ -109,7 +118,7 @@ function radialGrowFactors(elapsedSec, itemDelay = 0) {
   };
 }
 
-// 2번(스포크) — 경과 시간과 아이템별 랜덤 지연(itemDelay)에서 밖지름/안지름
+// burst(스포크) — 경과 시간과 아이템별 랜덤 지연(itemDelay)에서 밖지름/안지름
 // 세트의 현재 길이 배율을 구한다. itemDelay 만큼 이 아이템의 t=0 이 밀린다.
 // 그리드 진입 애니메이션 전용 — 세트 전체가 한 덩어리로 0→1 easeOutExpo
 // (core.js에 perSpokeBurst=false로 넘겨 그대로 최종 배율로 쓰임). 상세
@@ -159,10 +168,30 @@ function normalizeErrorAxis(values) {
 // (같은 값을 유지하는 한 새로고침해도 항상 동일한 색).
 const COLOR_SEED_SALT = 819842174;
 
+// 전체 회전 고정용 시드 솔트 — 색과 같은 방식이되 솔트를 달리해서, 같은
+// id라도 색과 회전이 서로 다른 난수열에서 나오게 한다(같은 솔트를 쓰면
+// 색이 비슷한 아이템끼리 각도까지 몰린다).
+//
+// [왜 오차 데이터가 아니라 id인가]
+// 회전은 오차가 아니다 — 누가 종이를 어느 방향으로 놓고 그렸는지는 잘
+// 그렸는지와 무관한, 그 개체만의 우연이다. errorA/errorB에 걸면 오차율순
+// 정렬에서 격자 전체가 한 방향으로 도는 다이얼처럼 보여, 정렬 순서를 한 번
+// 더 그리는 꼴이 된다. 그래서 색과 같은 층(= id 기반 고정 난수)에 둔다.
+//
+// [왜 매번 뽑는 random()이 아닌가]
+// buildGridView()는 탭 전환·정렬 변경·가로폭 리사이즈마다 다시 도는데,
+// 그때마다 새로 뽑으면 184개가 전부 다른 각도로 튄다. 게다가 그리드와 상세
+// 박스가 같은 모양이어야 한다는 보장(core.js buildRadialSpokeGeometry 주석)도
+// 깨진다. 시드 고정이면 언제 몇 번을 다시 그려도 같은 값이 나온다.
+const ROTATION_SEED_SALT = 573910284;
+
 // radial은 형태가 errorA/errorB만으로 결정되므로 아이템 생성 로직을
 // 공유한다. qrErrorData(실제 데이터, setup에서 로딩 완료 후 호출)의
 // n을 그대로 id로 써서 QR 번호와 1:1로 맞추고, errorA/errorB는 각각
 // 축별로 정규화한 값을 쓴다.
+//
+// rotation(0~2π)도 여기서 만든다 — 두 탭이 이 함수를 공유하므로 같은 번호의
+// QR은 burst에서든 bloom에서든 같은 각도로 놓인다(한 개체 = 한 방향).
 function generateFlowerItems() {
   const normA = normalizeErrorAxis(qrErrorData.map((d) => d.errorA));
   const normB = normalizeErrorAxis(qrErrorData.map((d) => d.errorB));
@@ -172,10 +201,13 @@ function generateFlowerItems() {
     errorA: normA[i],
     errorB: normB[i],
     errorScore: (normA[i] + normB[i]) / 2,
+    // 형태·색과 완전히 분리된 전용 RNG에서 한 번만 뽑는다. core.js의
+    // 형태용 rnd()를 건드리면 소비 순서가 밀려 184개 형태가 전부 달라진다.
+    rotation: makeRadialSpokeRng(d.n + ROTATION_SEED_SALT)() * TWO_PI,
   }));
 }
 
-// 방사형(1번) 전용 — generateFlowerItems()에 선·점·선 끝 원 색을
+// bloom(방사형) 전용 — generateFlowerItems()에 선·점·선 끝 원 색을
 // 더한다. 선·점 색은 오차 데이터와 무관하게 core.js의 pickRadialColors()
 // 로 뽑고(팔레트 안에서 선·점이 겹치지 않게), 선 끝을 따라가는 원
 // (tipColor)은 그 둘과 겹치지 않는 색을 팔레트에서 하나 더 뽑는다
@@ -195,7 +227,7 @@ function generateRadialItems() {
   return list;
 }
 
-// 방사형 스포크(2번) 전용 — generateFlowerItems()에 색 시드만 더한다.
+// burst(방사형 스포크) 전용 — generateFlowerItems()에 색 시드만 더한다.
 // drawRadialSpokeDots는 형태를 core.js의 고정 시드로, 색(선분 두 세트·
 // 끝점 원)을 이 colorSeed로 뽑는다. colorSeed를 item.id로 고정해서
 // 새로고침해도 같은 id는 항상 같은 색이 나오게 한다.
@@ -224,28 +256,40 @@ function getDisplayOrder() {
 }
 
 // 아이템 하나를 g 위 (cx, cy)에 size로 그린다. grow는 등장(폭죽)
-// 애니메이션용 — 2번(스포크)은 { outer, inner } 길이 배율, 1번(방사형)은
+// 애니메이션용 — burst(스포크)은 { outer, inner } 길이 배율, bloom(방사형)은
 // { line, dot } scale 배율. null이면 제 크기(정적). perSpokeBurst는
-// 2번(스포크)에만 해당 — false(기본, 그리드)면 grow.outer/inner를 세트
+// burst(스포크)에만 해당 — false(기본, 그리드)면 grow.outer/inner를 세트
 // 전체의 최종 배율로, true(상세 박스)면 세트 공통 경과(0~1, 선형)로 보고
 // core.js가 선분마다 개별 랜덤 지연을 준다.
+//
+// 전체 회전(item.rotation)은 캔버스를 통째로 돌려서 적용한다 — core.js의
+// 그리기 함수는 손대지 않는다. 두 그래픽 모두 원점(중심)에서 뻗어 나가는
+// 형태라 중심을 기준으로 한 강체 회전이고, 원점에서 가장 먼 거리가 변하지
+// 않으므로 bloom의 자동 맞춤(잘림 방지 스케일)이나 셀 밖으로 삐져나오는
+// 문제도 생기지 않는다. 같은 이유로 회전을 넣어도 기존 형태·색은 그대로다.
 function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
+  g.push();
+  g.translate(cx, cy);
+  g.rotate(item.rotation || 0);
+
   if (currentShape === 'radial-spokes') {
     // grow.outer/grow.inner — perSpokeBurst에 따라 최종 배율 또는 선형
     // 경과, 둘 중 무엇이든 core.js가 그대로 받아 처리한다.
     const og = grow ? grow.outer : 1;
     const ig = grow ? grow.inner : 1;
-    drawRadialSpokeDots(g, cx, cy, size, item.errorA, item.errorB, item.colorSeed, og, ig, perSpokeBurst);
+    // 위에서 이미 중심으로 옮겨 놨으므로 여기서는 원점(0, 0)에 그린다.
+    drawRadialSpokeDots(g, 0, 0, size, item.errorA, item.errorB, item.colorSeed, og, ig, perSpokeBurst);
+    g.pop();
     return;
   }
-  // 방사형(1번) — 선분(+끝 원)과 중심-거리 원을 각각 다른 배율로 넘겨
+  // bloom(방사형) — 선분(+끝 원)과 중심-거리 원을 각각 다른 배율로 넘겨
   // 순차 등장시킨다.
   const lg = grow ? grow.line : 1;
   const dg = grow ? grow.dot : 1;
   drawRadialBurstFlowerDev(
     g,
-    cx,
-    cy,
+    0,
+    0,
     size,
     item.errorA,
     item.errorB,
@@ -253,11 +297,15 @@ function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
     item.dotColor,
     item.tipColor,
     true,
+    // lineAngleOffset / dotAngleOffset — 회전은 위 g.rotate()가 통째로
+    // 맡으므로 여기서는 0으로 둔다. 이 둘을 서로 다르게 주면 호와 점이
+    // 따로 도는 것처럼 보여 '배치'가 아니라 '움직임'으로 읽힌다.
     0,
     0,
     lg,
     dg
   );
+  g.pop();
 }
 
 // 셀별로 만들어뒀던 p5.Graphics 버퍼를 전부 폐기
@@ -438,11 +486,11 @@ let detailGfx = null;
 // 360의 배수면 그래픽 면, 360k+180이면 QR 면. 여는 시점은 그래픽 면.
 let detailFlipAngle = 0;
 
-// 2번(스포크) 탭에서만: 상세 박스 그래픽에도 그리드와 같은 폭죽 등장
+// burst(스포크) 탭에서만: 상세 박스 그래픽에도 그리드와 같은 폭죽 등장
 // 애니메이션을 준다. QR 면일 때는 'collapsed'(중심에 뭉쳐 대기),
 // showDetailStage('graphic')으로 그래픽 면이 드러나는 순간 'running'으로
 // 전환해 재생하고, 다시 QR 면으로 돌아가면 다음 재생을 위해 'collapsed'로
-// 되돌린다. 1번(방사형) 탭은 항상 'none'(정지 프레임)으로, 기존 동작 그대로.
+// 되돌린다. bloom(방사형) 탭은 항상 'none'(정지 프레임)으로, 기존 동작 그대로.
 let detailAnimPhase = 'none'; // 'none' | 'collapsed' | 'running'
 let detailBurstStart = null; // 'running' 시작 시각(초). 그리드의 burstStart와 별개.
 let detailRenderInfo = null; // { g, item, cx, cy, size } — 애니메이션 프레임마다 다시 그리는 데 필요
@@ -461,7 +509,7 @@ function renderDetailGraphic(itemId) {
   if (!item) return;
 
   const R = 520; // 렌더 해상도(표시는 CSS가 박스 폭에 맞춰 축소) — 표시 크기보다
-  // 이미 넉넉해서 pixelDensity를 기기 배율까지 올릴 필요가 없다. 스포크(2번) 탭은
+  // 이미 넉넉해서 pixelDensity를 기기 배율까지 올릴 필요가 없다. burst(스포크) 탭은
   // 뒤집히는 CSS 트랜지션과 동시에 이 캔버스를 매 프레임 다시 그리므로, 배율을
   // 올리면(예: 최대 1040×1040) 프레임당 그릴 픽셀이 늘어 트랜지션과 메인 스레드를
   // 다투다 가끔 미세하게 끊기는 원인이 된다 — 1로 고정해 그 비용을 줄인다.
@@ -479,8 +527,8 @@ function renderDetailGraphic(itemId) {
     currentShape === 'radial' ? R * DETAIL_RADIAL_SIZE_RATIO : R - R * CELL_PADDING_RATIO * 2;
   detailRenderInfo = { g, item, cx: R / 2, cy: R / 2, size };
 
-  // 2번(스포크) 탭은 QR 면부터 보이므로 그래픽은 일단 중심에 뭉친 채
-  // 대기, 1번(방사형) 탭은 기존처럼 바로 정지 프레임으로.
+  // burst(스포크) 탭은 QR 면부터 보이므로 그래픽은 일단 중심에 뭉친 채
+  // 대기, bloom(방사형) 탭은 기존처럼 바로 정지 프레임으로.
   detailAnimPhase = currentShape === 'radial-spokes' ? 'collapsed' : 'none';
   detailBurstStart = null;
   drawDetailFrame();
@@ -529,7 +577,7 @@ function resetDetailFlip() {
   flipper.offsetHeight; // 리플로우 강제 → 이후 전환부터 다시 트랜지션 적용
   flipper.style.transition = '';
 
-  // 2번(스포크) 탭: 그래픽 면이 바로 보이는 시점이므로 폭죽 등장 애니메이션을
+  // burst(스포크) 탭: 그래픽 면이 바로 보이는 시점이므로 폭죽 등장 애니메이션을
   // 즉시 재생한다.
   if (currentShape === 'radial-spokes' && detailRenderInfo) {
     detailAnimPhase = 'running';
@@ -552,7 +600,7 @@ function showDetailStage(stage) {
   detailFlipAngle += 180;
   applyDetailFlip();
 
-  // 2번(스포크) 탭에서만: 그래픽 면으로 넘어가는 순간 폭죽 등장 애니메이션을
+  // burst(스포크) 탭에서만: 그래픽 면으로 넘어가는 순간 폭죽 등장 애니메이션을
   // 재생하고, QR 면으로 돌아가면 다음 재생을 위해 다시 중심에 뭉쳐둔다.
   if (currentShape === 'radial-spokes' && detailRenderInfo) {
     if (wantGraphic) {
@@ -785,7 +833,7 @@ async function setup() {
   radialItems = generateRadialItems();
   spokeItems = generateSpokeItems();
 
-  buildGridView(true); // 첫 로드에도 1번 탭 폭죽 등장 애니메이션 재생
+  buildGridView(true); // 첫 로드에도 첫 탭 폭죽 등장 애니메이션 재생
 }
 
 // 화면 회전/리사이즈 시 열 수·셀 크기가 바뀔 수 있으므로 다시 빌드
@@ -801,7 +849,7 @@ function windowResized() {
   buildGridView();
 }
 
-// 애니메이션 루프 — 그리드(1·2번 탭)와 상세 박스(2번 탭) 모두 평소엔
+// 애니메이션 루프 — 그리드(두 탭 모두)와 상세 박스(burst 탭) 모두 평소엔
 // 정적이고, 각자의 폭죽 등장 애니메이션이 진행 중일 때만 매 프레임 다시
 // 그리다가 끝나면 멈춘다.
 function draw() {
