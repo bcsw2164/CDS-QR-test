@@ -32,6 +32,12 @@ function makeRandom(seed) {
   };
 }
 
+/* 아카이브 그래픽에 쓰는 팔레트와 같은 5색(shared/core.js의
+   RADIAL_COLOR_PALETTE). 이름마다 하나를 랜덤으로 골라 --name-color로
+   심어두면, 마우스를 올렸을 때 CSS가 그 색을 꺼내 쓴다(style.css의
+   .credit-name:hover). */
+const NAME_HOVER_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#4d6787', '#f58b6e'];
+
 function renderNames(names) {
   const holder = document.getElementById('credit-names');
   const frag = document.createDocumentFragment();
@@ -41,6 +47,12 @@ function renderNames(names) {
     const item = document.createElement('span');
     item.className = 'credit-name';
     item.textContent = name;
+    // 사진 배치(makeRandom)와 달리 고정 시드를 쓰지 않는다 — 새로고침할
+    // 때마다 색 조합이 다시 섞이는 쪽이 184명의 목록에 생기를 준다.
+    item.style.setProperty(
+      '--name-color',
+      NAME_HOVER_PALETTE[Math.floor(Math.random() * NAME_HOVER_PALETTE.length)]
+    );
     frag.appendChild(item);
   });
 

@@ -606,7 +606,13 @@ function renderGridFrame(elapsedSec) {
   const bursting = burstStart !== null;
 
   gridCells.forEach(({ gfx, item, cellSize, size }) => {
-    gfx.background(0, 0, 0);
+    /* background(0,0,0)이 아니라 clear() — 캔버스를 '투명'하게 비운다.
+       검정은 #canvas-holder의 배경이 대신 깔아주므로 보이는 결과는 같다.
+
+       캔버스를 검정으로 칠해버리면 hover 확대(1.1배) 때 그 검은 정사각형
+       까지 같이 커져서, 이웃 그래픽 위에 검은 판이 올라타는 게 눈에 띈다.
+       투명하게 두면 커지는 건 그래픽뿐이다. */
+    gfx.clear();
     // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다.
     let grow = null;
     if (bursting && currentShape === 'radial-spokes') {
@@ -632,6 +638,11 @@ function renderGridFrame(elapsedSec) {
 // 첫 렌더 시점을 기준으로 폭죽 등장 애니메이션을 시작한다. 리사이즈는
 // burst 없이 부른다.
 //
+/* 마우스를 올렸을 때 셀이 커지는 배율 — archive/style.css의
+   `.archive-cell:hover canvas { transform: scale(...) }` 와 반드시 같은
+   값으로 둔다. 이 값이 더 작으면 확대된 그래픽이 뭉개져 보인다. */
+const CELL_HOVER_SCALE = 1.4;
+
 function buildGridView(burst = false) {
   const holder = document.getElementById('canvas-holder');
   clearGridCells();
@@ -665,7 +676,17 @@ function buildGridView(burst = false) {
       burstStart = millis() / 1000; // t=0 을 첫 렌더에 맞춘다
     }
 
-    const density = Math.min(window.devicePixelRatio || 1, 2);
+    /* 캔버스는 '비트맵'이다 — CSS transform: scale은 이미 그려진 픽셀을
+       늘려 보여줄 뿐이라 배율만큼 해상도가 모자라 뭉개진다. 그래서
+       확대 배율만큼 미리 더 촘촘하게 그려둔다(레이아웃 크기는 그대로,
+       내부 픽셀 수만 늘어난다).
+
+       hover 확대가 없는 터치 기기에서는 곱하지 않는다 — 셀이 184개라
+       픽셀 수가 늘어난 만큼 메모리도 그대로 늘기 때문이다. */
+    const hoverZoom = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+      ? CELL_HOVER_SCALE
+      : 1;
+    const density = Math.min(window.devicePixelRatio || 1, 2) * hoverZoom;
 
     cellEls.forEach((cellEl, i) => {
       const rect = cellEl.getBoundingClientRect();
