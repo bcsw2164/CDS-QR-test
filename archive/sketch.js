@@ -828,10 +828,16 @@ function showDetailStage(stage) {
   }
 }
 
-// 그래픽 → 2초 뒤 QR → 2초 뒤 그래픽 ... 오버레이가 열려 있는 동안 계속
-// 반복한다. 항목을 바꾸거나(fillDetail) 오버레이를 닫으면(closeDetailOverlay)
+// 그래픽 → QR → 그래픽 ... 오버레이가 열려 있는 동안 계속 반복한다.
+// 항목을 바꾸거나(fillDetail) 오버레이를 닫으면(closeDetailOverlay)
 // stopDetailAutoCycle()로 멈추고, 새 항목을 열 때 다시 그래픽부터 시작한다.
 const DETAIL_AUTO_STAGE_MS = 2200;
+// 카드를 열고 처음 보이는 그래픽 면만 이 시간만 머문다. 첫 면이 2.2초를
+// 꽉 채우면 뒤에 QR이 있다는 걸 모르는 사람은 그 전에 다음 항목으로
+// 넘겨버린다 — 뒤집힌다는 사실을 일단 빨리 보여주고, 그 뒤로는 읽을
+// 시간이 필요하니 평소 간격으로 돌아간다.
+// 항목을 넘길 때도 fillDetail()을 거치므로 매 항목의 첫 면에 적용된다.
+const DETAIL_FIRST_STAGE_MS = 1100;
 let detailAutoTimer = null;
 
 function stopDetailAutoCycle() {
@@ -841,24 +847,26 @@ function stopDetailAutoCycle() {
   }
 }
 
-function scheduleDetailAutoStage(stage) {
+// delayMs를 빼면 평소 간격. 첫 전환만 호출하는 쪽에서 짧게 넘기고, 이후
+// 재예약은 인자 없이 자기를 다시 부르므로 자연히 평소 간격으로 돌아간다.
+function scheduleDetailAutoStage(stage, delayMs = DETAIL_AUTO_STAGE_MS) {
   detailAutoTimer = setTimeout(() => {
     showDetailStage(stage);
     scheduleDetailAutoStage(stage === 'qr' ? 'graphic' : 'qr');
-  }, DETAIL_AUTO_STAGE_MS);
+  }, delayMs);
 }
 
-// resetDetailFlip()이 이미 그래픽 면으로 맞춰둔 상태에서 시작 — 2초 뒤
-// QR로 전환하는 타이머만 걸면 된다.
+// resetDetailFlip()이 이미 그래픽 면으로 맞춰둔 상태에서 시작 — QR로
+// 전환하는 타이머만 걸면 된다. 첫 전환만 DETAIL_FIRST_STAGE_MS로 당긴다.
 function startDetailAutoCycle() {
   stopDetailAutoCycle();
-  scheduleDetailAutoStage('qr');
+  scheduleDetailAutoStage('qr', DETAIL_FIRST_STAGE_MS);
 }
 
 // itemId 하나로 오버레이 내용을 채운다 — 그래픽 오브젝트를 먼저 보여주고
 // (stage='graphic'), 이름은 채우고 QR 이미지는 로드를 미리 시작해둔다
-// (그래픽이 보이는 2초 동안 백그라운드에서 받아지므로 QR로 전환될 때
-// 지연 없이 바로 보인다). 열고 닫기는 안 건드림.
+// (그래픽이 보이는 동안 백그라운드에서 받아지므로 QR로 전환될 때 지연
+// 없이 바로 보인다). 열고 닫기는 안 건드림.
 function fillDetail(itemId) {
   const n = qrIndexOf(itemId);
   document.getElementById('detail-qr').src = qrImagePath(itemId);
@@ -882,7 +890,7 @@ function fillDetail(itemId) {
   }
   renderDetailGraphic(itemId);
   resetDetailFlip(); // 그래픽 면부터 시작
-  startDetailAutoCycle(); // 그래픽 → 2초 후 QR → 2초 후 그래픽 ... 자동 반복
+  startDetailAutoCycle(); // 그래픽 → (첫 면은 1.1초) QR → 2.2초 후 그래픽 ... 자동 반복
   updateDetailNavButtons();
 }
 
