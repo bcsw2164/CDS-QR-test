@@ -1,24 +1,22 @@
 /* ============================================================
    Signature Archive — sketch.js
    ------------------------------------------------------------
-   errorA/errorB는 qr_error_data.json(프로젝트 루트)에 담긴 실제 추출
+   errorA/errorB는 data/qr_error_data.json에 담긴 실제 추출
    데이터를 그대로 쓴다 — 키(qr_clean_NNN)의 번호가 QR 이미지 번호와
    동일해 1:1로 매칭된다. ITEM_COUNT는 이 데이터 개수로 정해진다(현재
-   184). 그래픽 생성 로직은 shared/core.js를 공유 (radial/의 슬라이더
-   페이지와 동일한 규칙).
+   184). 그래픽 생성 로직은 shared/core.js를 About 페이지와 공유한다.
 
    각 데이터는 1~ITEM_COUNT번 번호(제출 순서)를 갖는다. 탭으로 정렬
    기준을 바꿔도 이 번호와 그래픽 자체는 그대로이고, 배치 순서만 바뀐다.
 
    오브젝트 종류 탭:
-     1 방사형 — 방사형 다발 꽃잎. core.js의 drawRadialBurstFlowerDev(디벨롭
-       버전, 두 번째 선이 좌우반전으로 마는 최종 픽스 모양)를 쓴다 —
-       overview의 "방사형" 셀과 동일한 그래픽. burst 탭과 마찬가지로 탭에
-       들어올 때 폭죽처럼 터지는 등장 애니메이션이 한 번 재생되고(아래
+     1 bloom(방사형) — 방사형 다발 꽃잎. core.js의 drawRadialBurstFlowerDev
+       (두 번째 선이 좌우반전으로 마는 모양)를 쓴다. burst 탭과 마찬가지로
+       탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이 한 번 재생되고(아래
        "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다. 회전 애니메이션은
        삭제됨.
-     2 방사형 스포크 — core.js의 drawRadialSpokeDots. overview의 "방사형
-       스포크" 셀과 동일한 그래픽(중심에서 뻗는 선분 두 세트 + 끝점 원).
+     2 burst(방사형 스포크) — core.js의 drawRadialSpokeDots
+       (중심에서 뻗는 선분 두 세트 + 끝점 원).
        아이템마다 색 시드(colorSeed)를 한 번 뽑아 고정한다. 배경은 bloom과
        동일하게 검게. 탭에 들어올 때 폭죽처럼 터지는 등장 애니메이션이
        한 번 재생되고(아래 "폭죽 등장 애니메이션"), 끝나면 정적으로 멈춘다.
@@ -129,7 +127,7 @@ let sortMode = 'collected'; // 'collected' | 'error'
 let radialItems = [];
 let spokeItems = [];
 
-// qr_error_data.json에서 읽은 실제 데이터. { n, errorA, errorB } 를
+// data/qr_error_data.json에서 읽은 실제 데이터. { n, errorA, errorB } 를
 // n(QR 번호) 오름차순으로 정렬해서 담아둔다. loadErrorData()가 채운다.
 let qrErrorData = [];
 
@@ -502,11 +500,11 @@ function buildGridView(burst = false) {
 //
 const QR_IMAGE_COUNT = 184; // images/qr/qr_final_001.jpg ~ qr_final_184.jpg
 
-// qr_error_data.json(프로젝트 루트) 에서 실제 errorA(unfilledRate)/
+// data/qr_error_data.json 에서 실제 errorA(unfilledRate)/
 // errorB(overflowRate) 데이터를 읽어 n(QR 번호) 오름차순으로 정렬해
 // qrErrorData에 채운다. setup()에서 완료를 기다린 뒤 아이템을 만든다.
 function loadErrorData() {
-  return fetch('../qr_error_data.json')
+  return fetch('../data/qr_error_data.json')
     .then((res) => res.json())
     .then((obj) => {
       const arr = Object.entries(obj)
@@ -524,7 +522,7 @@ function loadErrorData() {
     });
 }
 
-// qr_name.json(프로젝트 루트) 에서 qr 번호 → 이름 매핑을 읽어둔다.
+// data/qr_name.json 에서 qr 번호 → 이름 매핑을 읽어둔다.
 // 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~184 번만 쓴다.
 // '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
 let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
@@ -536,7 +534,7 @@ let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
 const SHOW_QR_NUMBER_PREFIX = false;
 
 function loadQrNames() {
-  fetch('../qr_name.json')
+  fetch('../data/qr_name.json')
     .then((res) => res.json())
     .then((list) => {
       list.forEach((row) => {

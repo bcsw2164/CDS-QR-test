@@ -8,10 +8,10 @@
          원본은 export/1004/burst_124.png.
          배경은 투명 — 탭 바가 밝든 어둡든 그래픽만 떠 보인다. 다만 iOS는
          apple-touch-icon의 투명부를 검정으로 채운다. -->
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png" />
-    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="assets/icons/favicon-48.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin="anonymous" />
 
     <!-- Pretendard — 로고·메뉴·버튼 등 UI 요소 -->
@@ -32,7 +32,7 @@
       href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/static/complete/WantedSans.min.css"
     />
 
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="about/style.css" />
   </head>
   <body>
 
@@ -47,7 +47,7 @@
     <!-- ── 메뉴 오버레이 ────────────────────────────────── -->
     <div id="menu-overlay" aria-hidden="true">
       <!-- 항목들을 한 덩어리로 묶는다. 항목 사이 간격은 이 상자의
-           gap 하나로 조절한다(style.css의 #menu-list). -->
+           gap 하나로 조절한다(about/style.css의 #menu-list). -->
       <div id="menu-list">
         <a class="menu-item" data-key="about" href="index.html" aria-current="page">About</a>
         <a class="menu-item" data-key="archive" href="archive/index.html">Archive</a>
@@ -89,7 +89,7 @@
                재생 시작·정지는 sketch.js가 화면 진입 여부로 판단한다. -->
           <div id="qr-video-wrap">
             <video id="qr-video"
-                   src="qr_import2.mp4"
+                   src="assets/media/qr_import2.mp4"
                    muted loop playsinline
                    preload="none"
                    disablepictureinpicture></video>
@@ -133,6 +133,6 @@
          뒷부분이 화면에 텍스트로 튀어나온다. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <script src="shared/core.js"></script>
-    <script src="sketch.js"></script>
+    <script src="about/sketch.js"></script>
   </body>
 </html>

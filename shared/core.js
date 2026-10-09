@@ -1,37 +1,35 @@
 /* ============================================================
-   Signature System — core.js
+   QR++ — shared/core.js
    ------------------------------------------------------------
-   각 슬라이더 단일 생성기 페이지(radial/)와 archive/sketch.js
-   (아카이브 그리드)가 공유하는 그래픽 생성 로직. 여기를 고치면
-   해당하는 페이지 모두에 반영된다.
+   About 페이지(about/sketch.js)와 아카이브 그리드(archive/sketch.js)가
+   공유하는 그래픽 생성 로직. 여기를 고치면 두 페이지 모두에 반영된다.
 
-   그래픽 구성:
-     섹션 3 — 방사형 훅 (drawRadialBurstFlower, radial/)
-       errorA → 중심 둘레 원 8개가 중심에서 가까워졌다(0) 멀어졌다(1)
-                하는 거리
-       errorB → 호가 지팡이처럼 말리는 정도 (0이면 직선, 1이면 크게 말림)
+   그래픽 두 종류:
+     bloom  — drawRadialBurstFlowerDev. 훅처럼 말리는 방사형 선 + 선
+              끝을 따라가는 원. archive의 bloom 탭이 쓴다.
+                errorA → 선 개수와 두 번째(짧은) 선이 말리는 정도
+                errorB → 주 선이 말리는 정도(0이면 직선)
+     burst  — drawRadialSpokeDots. 중심에서 뻗는 직선 선분 두 겹 +
+              끝점 원. archive의 burst 탭과 About 페이지가 쓴다.
+                errorA → 두 겹(밖지름/안지름)이 벌어지는 거리
+                errorB → 선분이 각도 방향으로 흔들리는 폭
 
    재현성:
-     노이즈 없이 errorA/errorB만으로 계산되는 순수 함수라 시드가
-     필요 없다 (같은 입력 → 항상 같은 결과).
+     p5의 전역 random()을 쓰지 않고, 아이템마다 makeRadialSpokeRng(seed)
+     로 만든 로컬 RNG만 쓴다. 같은 입력 → 항상 같은 결과이므로
+     새로고침·리사이즈에도 모양과 색이 바뀌지 않는다.
 
    색상:
-     방사형 훅 — errorA/errorB와 무관하게 RADIAL_COLOR_PALETTE(5색) 중
-     완전히 무작위로 선·점 색을 하나씩 뽑음(pickRadialColors(), 겹치지
-     않게 보장). 새 아이템을 생성할 때 한 번만 뽑아 고정해서 쓴다.
-
-   데이터:
-     generateErrorData()가 꽃 그래픽의 errorA(u)/errorB(o)를 생성한다.
-     지금은 random(0, 1)이고, 나중에 실제 데이터로 교체할 때는 이
-     함수만 고치면 radial/ 페이지에 반영된다.
+     오차 데이터와 무관하게 RADIAL_COLOR_PALETTE(5색)에서 뽑는다.
+     bloom은 pickRadialColors()로 선·점 색이 겹치지 않게 2색,
+     burst는 buildRadialSpokeGeometry가 colorSeed로 세트별 색을 정한다.
 
    렌더링 대상(g):
-     drawRadialBurstFlower는 첫 인자로 그릴 대상 g를 받는다. 메인
-     캔버스에 그릴 때는 window(전역 p5 함수들이 묶여있는 객체)를,
-     아카이브 그리드처럼 아이템별 개별 버퍼에 그릴 때는
-     createGraphics()로 만든 p5.Graphics 객체를 넘긴다. 두 쪽 다
-     동일한 draw API(push/fill/vertex 등)를 가지므로 함수 내부는
-     대상이 무엇이든 신경 쓰지 않는다.
+     모든 draw 함수는 첫 인자로 그릴 대상 g를 받는다. 메인 캔버스에
+     그릴 때는 window(전역 p5 함수들이 묶여 있는 객체)를, 아카이브
+     그리드처럼 아이템별 개별 버퍼에 그릴 때는 createGraphics()로 만든
+     p5.Graphics 객체를 넘긴다. 두 쪽 다 동일한 draw API를 가지므로
+     함수 내부는 대상이 무엇이든 신경 쓰지 않는다.
 
    크기 규칙:
      이 파일의 모든 도형 수치는 호출부에서 넘겨받은 size(캔버스/셀
@@ -39,37 +37,11 @@
      없음 — 캔버스 크기는 호출하는 sketch.js가 화면에 맞게 정한다.
    ============================================================ */
 
-// hue(0~360)에 따라 사람 눈에 다르게 느껴지는 밝기를 보정한다. 같은
-// 명도(B) 숫자라도 노랑 근처(약 60°)는 훨씬 밝아 보이고 파랑 근처
-// (약 240°)는 훨씬 어두워 보이는데, 그 반대 방향으로 코사인 곡선을
-// 살짝 얹어서 색조가 넓게 움직여도 "느껴지는" 밝기는 비슷하게
-// 유지되도록 한다. amplitude가 클수록 보정이 강해진다.
-function perceptualBrightness(hue, baseBri, amplitude) {
-  const adjusted = baseBri - amplitude * Math.cos(((hue - 60) * Math.PI) / 180);
-  return Math.min(100, Math.max(30, adjusted));
-}
-
-// ── 데이터 생성 (u = errorA = unfilledRate, o = errorB = overflowRate) ──
+// ── 공용 상수: 방사형 훅 기하 ──────────────────────────────
 //
-// 지금은 랜덤 생성. 나중에 실제로 수집된 데이터로 교체할 때는 이 함수
-// 하나만 바꾸면 radial/ 그래픽 페이지에 반영된다.
-// 실제 데이터 형식 예: { unfilledRate: 0.081, overflowRate: 0.102 }
-// (unfilledRate 0.004~0.983, overflowRate 0.006~0.204 범위로 관측됨 —
-//  다만 여기서는 두 값 모두 0~1 범위로 다루는 프로젝트 규칙을 따른다.)
-function generateErrorData() {
-  return {
-    errorA: random(0, 1), // u = unfilledRate
-    errorB: random(0, 1), // o = overflowRate
-  };
-}
-
-// ── 섹션 3: 방사형 다발 꽃잎 ───────────────────────────────
-//
-// errorB가 만드는 훅(직선 구간 + 원호로 마는 부분) 형태는 그대로 두고,
-// 볼드한 굵기/검은 테두리/뾰족한 끝 처리는 전부 제거했다. errorA는
-// 지금 이 함수에서 아직 안 쓴다 — 나중에 "중심에서 가까워졌다
-// 멀어졌다 하는 원형"으로 다시 설계할 예정이라 자리만 비워둔 상태.
-const RADIAL_PETAL_COUNT = 10;
+// bloom(drawRadialBurstFlowerDev)이 쓰는 값들. 훅은 "앞부분은 직선으로
+// 뻗고 뒷부분만 반지름 고정 원호로 마는" 형태이고, 아래 비율들이 그
+// 직선/원호 구간과 색·굵기를 정한다.
 const RADIAL_RADIUS_RATIO = 0.5; // 꽃 전체 반경 = size × 이 비율 (캔버스를 꽉 채움)
 const RADIAL_SWEEP_MAX = 4.5; // errorB = 1 일 때 도는 총 각도(라디안, 약 258°) — errorB = 0이면 0(직선)
 const RADIAL_HOOK_START_RATIO = 0.55; // 길이 중 이 비율까지는 직선 유지, 그 뒤부터만 휨
@@ -82,12 +54,10 @@ const RADIAL_ARC_SEGMENTS = 24; // 휘는 구간을 근사하는 폴리라인 �
 // "새 아이템이 생길 때" 딱 한 번만 뽑아 고정해서 써야 한다).
 const RADIAL_COLOR_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#4d6787', '#f58b6e'];
 const RADIAL_STROKE_WEIGHT_RATIO = 0.1; // 호 굵기 = size × 이 비율 (볼드하지 않은 일반 두께)
-const RADIAL_CENTER_DOT_RATIO = 0.1; // 중심 흰 점 지름 = radius × 이 비율
 
-// errorA가 제어하는 방사형 원 — 8개가 중심 둘레에 균등 배치되고,
-// errorA = 0이면 중심 흰 점 뒤에 거의 숨을 만큼 가까이 모이고,
-// errorA = 1에 가까울수록 바깥으로 점점 퍼져나간다.
-const RADIAL_DOT_COUNT = 8;
+// errorA가 제어하는 중심 둘레 원 — 선 개수(arcCount)만큼 균등 배치되고,
+// errorA = 0이면 중심에 거의 모여 있고 errorA = 1에 가까울수록 바깥으로
+// 점점 퍼져나간다.
 const RADIAL_DOT_MIN_DIST_RATIO = 0.03; // errorA = 0 일 때 중심으로부터 거리 = radius × 이 비율
 const RADIAL_DOT_MAX_DIST_RATIO = 0.9; // errorA = 1 일 때 중심으로부터 거리 = radius × 이 비율
 const RADIAL_DOT_SIZE_RATIO = 0.35; // 원 하나의 지름 = radius × 이 비율
@@ -105,113 +75,27 @@ function pickRadialColors(rnd = () => random()) {
   return { lineColor: RADIAL_COLOR_PALETTE[i], dotColor: RADIAL_COLOR_PALETTE[j] };
 }
 
-// lineColorHex/dotColorHex: pickRadialColors()로 미리 뽑아둔 고정 색.
-// lineAngleOffset/dotAngleOffset: 순전히 장식용 회전 애니메이션을 위한
-// 선택 인자(기본 0) — errorA/errorB로 정해지는 모양·거리에는 전혀
-// 영향을 주지 않고, 이미 계산된 각도에 더해져서 그룹 전체를 그대로
-// 회전시키기만 한다(호 그룹과 점 그룹을 서로 다른 값으로 넣으면 각자
-// 다른 속도로 돌릴 수 있음).
-function drawRadialBurstFlower(g, cx, cy, size, errorA, errorB, lineColorHex, dotColorHex, lineAngleOffset = 0, dotAngleOffset = 0) {
-  const radius = size * RADIAL_RADIUS_RATIO;
-  const sweep = map(errorB, 0, 1, 0, RADIAL_SWEEP_MAX);
-  const weight = Math.max(1, size * RADIAL_STROKE_WEIGHT_RATIO);
-
-  g.push();
-  g.translate(cx, cy);
-  g.stroke(lineColorHex);
-  g.strokeWeight(weight);
-  g.strokeCap(SQUARE); // 뾰족한 끝 없이 직선으로 딱 끝남
-  g.strokeJoin(ROUND); // 휘는 구간의 잘게 쪼갠 조각들이 매끈하게 이어지도록
-  g.noFill();
-
-  for (let p = 0; p < RADIAL_PETAL_COUNT; p++) {
-    const lineAngle = -HALF_PI + (TWO_PI * p) / RADIAL_PETAL_COUNT + lineAngleOffset;
-    const len = radius;
-
-    // 지팡이처럼 말리는 호 — 길이의 앞부분(RADIAL_HOOK_START_RATIO까지)은
-    // 직선으로 뻗고, 나머지에서 반지름 고정(RADIAL_HOOK_RADIUS_RATIO)
-    // 원호를 그린다. 이후 중심에서 가장 먼 점이 정확히 len이 되도록
-    // 전체를 스케일 조정해서, sweep(errorB)이 얼마든 꽃이 뻗는 최대
-    // 거리는 항상 일정하게 유지하고 휘어지는 모양만 달라지게 한다.
-    const straightLen = len * RADIAL_HOOK_START_RATIO;
-    const hookRadius = len * RADIAL_HOOK_RADIUS_RATIO;
-    const straightX = cos(lineAngle) * straightLen;
-    const straightY = sin(lineAngle) * straightLen;
-
-    const points = [
-      [0, 0],
-      [straightX, straightY],
-    ];
-
-    if (Math.abs(sweep) < 1e-4) {
-      points.push([cos(lineAngle) * len, sin(lineAngle) * len]);
-    } else {
-      const circleCx = straightX + hookRadius * cos(lineAngle + HALF_PI);
-      const circleCy = straightY + hookRadius * sin(lineAngle + HALF_PI);
-      const alpha0 = lineAngle - HALF_PI;
-      for (let seg = 1; seg <= RADIAL_ARC_SEGMENTS; seg++) {
-        const alpha = alpha0 + (seg / RADIAL_ARC_SEGMENTS) * sweep;
-        points.push([circleCx + hookRadius * cos(alpha), circleCy + hookRadius * sin(alpha)]);
-      }
-    }
-
-    let maxDist = 0;
-    for (const [x, y] of points) {
-      const d = Math.hypot(x, y);
-      if (d > maxDist) maxDist = d;
-    }
-    const scale = maxDist > 0 ? len / maxDist : 1;
-
-    g.beginShape();
-    for (const [x, y] of points) g.vertex(x * scale, y * scale);
-    g.endShape();
-  }
-
-  // errorA가 제어하는 방사형 원 8개 — 중심 흰 점보다 먼저 그려서,
-  // errorA가 작을 땐 흰 점 뒤로 거의 가려지게 한다.
-  const dotDist = map(errorA, 0, 1, RADIAL_DOT_MIN_DIST_RATIO, RADIAL_DOT_MAX_DIST_RATIO) * radius;
-  const dotSize = radius * RADIAL_DOT_SIZE_RATIO;
-  g.noStroke();
-  g.fill(dotColorHex);
-  for (let d = 0; d < RADIAL_DOT_COUNT; d++) {
-    const dotAngle = -HALF_PI + (TWO_PI * d) / RADIAL_DOT_COUNT + dotAngleOffset;
-    g.ellipse(cos(dotAngle) * dotDist, sin(dotAngle) * dotDist, dotSize, dotSize);
-  }
-
-  g.fill('#fff');
-  g.ellipse(0, 0, radius * RADIAL_CENTER_DOT_RATIO, radius * RADIAL_CENTER_DOT_RATIO);
-  g.pop();
-}
-
-// ── 섹션 3 dev 공용 상수 ───────────────────────────────────
-// 원래 overview "방사형 v2" 셀과 공유하던 값 — v2 셀과 그 전용 코드
-// (drawRadialBurstFlowerV2 / hookArcPoints / strokeHookArc)는 삭제됐고,
-// 지금은 아래 drawRadialBurstFlowerDev("방사형" 셀)에서만 쓴다.
+// ── bloom 전용 상수 ───────────────────────────────────────
+// 아래 drawRadialBurstFlowerDev에서만 쓴다.
 const RADIAL_V2_ARC_COUNT_MIN = 6; // errorA = 0 일 때 방사형선 개수
 const RADIAL_V2_ARC_COUNT_MAX = 14; // errorA = 1 일 때 방사형선 개수
 const RADIAL_V2_LAYER_RADIUS_RATIO = 0.7; // 두 번째(짧은) 선 길이 = 원래 선 길이 × 이 비율
 
-// ── 섹션 3 dev: 방사형 — 선 끝을 따라가는 원 (overview·archive "방사형") ──
+// ── bloom: 방사형 훅 — 선 끝을 따라가는 원 (archive "bloom") ──
 //
-// v1(drawRadialBurstFlower)의 훅 알고리즘은 그대로 두고 확장한 디벨롭
-// 버전. 최종적으로 mirrorSecondary=true(좌우반전) 모양으로 픽스되어
-// overview의 "방사형" 셀과 archive/의 방사형 그리드·줄기형(1a) 둘 다
-// 이 함수를 쓴다. radial/과 overview의 "방사형 v2" 셀만 계속 기존
-// v1/v2를 그대로 쓰고 이 함수의 영향을 받지 않는다. 디벨롭이 완전히
-// 끝나면 이 로직을 drawRadialBurstFlower(v1)에 반영해 radial/까지
-// 포함한 공유 버전으로 옮길 예정.
+// archive의 bloom 탭(그리드 셀·상세 박스)이 쓰는 그래픽.
+// mirrorSecondary=true(두 번째 선이 좌우 반전으로 말림) 모양으로 픽스됐다.
 //
-// v1과 다른 점:
-//   1) 방사형선 개수 — v2와 동일한 범위(6~14개)로 errorA에 비례해
-//      늘어난다. 굵기는 v1과 마찬가지로 errorA와 무관하게 고정.
-//   1-1) v2처럼 각 방사형선 아래에 반지름만 줄인(v2의 레이어2와 같은
-//      비율) 두 번째 선을 겹쳐 그린다 — 시작점 이동 등 작동 방식은
+// 동작 요약:
+//   1) 방사형선 개수 — 6~14개 범위에서 errorA에 비례해 늘어난다.
+//      굵기는 errorA와 무관하게 고정.
+//   1-1) 각 방사형선 아래에 반지름만 줄인(RADIAL_V2_LAYER_RADIUS_RATIO)
+//      두 번째 선을 겹쳐 그린다 — 시작점 이동 등 작동 방식은
 //      원래 선과 동일하되 errorA를 따르고(원래 선은 errorB), 원호가
 //      말리는 방향은 mirrorSecondary 인자로 고른다(최종 픽스는 true —
 //      선 축 기준 좌우 대칭 반전). 회전 오프셋은 원래 선과 함께 받는다.
-//   2) 중심 둘레의 기존 errorA-거리 원(dotColorHex)은 v1과 동일한 거리
-//      로직을 유지하되, 개수는 고정 8개 대신 방사형선 개수(arcCount)와
-//      동일하게 늘어난다. 그와 별개로 각 선의 바깥쪽 끝점(errorB로 선이
+//   2) 중심 둘레의 errorA-거리 원(dotColorHex)은 개수가 방사형선
+//      개수(arcCount)와 동일하게 늘어난다. 그와 별개로 각 선의 바깥쪽 끝점(errorB로 선이
 //      휘면 끝점도 같이 움직임)을 따라가는 원을 새로 추가 — 이 원도
 //      개수는 항상 arcCount와 같다. 두 원 모두 크기는 기존과 동일
 //      (RADIAL_DOT_SIZE_RATIO).
@@ -224,8 +108,8 @@ const RADIAL_V2_LAYER_RADIUS_RATIO = 0.7; // 두 번째(짧은) 선 길이 = 원
 //      직선 구간의 끝(straightLen = radius × RADIAL_HOOK_START_RATIO)
 //      까지만 이동한다 — 즉 아무리 짧아져도 원호로 마는 부분은 항상
 //      전부 그려진다.
-//   5) lineAngleOffset/dotAngleOffset — v1과 같은 용도의 선택 인자
-//      (기본 0). archive/의 줄기형(1a) 회전 애니메이션에서 씀.
+//   5) lineAngleOffset/dotAngleOffset — 선·원 그룹을 각각 회전시키는
+//      선택 인자(기본 0). 모양·거리 계산에는 영향을 주지 않는다.
 //   6) 잘림 방지 — 원(중심-거리 원·tip 원)의 반지름뿐 아니라 선 자체의
 //      굵기(stroke weight)도 경로보다 half-weight만큼 더 바깥으로 튀어
 //      나갈 수 있어서, 손으로 정한 비율만으로는 어떤 조합에서 얼마나
@@ -352,7 +236,7 @@ function drawRadialBurstFlowerDev(
   // 목적이지만, 이쪽은 그룹 전체를 한 번에 스케일(캔버스 변형)하는 방식이고
   // 스포크처럼 선분마다 개별 랜덤 지연을 주지는 않는다.
   // strokeWeightRatio (기본 RADIAL_STROKE_WEIGHT_RATIO) — 호출부에서 선
-  // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(예: radial-grid/의 더 얇은 선).
+  // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(기본값은 공용 상수).
 
   // 1차 패스(측정용) — size 그대로 geometry를 만들어서, 선의 모든
   // 정점(+weight/2)과 원 중심(+dotSize/2) 중 원점에서 가장 먼 지점을
@@ -441,7 +325,7 @@ function drawRadialBurstFlowerDev(
   g.pop();
 }
 
-// ── 섹션 3 스포크: 방사형 선분 + 끝점 원 (overview "방사형 스포크") ──
+// ── burst: 방사형 선분 + 끝점 원 (archive "burst", About 페이지) ──
 //
 // 중심점 한 곳에서 바깥으로 뻗는 방사형 선분(spoke)과 각 선분 끝의
 // 원(dot)으로만 이루어진 정적 심볼. 선분은 두 세트다:
@@ -490,9 +374,8 @@ const RADIAL_SPOKE_BURST_STAGGER_RATIO = 0.6;
 
 // mulberry32 — 시드 하나로 결정적인 0~1 난수열을 만드는 작은 PRNG.
 // p5의 전역 random()/randomSeed()를 쓰면 이 함수가 전역 난수 상태를
-// 리셋해서 generateErrorData()·rerollRadialColors() 같은 다른 곳의
-// 난수까지 고정돼 버리므로(= [랜덤 생성]이 한 번만 먹는 버그), 여기서는
-// 전역을 전혀 건드리지 않는 로컬 RNG를 쓴다.
+// 리셋해서 다른 곳의 난수까지 함께 고정돼 버리므로, 여기서는 전역을
+// 전혀 건드리지 않는 로컬 RNG를 쓴다.
 function makeRadialSpokeRng(seed) {
   let s = seed >>> 0;
   return function () {
@@ -605,255 +488,6 @@ function buildRadialSpokeGeometry(
   const weight = Math.max(1, size * RADIAL_SPOKE_WEIGHT_RATIO);
   const dotSize = R * RADIAL_SPOKE_DOT_RATIO;
   return { spokes, weight, dotSize };
-}
-
-// ── 섹션 4: 수채화 번짐 덩어리 (overview "수채화") ──
-//
-// 방사형 스포크가 "밖지름/안지름 두 층의 반지름이 벌어지며" 유기적인
-// 형태를 만든 것과 같은 원리다. 다만 여기서는 보이지 않는 점(윤곽선
-// 표본)을 훨씬 촘촘하게(BLOB_CONTOUR_STEPS) 깔고, 살짝 크기·위치가
-// 어긋난 반투명 덩어리 레이어를 여러 장(BLOB_LAYERS) multiply 로 겹쳐
-// 쌓아서, 개별 점이 아니라 하나의 수채화처럼 번지는 덩어리로 보이게
-// 한다. 안쪽은 모든 레이어가 겹쳐 진하고 가장자리는 큰 레이어만 닿아
-// 옅게 → 물감이 번진 듯한 명암이 저절로 생긴다.
-//
-// 덩어리 윤곽의 "성격"(혹이 몇 개고 어느 방향이 튀어나오는지)은
-// shapeSeed 를 따른다 — 호출부에서 [랜덤 생성] 때 새 shapeSeed 를 넘기면
-// 매번 다른 덩어리 모양이 나오고, 슬라이더·리사이즈에는 유지된다.
-// shapeSeed 를 안 주면 BLOB_SEED 로 고정(재현 가능). 색은 별도 colorSeed.
-//
-//   errorA → 정원에서 얼마나 벗어나는지(편차의 크기). 0 이면 완벽한
-//            원, 1 에 가까울수록 윤곽 각 지점의 편차가 커진다. 편차는
-//            둘레 노드(8~18개)마다 방향·세기가 제각각인 랜덤값을 매끈
-//            하게 이은 것이라(사인 하모닉이 아님), 특정한 대칭 형태로
-//            뭉치지 않고 지점마다 불규칙하게 달라진다 — errorB 가 만드는
-//            정점 잔결과 성격이 같고, 스케일만 더 크다. 어느 노드가
-//            얼마나 튀는지는 shapeSeed 가 정하고 errorA 는 세기만 키운다.
-//   errorB → 윤곽의 고주파 거칠기(가장자리가 삐죽삐죽 터지는 정도)와
-//            레이어별 번짐 흔들림. 0 이면 매끈한 덩어리, 1 이면
-//            사방으로 튀는 거친 수채 얼룩.
-//   색     → 아래 BLOB_USE_MULTIPLY 로 두 방식 중 선택.
-//            · true  — multiply 블렌드. 팔레트 5색 중 2색만 골라 레이어·
-//              알갱이마다 두 색 사이를 보간. 겹칠수록 어두워져 물감처럼
-//              깊이가 생기지만, 색을 많이 섞으면 탁해지므로 2색 고정.
-//            · false — 일반(source-over) 블렌드. 팔레트 5색을 다 쓴다:
-//              레이어마다 대표색 1개(BLOB_DOMINANT_RATIO 확률) 또는
-//              나머지 팔레트에서 랜덤 accent. 겹쳐도 안 탁해지는 대신
-//              multiply 같은 자동 명암이 없어서, 안쪽 레이어를 더
-//              불투명하게(BLOB_LAYER_ALPHA × 스케일 보정) 만들어 깊이를
-//              낸다. multiply 처럼 겹을 많이 쌓을 필요가 없어 레이어 수
-//              (BLOB_LAYERS)를 절반으로 줄인다.
-//
-// 전체 크기는 errorA/errorB 와 무관하게 항상 캔버스에 꽉 맞는다 —
-// 실제 윤곽 최대 반지름을 재서 size/2 에 맞춰 스케일(fitR)하기 때문.
-//
-const BLOB_USE_MULTIPLY = false; // true = multiply·2색, false = 일반 블렌드·팔레트 5색
-const BLOB_RADIUS_RATIO = 0.5; // 목표 반지름 = size × 이 비율 (fitScale 기준)
-const BLOB_CONTOUR_STEPS = 144; // 윤곽선 각도 분할 수(보이지 않는 점)
-const BLOB_LAYERS = BLOB_USE_MULTIPLY ? 26 : 13; // 겹쳐 쌓는 반투명 덩어리 레이어 수
-const BLOB_LAYER_ALPHA = BLOB_USE_MULTIPLY ? 0.07 : 0.16; // 레이어 한 장 채움 투명도(0~1)
-const BLOB_DOMINANT_RATIO = 0.62; // (일반 블렌드) 레이어가 대표색을 쓸 확률 — 나머지는 팔레트 랜덤
-const BLOB_SPECKLE_COUNT = BLOB_USE_MULTIPLY ? 240 : 170; // 번짐 알갱이 점 개수
-const BLOB_SPECKLE_ALPHA = BLOB_USE_MULTIPLY ? 0.1 : 0.14; // 알갱이 한 개 투명도(0~1)
-const BLOB_LOBE_MIN = 0.0; // errorA=0 일 때 윤곽 편차 → 완벽한 원
-const BLOB_LOBE_MAX = 0.52; // errorA=1 일 때 윤곽 편차의 큰 폭
-const BLOB_RAGGED_MIN = 0.0; // errorB=0 일 때 고주파(삐죽삐죽) 진폭
-const BLOB_RAGGED_MAX = 0.26; // errorB=1 일 때 고주파 진폭
-const BLOB_LOBE_NODES_MIN = 8; // errorA 편차를 만드는 둘레 노드 최소 개수(시드마다 랜덤)
-const BLOB_LOBE_NODES_MAX = 18; // 노드 최대 개수 — 많을수록 굴곡이 잘게 불규칙
-const BLOB_SEED = 20240906; // shapeSeed 를 안 넘겼을 때 쓰는 기본(재현용) 시드
-
-// 캣멀롬 스플라인 보간 — 노드 4개(p0..p3) 사이 t(0~1) 지점 값을 매끈하게
-// 잇는다. 사인 하모닉과 달리 "몇 번 파동"이라는 규칙이 없어서, 노드마다
-// 제각각인 랜덤 편차가 특정한 대칭 형태로 뭉치지 않고 불규칙하게 이어진다.
-function catmullRom(p0, p1, p2, p3, t) {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  return (
-    0.5 *
-    (2 * p1 +
-      (-p0 + p2) * t +
-      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-      (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
-  );
-}
-
-// 각도별 윤곽 반지름 배열(1 을 기준으로 한 배수)을 계산한다.
-//
-//   errorA 편차(lobeAmp) — 둘레를 nodeCount(8~18)개로 나눠, 노드마다
-//     방향·세기가 전부 제각각인 랜덤 편차를 두고 캣멀롬으로 매끈하게
-//     보간한다. 사인 하모닉("N번 파동")이 아니라서 3-로브 트레포일 같은
-//     "특정한 형태"로 뭉치지 않고, 크고 작은 굴곡이 둘레를 따라 불규칙
-//     하게 섞인다 — errorB(삐죽삐죽)가 만드는 편차처럼 지점마다 편차가
-//     크다. 다만 errorB 는 정점 단위 잔결, 이쪽은 그보다 큰 스케일의
-//     매끈한 굴곡.
-//   errorB 편차(raggedAmp) — 각도마다 랜덤값을 한 번 이웃 평균해서 살짝
-//     이은 것(삐죽삐죽한 가장자리).
-//
-// seed·errorA·errorB 가 같으면 항상 같은 윤곽.
-function buildBlobContour(steps, seed, lobeAmp, raggedAmp) {
-  const rnd = makeRadialSpokeRng(seed);
-
-  // errorA 편차용 둘레 노드 — 편차 방향(부호)·세기(0.15~1.0 배)를 노드마다
-  // 따로 뽑아, 어떤 구간은 크게 튀어나오고 어떤 구간은 거의 안 움직인다.
-  const nodeCount =
-    BLOB_LOBE_NODES_MIN + Math.floor(rnd() * (BLOB_LOBE_NODES_MAX - BLOB_LOBE_NODES_MIN + 1));
-  const nodes = [];
-  for (let k = 0; k < nodeCount; k++) {
-    nodes.push((rnd() * 2 - 1) * (0.15 + rnd() * 0.85));
-  }
-
-  // errorB 편차용 정점 단위 잔결 — 랜덤값 이웃 평균 1회.
-  const raw = [];
-  for (let i = 0; i < steps; i++) raw.push(rnd() * 2 - 1);
-  const spikes = raw.map((v, i) => {
-    const a = raw[(i - 1 + steps) % steps];
-    const b = raw[(i + 1) % steps];
-    return (a + v * 2 + b) / 4;
-  });
-
-  const radii = [];
-  for (let i = 0; i < steps; i++) {
-    const f = (i / steps) * nodeCount;
-    const j = Math.floor(f);
-    const frac = f - j;
-    const p0 = nodes[(j - 1 + nodeCount) % nodeCount];
-    const p1 = nodes[j % nodeCount];
-    const p2 = nodes[(j + 1) % nodeCount];
-    const p3 = nodes[(j + 2) % nodeCount];
-    const lobe = catmullRom(p0, p1, p2, p3, frac); // 대략 -1~1 (오버슈트 가능)
-    radii.push(Math.max(0.15, 1 + lobe * lobeAmp + spikes[i] * raggedAmp));
-  }
-  return radii;
-}
-
-// showPoints = true 면 반투명 덩어리 대신, 그 덩어리를 이루는 "보이지
-// 않는 점"(레이어별 윤곽 정점 26×144개 + 번짐 알갱이 중심 240개)을
-// 전부 작은 점으로 찍어 보여준다. multiply·blur 없이 크리스프하게 그리되,
-// 점 하나하나는 옅은 알파라 겹치는 곳일수록 진해져 덩어리의 밀도 분포가
-// 그대로 드러난다. 형태 계산(레이어 스케일·회전·드리프트·지터·RNG 소비
-// 순서)은 일반 렌더와 완전히 동일하다.
-function drawWatercolorBlob(
-  g,
-  cx,
-  cy,
-  size,
-  errorA,
-  errorB,
-  colorSeed = BLOB_SEED,
-  showPoints = false,
-  shapeSeed = BLOB_SEED
-) {
-  const lobeAmp = lerp(BLOB_LOBE_MIN, BLOB_LOBE_MAX, errorA);
-  const raggedAmp = lerp(BLOB_RAGGED_MIN, BLOB_RAGGED_MAX, errorB);
-  const steps = BLOB_CONTOUR_STEPS;
-  const radii = buildBlobContour(steps, shapeSeed, lobeAmp, raggedAmp);
-
-  // 잘림 방지 — 실제 윤곽 최대 반지름 배수와 레이어 최대 확대(1.08)를
-  // 감안해서, 덩어리가 정확히 size/2 안에 들어오도록 기준 반지름을 정한다.
-  const maxContour = Math.max(...radii);
-  const fitR = (size * BLOB_RADIUS_RATIO) / (maxContour * 1.08);
-  const jitter = size * 0.012; // 레이어별 윤곽 흔들림(번짐)
-  const drift = size * 0.02 * (0.4 + errorB * 0.6); // 레이어별 위치 어긋남
-
-  // 색 — BLOB_USE_MULTIPLY 에 따라 두 방식.
-  //   multiply : 팔레트에서 서로 다른 2색(cA/cB) 보간
-  //   일반     : 대표색 1개(dominantHex) + 나머지 팔레트에서 랜덤 accent
-  const colorRnd = makeRadialSpokeRng(colorSeed);
-  let cA, cB, dominantHex;
-  if (BLOB_USE_MULTIPLY) {
-    const ci = Math.floor(colorRnd() * RADIAL_COLOR_PALETTE.length);
-    let cj = Math.floor(colorRnd() * (RADIAL_COLOR_PALETTE.length - 1));
-    if (cj >= ci) cj += 1;
-    cA = g.color(RADIAL_COLOR_PALETTE[ci]);
-    cB = g.color(RADIAL_COLOR_PALETTE[cj]);
-  } else {
-    dominantHex = RADIAL_COLOR_PALETTE[Math.floor(colorRnd() * RADIAL_COLOR_PALETTE.length)];
-  }
-  // 레이어/알갱이 색 하나를 뽑는다. r, r2 는 그 요소의 RNG 값 두 개.
-  const pickBlobColor = (r, r2) =>
-    BLOB_USE_MULTIPLY
-      ? g.lerpColor(cA, cB, r)
-      : g.color(
-          r < BLOB_DOMINANT_RATIO
-            ? dominantHex
-            : RADIAL_COLOR_PALETTE[Math.floor(r2 * RADIAL_COLOR_PALETTE.length)]
-        );
-
-  g.push();
-  g.translate(cx, cy);
-  g.noStroke();
-
-  const ctx = g.drawingContext;
-  ctx.save();
-  if (!showPoints) {
-    if (BLOB_USE_MULTIPLY) ctx.globalCompositeOperation = 'multiply'; // 겹칠수록 진해지는 물감 혼합
-    ctx.filter = `blur(${Math.max(0.5, size * 0.006)}px)`; // 부드러운 번짐 가장자리
-  }
-  const ptD = Math.max(1, size * 0.007); // showPoints 모드의 점 지름
-
-  for (let L = 0; L < BLOB_LAYERS; L++) {
-    const lr = makeRadialSpokeRng((colorSeed ^ 0x9e3779b9) + L * 0x85ebca6b);
-    // 대부분 작게, 일부만 크게 → 안쪽이 진하고 바깥은 옅게 쌓인다.
-    const layerScale = 0.5 + 0.58 * Math.pow(lr(), 0.7); // 0.5 ~ 1.08
-    const rot = (lr() * 2 - 1) * 0.2;
-    const ox = (lr() * 2 - 1) * drift;
-    const oy = (lr() * 2 - 1) * drift;
-
-    const jr = [];
-    for (let i = 0; i < steps; i++) {
-      jr.push(fitR * layerScale * radii[i] + (lr() * 2 - 1) * jitter);
-    }
-
-    const layerColor = pickBlobColor(lr(), lr());
-    // multiply : 레이어마다 알파를 무작위로 흔든다.
-    // 일반     : 안쪽(작은 layerScale) 레이어일수록 불투명 → 자동 명암 대체.
-    const layerAlpha = BLOB_USE_MULTIPLY
-      ? BLOB_LAYER_ALPHA * (0.6 + lr() * 0.8)
-      : BLOB_LAYER_ALPHA * map(layerScale, 0.5, 1.08, 1.3, 0.5);
-
-    if (showPoints) {
-      // 이 레이어의 윤곽 정점 144개를 점으로 찍는다.
-      g.noStroke();
-      g.fill(layerColor);
-      ctx.globalAlpha = 0.5;
-      for (let i = 0; i < steps; i++) {
-        const th = (i / steps) * TWO_PI + rot;
-        g.ellipse(Math.cos(th) * jr[i] + ox, Math.sin(th) * jr[i] + oy, ptD, ptD);
-      }
-      continue;
-    }
-
-    ctx.globalAlpha = layerAlpha;
-    g.fill(layerColor);
-    g.beginShape();
-    for (let i = -1; i <= steps + 1; i++) {
-      const idx = ((i % steps) + steps) % steps;
-      const th = (idx / steps) * TWO_PI + rot;
-      g.curveVertex(Math.cos(th) * jr[idx] + ox, Math.sin(th) * jr[idx] + oy);
-    }
-    g.endShape(CLOSE);
-  }
-
-  // 번짐 알갱이 — 가장자리에 몰리게(바깥 비율 편향) 뿌려서, 물감이
-  // 종이에 스며 튄 잔결을 만든다. 일부는 윤곽 밖으로도 살짝 튄다.
-  const sp = makeRadialSpokeRng(colorSeed + 0x77777);
-  if (!showPoints) ctx.filter = `blur(${Math.max(0.5, size * 0.003)}px)`;
-  for (let s = 0; s < BLOB_SPECKLE_COUNT; s++) {
-    const th = sp() * TWO_PI;
-    const idx = Math.floor((th / TWO_PI) * steps) % steps;
-    const edge = fitR * radii[idx];
-    const frac = 0.15 + Math.pow(sp(), 0.5) * 1.05; // 0.15 ~ 1.2 (바깥 편향)
-    const rr = edge * frac;
-    const big = Math.pow(sp(), 3); // 큰 알갱이는 드물게
-    const d = showPoints ? ptD : size * (0.004 + big * 0.02);
-    ctx.globalAlpha = showPoints ? 0.55 : BLOB_SPECKLE_ALPHA * (0.5 + sp() * 0.9);
-    g.fill(pickBlobColor(sp(), sp()));
-    g.ellipse(Math.cos(th) * rr, Math.sin(th) * rr, d, d);
-  }
-
-  ctx.restore();
-  g.pop();
 }
 
 // perSpokeBurst — false(기본, 그리드 진입 애니메이션)면 outerProgress/

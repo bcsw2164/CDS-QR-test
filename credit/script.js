@@ -1,7 +1,7 @@
 /* ============================================================
    Credit — script.js
    ------------------------------------------------------------
-   qr_name.json의 이름을 순서대로 나열하고, 그 뒤쪽 레이어에
+   data/qr_name.json의 이름을 순서대로 나열하고, 그 뒤쪽 레이어에
    현장 사진(images/onsite/NN.jpg)을 듬성듬성 흑백으로 깔아둔다.
 
    사진 추가 방법:
@@ -13,7 +13,7 @@ const PHOTO_COUNT = 21;
 /* 첫 화면 근처에 놓이는 장수. 이만큼만 즉시 받고 나머지는 lazy로 미룬다.
    사진은 위에서부터 차례로 배치되므로 앞 번호가 곧 첫 화면이다. */
 const EAGER_COUNT = 3;
-const NAME_JSON = '../qr_name.json';
+const NAME_JSON = '../data/qr_name.json';
 
 function pad2(n) {
   return String(n).padStart(2, '0');
