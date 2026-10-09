@@ -37,10 +37,16 @@
        매번 같은 시간에 시작하고 끝난다(assignSpokeBurstDelays). 세트 전체가
        한 덩어리로 움직인다 — 상세 박스(아래 "상세 박스 등장 애니메이션")는
        이와 다른 방식.
+     · bloom(방사형) — scale과 함께 회전도 애니메이션된다. 조금 돌아간
+       자리에서 시작해 제 각도까지 되돌아오며 멎는다
+       (RADIAL_BURST_SPIN_MIN/MAX). scale과 타임라인은 같고 감속 곡선만
+       약하게 쓴다(RADIAL_BURST_SPIN_EASE) — 회전은 초반 속도가 다 보여야
+       도는 것으로 읽힌다. 아래는 scale 쪽 설명.
      · bloom(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
        넘긴다. dotGrow = 중심에서 멀어지는 원(먼저), lineGrow = 선분(호) +
        그 끝을 따라가는 원(RADIAL_BURST_SET_DELAY만큼 늦게). 각각 중심 기준
-       0→1 로 easeOutCubic(완만하게 자람). 지연이 격자 배치 순서에 비례해서
+       0→1 로 감속하며 자람(RADIAL_BURST_SCALE_EASE). 지연이 격자 배치
+       순서에 비례해서
        한쪽에서부터 쓸려 지나가듯 열린다(그래픽 자체는 안 건드리고 캔버스
        변형만).
 
@@ -106,6 +112,32 @@ const RADIAL_BURST_STAGGER_JITTER = 0.45;
 // 각 아이템의 지속 시간이 DURATION × (1 ± 이 비율) 안에서 뽑힌다.
 // 개체마다 제 속도로 열려야 한 덩어리로 안 읽힌다.
 const RADIAL_BURST_DURATION_VARY = 0.3;
+// 자라면서 같이 돌다가 제자리에서 멎는 각도(라디안). 0에서 시작해 커지는
+// 게 아니라, 이만큼 돌아간 자리에서 시작해 제 각도(item.rotation +
+// 그룹별 오프셋)로 되돌아오며 멎는다 — 그래야 끝 모습이 정적 상태와
+// 똑같아진다(배치는 '그 개체가 무엇인지'라 애니메이션이 바꿔선 안 된다).
+//
+// [왜 한 바퀴씩 돌리지 않는가]
+// bloom은 사건이 아니라 과정이다. 크게 돌리면 '던져진 것'으로 읽혀
+// burst 쪽 성격이 된다. 꽃잎이 벌어지며 비틀리는 정도까지만 준다.
+// 칸마다 이 범위에서 크기를, 방향(좌/우)은 반반으로 뽑는다.
+// 참고: HALF_PI ≒ 1.571(90도), PI ≒ 3.142(180도), TWO_PI ≒ 6.283(한 바퀴).
+const RADIAL_BURST_SPIN_MIN = 0.6; // ≒ 34도
+const RADIAL_BURST_SPIN_MAX = 1.8; // ≒ 103도
+// 회전에 쓰는 감속 곡선의 세기(남은 각도 = (1-t)^이 값).
+// scale의 easeOutCubic(=3)을 회전에도 쓰면 첫 10%에 회전의 27%가 끝나버려
+// 보이기 시작할 땐 거의 멎어 있고, 1(=선형)이면 끝까지 등속으로 돌아
+// 기계적으로 보인다. 그 사이 값을 쓴다 — 초반에 돌고 있다는 게 전달될
+// 만큼은 남겨두고, 끝은 부드럽게 멎는다.
+//   1 = 선형 · 2 = easeOutQuad · 3 = easeOutCubic(scale과 동일)
+const RADIAL_BURST_SPIN_EASE = 2;
+// scale에 쓰는 감속 곡선의 세기(현재 크기 = 1 - (1-t)^이 값).
+// 3(easeOutCubic)이면 t=0에서의 속도가 평균의 3배라, 첫 0.1초에 벌써
+// 30%까지 커진다 — 중심에서 조금 나왔다가 확 튀어나오는 것처럼 읽힌다.
+// 값을 낮추면 시작 속도가 평균에 가까워져 주어진 시간 안에서 고르게
+// 자란다. bloom은 사건이 아니라 과정이라 이쪽이 맞다.
+//   1 = 선형(등속) · 2 = easeOutQuad · 3 = easeOutCubic(예전 값)
+const RADIAL_BURST_SCALE_EASE = 1.7;
 
 // ── BURST(방사형 스포크) ──
 // 각 선분 세트가 길이 0(중심에 뭉침)에서 제 크기로 easeOutExpo(빠르게
@@ -176,20 +208,33 @@ const easeOutExpo = (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 // 1을 넘지 않는 곡선이라 셀 밖으로 잘릴 걱정도 없다(easeOutBack 같은
 // 탄성 곡선은 scale에 쓰면 bloom이 칸을 꽉 채우고 있어 잘린다).
 const easeOutCubic = (t) => (t >= 1 ? 1 : 1 - Math.pow(1 - t, 3));
+// 위 둘의 일반형 — 지수(p)로 감속 세기를 고른다. p=1이면 선형, 커질수록
+// 초반에 몰린다. 회전처럼 세기를 숫자로 조절하고 싶은 곳에 쓴다.
+const easeOutPow = (t, p) => (t >= 1 ? 1 : 1 - Math.pow(1 - t, p));
 
 // bloom(방사형) — 아이템별 지연(itemDelay)과 지속 시간(itemDuration)을
 // 반영한 현재 scale 배율.
 //   dot  : 중심에서 멀어지는 errorA-거리 원 (먼저 자리를 잡는다)
 //   line : 선분(호) + 그 끝을 따라가는 원 (RADIAL_BURST_SET_DELAY 만큼 늦게)
+//   spin : 회전용 진행도 — dot과 같은 타임라인이지만 감속이 더 약하다
 // itemDuration은 assignBurstDelays()가 칸마다 다르게 뽑아둔 값이라, 시작
 // 시점뿐 아니라 열리는 속도까지 개체마다 다르다.
+//
+// [회전은 왜 곡선을 따로 쓰나]
+// scale과 회전은 같은 타임라인을 공유해야 한 동작으로 읽히지만, 같은
+// 곡선을 쓰면 안 맞는다. scale은 크기 변화라 초반에 몰려도 '펼쳐진다'로
+// 보이는데, 회전은 각도 변화가 곧 속도감이어서 초반에 다 써버리면 보일
+// 무렵엔 멎어 있다. 그래서 타임라인은 같이 쓰고 감속만 약하게 한다
+// (RADIAL_BURST_SPIN_EASE).
 function radialGrowFactors(elapsedSec, itemDelay = 0, itemDuration = RADIAL_BURST_DURATION) {
-  if (burstStart === null) return { line: 1, dot: 1 };
+  if (burstStart === null) return { line: 1, dot: 1, spin: 1 };
   const t = elapsedSec - burstStart - itemDelay;
   const d = itemDuration || RADIAL_BURST_DURATION;
+  const dotRaw = clamp01(t / d);
   return {
-    dot: easeOutCubic(clamp01(t / d)),
-    line: easeOutCubic(clamp01((t - RADIAL_BURST_SET_DELAY) / d)),
+    dot: easeOutPow(dotRaw, RADIAL_BURST_SCALE_EASE),
+    line: easeOutPow(clamp01((t - RADIAL_BURST_SET_DELAY) / d), RADIAL_BURST_SCALE_EASE),
+    spin: easeOutPow(dotRaw, RADIAL_BURST_SPIN_EASE),
   };
 }
 
@@ -374,7 +419,15 @@ function getDisplayOrder() {
 function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
   g.push();
   g.translate(cx, cy);
-  g.rotate(item.rotation || 0);
+
+  // bloom 등장 애니메이션 전용 — 자라는 동안 같이 돌다가 제 각도에서 멎는다.
+  // burst(스포크)는 해당 없음(grow가 { outer, inner }라 spin이 없다).
+  //
+  // grow.spin은 scale과 같은 타임라인에 감속만 약하게 먹인 진행도다
+  // (RADIAL_BURST_SPIN_EASE). 시작과 끝은 scale과 같고 중간 속도만 다르다.
+  const spin =
+    grow && grow.spin !== undefined ? (item.burstSpin || 0) * (1 - grow.spin) : 0;
+  g.rotate((item.rotation || 0) + spin);
 
   if (currentShape === 'radial-spokes') {
     // grow.outer/grow.inner — perSpokeBurst에 따라 최종 배율 또는 선형
@@ -455,6 +508,11 @@ function assignBurstDelays(order) {
     items[idx].burstDelay = wave + random(0, RADIAL_BURST_STAGGER_JITTER);
     items[idx].burstDuration =
       RADIAL_BURST_DURATION * random(1 - RADIAL_BURST_DURATION_VARY, 1 + RADIAL_BURST_DURATION_VARY);
+    // 돌아갈 각도와 방향 — 지연·지속 시간과 같은 층(재생할 때마다 새로
+    // 뽑는 '어떻게 등장했는지')에 둔다. 끝나면 0으로 수렴하므로 최종
+    // 배치에는 영향이 없다.
+    items[idx].burstSpin =
+      random(RADIAL_BURST_SPIN_MIN, RADIAL_BURST_SPIN_MAX) * (random() < 0.5 ? -1 : 1);
   });
 }
 
