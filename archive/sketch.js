@@ -810,23 +810,37 @@ function openDetailOverlay(itemId) {
 }
 
 // ── 배경 스크롤 잠금 ────────────────────────────────────────
-// 페이지 스크롤 주체가 문서로 바뀌었기 때문에(style.css의 html/body 주석
-// 참고), 상세 오버레이가 열린 동안 뒤 그리드가 같이 밀리지 않도록 막는다.
-// body를 position:fixed로 띄우면 스크롤 위치가 0으로 튀므로, 현재 위치를
-// 음수 top으로 붙여 두었다가 닫을 때 그 자리로 되돌린다.
-let scrollLockY = 0;
+// 상세 오버레이가 열린 동안 뒤 그리드가 같이 밀리지 않도록 막는다.
+//
+// [왜 body에 position:fixed + overflow:hidden 을 쓰지 않는가]
+// 예전에는 그 방식이었는데, 문서가 스크롤 불가 상태가 되면서 두 가지가
+// 따라왔다.
+//   1) 오른쪽 스크롤바가 통째로 사라진다. 여닫을 때마다 슬라이더가
+//      깜빡이고, 데스크탑에서는 그만큼 레이아웃 폭까지 출렁인다.
+//   2) 문서 스크롤이 0으로 떨어져 #control-bars 의 position:sticky 가
+//      풀린다. 그걸 되돌리려고 --scroll-lock-top 으로 역보정을 거는
+//      군더더기가 필요했다.
+// 문서는 스크롤 가능한 상태로 그냥 두고 입력만 막으면 둘 다 생기지 않는다.
+// 터치는 style.css 의 #detail-overlay.open{touch-action:none} 이 맡고
+// (shared/menu.css 커튼과 같은 방식), 여기서는 휠과 스크롤 키를 막는다.
+
+function blockScrollEvent(e) {
+  e.preventDefault();
+}
 
 function lockBodyScroll() {
-  scrollLockY = window.scrollY;
-  document.body.style.setProperty('--scroll-lock-top', `-${scrollLockY}px`);
   document.body.classList.add('detail-open');
+  // passive:false 로 등록해야 preventDefault 가 먹는다. 브라우저는
+  // wheel/touchmove 를 기본적으로 passive 로 잡는다.
+  window.addEventListener('wheel', blockScrollEvent, { passive: false });
+  window.addEventListener('touchmove', blockScrollEvent, { passive: false });
 }
 
 function unlockBodyScroll() {
   if (!document.body.classList.contains('detail-open')) return;
   document.body.classList.remove('detail-open');
-  document.body.style.removeProperty('--scroll-lock-top');
-  window.scrollTo(0, scrollLockY);
+  window.removeEventListener('wheel', blockScrollEvent);
+  window.removeEventListener('touchmove', blockScrollEvent);
 }
 
 // dir: -1(이전) | +1(다음). 목록 양 끝(첫/마지막)에서는 반대편으로
@@ -920,6 +934,10 @@ async function setup() {
     if (e.key === 'ArrowLeft') stepDetail(-1);
     else if (e.key === 'ArrowRight') stepDetail(1);
     else if (e.key === 'Escape') closeDetailOverlay();
+    // 스페이스·PageUp/Down·Home/End·위아래 방향키로도 뒤가 밀리지 않게 한다.
+    // 휠·터치만 막으면 키보드로는 그대로 스크롤된다.
+    else if ([' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key))
+      e.preventDefault();
   });
 
   await loadErrorData(); // 실제 errorA/errorB 데이터를 기다린 뒤 아이템 생성
