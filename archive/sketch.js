@@ -31,9 +31,12 @@
      · burst(스포크) — drawRadialSpokeDots에 세트별 길이 배율(outerGrow/
        innerGrow, perSpokeBurst=false)을 넘긴다. 0(중심에 뭉침)→1(제 크기)로
        easeOutExpo(확 퍼졌다가 감속), 밖지름 세트가 먼저·안지름 세트가
-       SPOKE_BURST_SET_DELAY만큼 늦게 시작. 지연은 완전 랜덤이라 184개가
-       동시다발로 흩뿌려진다. 세트 전체가 한 덩어리로 움직인다 — 상세
-       박스(아래 "상세 박스 등장 애니메이션")는 이와 다른 방식.
+       세트 지연만큼 늦게 시작. 등장 순서는 배치와 무관한 완전 랜덤이고,
+       한 프레임 간격의 슬롯에 SPOKE_BURST_PER_FRAME개씩 담아서 한 프레임에
+       그보다 많이 터지지 않는다. 전체 길이는 SPOKE_BURST_TOTAL로 고정 —
+       매번 같은 시간에 시작하고 끝난다(assignSpokeBurstDelays). 세트 전체가
+       한 덩어리로 움직인다 — 상세 박스(아래 "상세 박스 등장 애니메이션")는
+       이와 다른 방식.
      · bloom(방사형) — drawRadialBurstFlowerDev에 scale 배율을 둘로 나눠
        넘긴다. dotGrow = 중심에서 멀어지는 원(먼저), lineGrow = 선분(호) +
        그 끝을 따라가는 원(RADIAL_BURST_SET_DELAY만큼 늦게). 각각 중심 기준
@@ -110,7 +113,29 @@ const RADIAL_BURST_DURATION_VARY = 0.3;
 // SPOKE_BURST_SET_DELAY 만큼 늦게 시작한다.
 const SPOKE_BURST_DURATION = 0.35; // 한 세트가 0→제 크기까지 걸리는 시간(초)
 const SPOKE_BURST_SET_DELAY = 0.12; // 밖지름 세트 시작 후 안지름 세트가 시작되기까지 지연(초)
-const SPOKE_BURST_STAGGER_MAX = 0.5; // 아이템마다 0~이 값(초) 사이의 랜덤 지연을 줘서 동시에 안 터지게 함
+const SPOKE_BURST_STAGGER_MAX = 0.5; // (상세 박스 전용으로만 남음) 아이템별 랜덤 지연의 상한
+
+// 그리드 등장 — 한 프레임에 최대 3개까지만 터진다.
+//
+// [왜 프레임 격자인가]
+// 지연을 구간 안에서 자유롭게 뽑으면 값은 전부 달라도 한 프레임(1/60초)
+// 안에 여러 개가 묶여 '동시에' 보인다. 예전에는 한 프레임에 15개까지 같이
+// 터졌다. 그래서 지연을 자유롭게 뽑지 않고, 한 프레임 간격의 슬롯을 만들어
+// 슬롯마다 정해진 개수만 담는다. 동시 발생 수가 확률이 아니라 구조적으로
+// 상한을 갖는다.
+//
+// [왜 1개가 아니라 3개인가]
+// 184개를 한 프레임에 하나씩 떼어 놓으려면 퍼지는 구간만 183프레임 ≈
+// 3.05초가 필요해서 전체가 3.8초까지 늘어난다 — burst는 사건이라 그만큼
+// 끌면 성격이 깨진다. 슬롯당 3개면 필요한 프레임이 1/3(62프레임 ≈ 1.02초)로
+// 줄고, 한 프레임에 3개는 눈으로 구분되지 않는다. 동시 발생 수와 전체
+// 길이는 맞바꾸는 관계라서, 길이를 더 줄이려면 이 값을 올리는 수밖에 없다.
+//   1개 → 3.8초 · 2개 → 2.25초 · 3개 → 1.75초 · 4개 → 1.5초
+const SPOKE_BURST_SLOT = 1 / 60; // 슬롯 간격의 하한 = 60fps 한 프레임
+const SPOKE_BURST_PER_FRAME = 3; // 한 슬롯(=한 프레임)에 담는 아이템 수의 상한
+const SPOKE_BURST_TOTAL = 1.75; // 전체 등장 애니메이션 길이(초) — 항상 이 값
+const SPOKE_BURST_DURATION_VARY = 0.35; // 아이템별 지속 시간 편차(DURATION × 1±이 값)
+const SPOKE_BURST_SET_DELAY_VARY = 0.6; // 밖→안 세트 지연 편차(SET_DELAY × 1±이 값)
 
 // 첫 화면에 뜨는 탭. index.html에서 .active가 붙어 있는 첫 버튼의
 // data-shape 값과 반드시 같아야 한다 — 다르면 버튼은 1번이 켜져 있는데
@@ -134,6 +159,15 @@ let qrErrorData = [];
 // 등장(폭죽) 애니메이션 시작 시각(초). null이면 애니메이션 중이 아님(정적).
 // bloom(방사형)·burst(스포크) 탭이 공유한다.
 let burstStart = null;
+
+// burst(스포크) 그리드 등장의 '이번 재생' 설정. assignSpokeBurstDelays()가
+// 매 재생마다 새로 채운다. total은 마지막 칸이 다 자라는 시점이라
+// draw()에서 애니메이션 종료 판정에 쓴다(지연·지속 시간이 매번 달라져
+// 상수로는 계산할 수 없다).
+let spokeBurstPlan = {
+  setDelay: SPOKE_BURST_SET_DELAY,
+  total: SPOKE_BURST_TOTAL,
+};
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 // BURST용 — 시작하자마자 확 튀고 급격히 감속한다.
@@ -164,12 +198,14 @@ function radialGrowFactors(elapsedSec, itemDelay = 0, itemDuration = RADIAL_BURS
 // 그리드 진입 애니메이션 전용 — 세트 전체가 한 덩어리로 0→1 easeOutExpo
 // (core.js에 perSpokeBurst=false로 넘겨 그대로 최종 배율로 쓰임). 상세
 // 박스 전용 애니메이션은 drawDetailFrame이 따로 계산한다.
-function spokeGrowFactors(elapsedSec, itemDelay = 0) {
+function spokeGrowFactors(elapsedSec, itemDelay = 0, itemDuration = SPOKE_BURST_DURATION) {
   if (burstStart === null) return { outer: 1, inner: 1 };
   const t = elapsedSec - burstStart - itemDelay;
+  const d = itemDuration || SPOKE_BURST_DURATION;
+  const setDelay = spokeBurstPlan.setDelay;
   return {
-    outer: easeOutExpo(clamp01(t / SPOKE_BURST_DURATION)),
-    inner: easeOutExpo(clamp01((t - SPOKE_BURST_SET_DELAY) / SPOKE_BURST_DURATION)),
+    outer: easeOutExpo(clamp01(t / d)),
+    inner: easeOutExpo(clamp01((t - setDelay) / d)),
   };
 }
 
@@ -276,7 +312,9 @@ function generateSpokeItems() {
   const list = generateFlowerItems();
   list.forEach((item) => {
     item.colorSeed = item.id + COLOR_SEED_SALT;
-    item.burstDelay = 0; // 실제 값은 애니메이션을 재생할 때마다 assignBurstDelays()가 채운다
+    // 실제 값은 애니메이션을 재생할 때마다 assignSpokeBurstDelays()가 채운다
+    item.burstDelay = 0;
+    item.burstDuration = SPOKE_BURST_DURATION;
   });
   return list;
 }
@@ -372,10 +410,8 @@ function assignBurstDelays(order) {
   const items = currentItems();
 
   if (currentShape === 'radial-spokes') {
-    // BURST — 완전 랜덤. 184개가 제각각 터져 동시다발로 흩뿌려진다.
-    order.forEach((idx) => {
-      items[idx].burstDelay = random(0, SPOKE_BURST_STAGGER_MAX);
-    });
+    // BURST — 한 프레임 간격 슬롯을 셔플해 나눠 준다(동시 발생 상한, 길이 고정).
+    assignSpokeBurstDelays(order);
     return;
   }
 
@@ -396,6 +432,83 @@ function assignBurstDelays(order) {
   });
 }
 
+// burst(스포크) 전용 — 이번 재생의 등장 설정을 통째로 새로 뽑는다.
+//
+// [동시 발생 수에 상한이 있다]
+// 한 프레임 간격의 슬롯을 만들고, 셔플한 순서대로 슬롯마다
+// SPOKE_BURST_PER_FRAME개씩 채운다. 슬롯끼리는 한 프레임 이상 떨어져 있고
+// 한 슬롯에 들어가는 수가 정해져 있으니, 같은 프레임에 터지는 개수가 그
+// 값을 넘지 않는다 — 확률이 아니라 구조다.
+//
+// [같은 슬롯 안에서는 지연을 흔들지 않는다]
+// 같은 슬롯의 3개는 지연이 완전히 같다. 프레임 안에서 조금씩 어긋내 봐도
+// 60fps에서는 어차피 같은 프레임에 그려지고, 어긋낸 값이 프레임 경계를
+// 넘으면 옆 슬롯과 섞여 상한이 깨진다. 그래서 그냥 같게 둔다.
+//
+// [순서는 항상 완전 랜덤]
+// 슬롯을 섞는 것 말고는 아무 규칙이 없다. 화면 배치 순서(order의 pos)를
+// 지연에 쓰지 않으므로 어느 칸이 먼저 터질지 예측되지 않는다. 배치 순서를
+// 따라 쓸려 지나가는 물결은 bloom 쪽 성격이다.
+//
+// [길이는 항상 같다]
+// 슬롯 간격(step)을 '가장 늦게 끝나는 칸이 정확히 TOTAL에 닿는' 값으로
+// 맞춘다. 칸마다 자라는 속도가 달라 가장 늦게 끝나는 칸이 꼭 마지막 슬롯은
+// 아니므로, 칸별 허용 간격을 구해 그중 최솟값을 쓴다. 그래야 느리게 자라는
+// 칸이 끝을 넘겨 잘리지 않는다.
+// 단, 간격은 한 프레임 밑으로는 내려가지 않는다 — TOTAL을 너무 줄이면
+// 끝 시점이 고정되는 쪽이 아니라 동시 발생 상한이 먼저 지켜진다(그래서
+// total을 실측값으로 담아 draw()의 종료 판정이 어긋나지 않게 한다).
+//
+// [그럼 매번 뭐가 달라지나]
+// (1) 순서 — 어느 칸이 먼저냐 (2) 칸마다 자라는 속도 (3) 밖·안 세트가
+// 겹치는 정도. 슬롯 간격이 일정해서 '몰렸다 잦아드는' 밀도 변화는 없다 —
+// 동시 발생 수에 상한을 두면 간격을 균등하게 쓸 수밖에 없다.
+//
+// [최종 화면은 그대로다]
+// 애니메이션이 끝나면 전부 grow=1에 도달한다. 형태·색·회전(시드 고정)은
+// 손대지 않는다.
+function assignSpokeBurstDelays(order) {
+  const items = currentItems();
+  const n = order.length;
+
+  const setDelay =
+    SPOKE_BURST_SET_DELAY * random(1 - SPOKE_BURST_SET_DELAY_VARY, 1 + SPOKE_BURST_SET_DELAY_VARY);
+  const durations = order.map(
+    () => SPOKE_BURST_DURATION * random(1 - SPOKE_BURST_DURATION_VARY, 1 + SPOKE_BURST_DURATION_VARY)
+  );
+
+  // 0..n-1 등수를 Fisher-Yates로 섞고, 등수를 PER_FRAME으로 나눠 슬롯 번호로
+  // 쓴다. 등수가 중복되지 않으니 한 슬롯에 PER_FRAME개를 넘겨 담는 일이 없다.
+  const ranks = order.map((_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(random(i + 1));
+    const tmp = ranks[i];
+    ranks[i] = ranks[j];
+    ranks[j] = tmp;
+  }
+  const slotOf = ranks.map((rank) => Math.floor(rank / SPOKE_BURST_PER_FRAME));
+
+  // 슬롯 간격 — 끝 시점을 TOTAL에 맞추되 한 프레임 미만으로는 좁히지 않는다.
+  let step = Infinity;
+  for (let i = 0; i < n; i++) {
+    const slot = slotOf[i];
+    if (slot === 0) continue; // t=0에 터지는 칸은 간격과 무관
+    step = Math.min(step, (SPOKE_BURST_TOTAL - setDelay - durations[i]) / slot);
+  }
+  if (!isFinite(step)) step = SPOKE_BURST_SLOT;
+  step = Math.max(step, SPOKE_BURST_SLOT);
+
+  let total = 0;
+  order.forEach((idx, i) => {
+    const delay = slotOf[i] * step;
+    items[idx].burstDelay = delay;
+    items[idx].burstDuration = durations[i];
+    total = Math.max(total, delay + setDelay + durations[i]);
+  });
+
+  spokeBurstPlan = { setDelay, total };
+}
+
 // 셀별로 만들어뒀던 p5.Graphics 버퍼를 전부 폐기
 function clearGridCells() {
   gridCells.forEach(({ gfx }) => gfx.remove());
@@ -413,7 +526,7 @@ function renderGridFrame(elapsedSec) {
     // 아이템마다 지연(burstDelay)이 달라 서로 다른 시점에 등장한다.
     let grow = null;
     if (bursting && currentShape === 'radial-spokes') {
-      grow = spokeGrowFactors(elapsedSec, item.burstDelay);
+      grow = spokeGrowFactors(elapsedSec, item.burstDelay, item.burstDuration);
     } else if (bursting) {
       // bloom·ring이 같은 타이밍(RADIAL_BURST_*)을 공유한다.
       grow = radialGrowFactors(elapsedSec, item.burstDelay, item.burstDuration);
@@ -982,7 +1095,10 @@ function draw() {
         RADIAL_BURST_SET_DELAY +
         RADIAL_BURST_DURATION * (1 + RADIAL_BURST_DURATION_VARY);
     } else {
-      total = SPOKE_BURST_STAGGER_MAX + SPOKE_BURST_SET_DELAY + SPOKE_BURST_DURATION;
+      // burst는 assignSpokeBurstDelays()가 실제 끝 시점을 담아둔다
+      // (보통 SPOKE_BURST_TOTAL과 같고, 슬롯 간격이 한 프레임으로 바닥을
+      // 치는 경우에만 그보다 길어진다).
+      total = spokeBurstPlan.total;
     }
     if (nowSec - burstStart >= total) {
       burstStart = null; // 애니메이션 종료 → 이후 정적
