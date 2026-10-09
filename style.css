@@ -40,6 +40,15 @@ body {
   z-index: 200;
   height: var(--nav-h);
   background: var(--c-bg);
+  /* 흰 배경을 아래 테두리 안쪽까지만 칠한다. 기본값(border-box)이면 흰색이
+     검은 테두리 밑에까지 깔리는데, --nav-h(clamp …10vw)와 --border-w
+     (clamp …1vw)가 창 폭에 따라 소수점이 되므로 테두리 바깥 끝이 픽셀
+     경계에 떨어지지 않는다. 그러면 배경과 테두리의 픽셀 스냅이 어긋나면서
+     밑에 깔린 흰색이 검은 선 아래로 1px쯤 비친다.
+
+     평소에는 네비 아래도 흰 페이지라 티가 안 나고, 메뉴를 열어
+     #menu-overlay::before 검은 커튼이 바로 밑에 깔릴 때만 드러난다. */
+  background-clip: padding-box;
   border-bottom: var(--border-w) solid var(--c-fg);
   display: flex;
   align-items: center;
