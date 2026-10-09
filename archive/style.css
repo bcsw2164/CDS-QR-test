@@ -213,9 +213,19 @@ body:has(#detail-overlay.open) #menu-btn {
 }
 
 .detail-box {
+  /* 상세 UI의 '선' 두께. 박스 테두리, 좌우 ‹ › 버튼 테두리, 네 꼭짓점
+     장식의 검은 띠가 모두 이 값을 쓴다. 한 군데서 바꾸면 셋이 같이
+     움직이므로 굵기가 서로 어긋날 일이 없다. */
+  --line: 5pt;
   position: relative;
   background: #fff;
-  border: 5pt solid #111;
+  /* 흰 배경을 테두리 안쪽까지만 칠한다. 기본값(border-box)으로 두면 흰색이
+     검은 테두리 밑에까지 깔리는데, 5pt는 6.67px이라 테두리 바깥 끝이 픽셀
+     경계에 안 떨어진다. 그 끝 픽셀이 안티에일리어싱으로 반투명해지면서
+     밑에 깔린 흰색이 1px 선처럼 비쳐 나왔다. 밑에 흰색이 없으면 비칠 것도
+     없고, 끝 픽셀은 뒤의 어두운 오버레이와 섞여 연한 검정이 된다. */
+  background-clip: padding-box;
+  border: var(--line) solid #111;
   padding: clamp(14px, 3vmin, 28px);
   width: clamp(300px, 60vmin, 560px);
   display: flex;
@@ -235,11 +245,16 @@ body:has(#detail-overlay.open) #menu-btn {
 }
 
 /* 검은 사각형 안쪽에 흰 사각형을 띄워 인터페이스가 살짝 분리된 듯한
-   느낌을 준다 — QR 파인더 패턴처럼 검은 테두리만 남기는 형태. */
+   느낌을 준다 — QR 파인더 패턴처럼 검은 테두리만 남기는 형태.
+
+   inset을 %로 두면 남는 검은 띠의 굵기가 사각형 크기를 따라간다. 크기가
+   clamp(22px, 4vmin, 36px)이라 데스크탑에서는 대개 36px에 걸리는데, 그때
+   28%면 약 10px이라 박스·버튼 테두리(5pt ≈ 6.67px)보다 눈에 띄게 굵었다.
+   선 두께 자체를 넣어 셋을 같은 굵기로 맞춘다. */
 .corner::after {
   content: '';
   position: absolute;
-  inset: 28%;
+  inset: var(--line);
   background: #fff;
 }
 
@@ -318,7 +333,13 @@ body:has(#detail-overlay.open) #menu-btn {
   width: clamp(51px, 10.5vmin, 90px);
   height: clamp(51px, 10.5vmin, 90px);
   background: #fff;
-  border: 6px solid #111;
+  /* .detail-box와 같은 이유로 흰 배경을 테두리 안쪽까지만 칠한다. 테두리는
+     6px 정수지만 크기가 clamp(…vmin)이고 top:50% + translateY(-50%)로
+     놓이기 때문에, 창 크기에 따라 가장자리가 픽셀 경계에 안 떨어진다.
+     그러면 끝 픽셀이 반투명해지면서 밑에 깔린 흰 배경이 검은 선 바깥으로
+     비친다. hover(#ddd)도 마찬가지라 같이 막힌다. */
+  background-clip: padding-box;
+  border: var(--line) solid #111;
   color: #111;
   font-family: 'Pretendard', sans-serif;
   font-weight: 800;
@@ -342,16 +363,17 @@ body:has(#detail-overlay.open) #menu-btn {
   color: #fff;
 }
 
-/* 버튼 테두리(6px)가 박스 테두리 위에 얹혀 한 줄로 보이도록,
-   버튼 테두리 두께만큼 박스 쪽으로 당긴다. */
+/* 버튼 테두리가 박스 테두리 위에 얹혀 한 줄로 보이도록, 버튼 테두리
+   두께만큼 박스 쪽으로 당긴다. --line 을 그대로 쓰므로 선 굵기를 바꿔도
+   이 보정값이 따로 어긋나지 않는다. */
 #detail-prev {
   right: 100%;
-  margin-right: -6px;
+  margin-right: calc(-1 * var(--line));
 }
 
 #detail-next {
   left: 100%;
-  margin-left: -6px;
+  margin-left: calc(-1 * var(--line));
 }
 
 .detail-box p {
