@@ -17,6 +17,16 @@
   /* 버튼을 화면 모서리에서 띄우는 거리. 아래 #menu-btn과 항목
      우측 여백이 이 값을 공유해서 세로로 정렬된다. */
   --menu-inset: clamp(16px, 4vw, 40px);
+
+  /* 아래쪽만 따로 쓰는 값 — 안전 영역(홈 인디케이터·사파리 툴바가 차지하는
+     높이)을 더한다.
+
+     [왜 필요한가] iOS 사파리는 화면 맨 아래를 터치하면 접혀 있던 툴바를
+     도로 펼친다. 버튼이 그 띠 안에 있으면 메뉴를 열려고 누를 때마다 툴바가
+     같이 올라와서, 애써 접어둔 상태가 풀리고 페이지가 툴바 위에서 잘린다.
+     안전 영역만큼 띄워 그 띠를 피한다. 안전 영역이 없는 기기나 데스크톱
+     에서는 env()가 0이라 예전과 똑같은 위치가 된다. */
+  --menu-inset-bottom: calc(clamp(16px, 4vw, 40px) + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── 2×2 그리드 아이콘 버튼 ────────────────────────
@@ -27,7 +37,7 @@
 #menu-btn {
   position: fixed;
   right: var(--menu-inset);
-  bottom: var(--menu-inset);
+  bottom: var(--menu-inset-bottom);
   z-index: 200;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -70,7 +80,9 @@ body.menu-open #menu-btn span:nth-child(4) { transform: translate(-72%, -72%); }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-bottom: clamp(88px, 22vw, 170px); /* ← 버튼과 마지막 항목 사이 거리 */
+  /* 버튼과 마지막 항목 사이 거리. 버튼이 안전 영역만큼 올라갔으므로
+     항목들도 같이 올려야 간격이 그대로 유지된다. */
+  padding-bottom: calc(clamp(88px, 22vw, 170px) + env(safe-area-inset-bottom, 0px));
   background: transparent;
   pointer-events: none;
 }

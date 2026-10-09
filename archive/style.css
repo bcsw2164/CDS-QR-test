@@ -190,9 +190,11 @@ body:has(#detail-overlay.open) #menu-btn {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 6px;
+  /* 아래쪽에 안전 영역(env(safe-area-inset-bottom))만큼 여백을 더 주면
+     마지막 줄이 툴바·홈 인디케이터에 가리지 않지만, 대신 그리드가 툴바
+     위에서 끊겨 화면 아래쪽이 빈 검정 띠로 남는다. 그래픽이 툴바 아래까지
+     이어져 보이는 쪽을 택했으므로 그 여백을 두지 않는다 — 네 변 모두 6px. */
   padding: 6px;
-  /* 하단 홈 인디케이터/툴바에 마지막 줄이 가리지 않도록 안전 영역만큼 더 준다. */
-  padding-bottom: calc(6px + env(safe-area-inset-bottom));
   width: 100%;
   align-content: start;
   /* 스크롤은 문서가 담당한다 — 여기에 overflow를 주면 사파리가 툴바를
