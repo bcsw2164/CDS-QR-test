@@ -34,6 +34,20 @@ body {
   background: #000;
 }
 
+/* 세로 스크롤바 자리를 항상 비워 둔다. 상세 오버레이를 열면 body.detail-open
+   이 position:fixed + overflow:hidden 을 걸어 문서가 넘치지 않게 되는데,
+   그때 데스크탑(윈도우 크롬/엣지)의 스크롤바가 사라진다. 이 스크롤바는
+   콘텐츠 위에 뜨는 게 아니라 레이아웃 폭을 실제로 차지하므로, 사라지는
+   순간 쓸 수 있는 가로폭이 15~17px 늘어나면서 화면 전체가 살짝 커졌다가
+   닫을 때 되돌아온다. innerWidth 도 같이 바뀌어 windowResized()가
+   buildGridView()로 그리드를 다시 그리기 때문에 더 크게 티가 난다.
+   stable 로 자리를 고정해 두면 스크롤바가 있든 없든 폭이 변하지 않는다.
+   맥·모바일처럼 스크롤바가 겹쳐 뜨는 환경에서는 원래 폭을 차지하지 않아
+   이 선언이 아무 영향도 주지 않는다. */
+html {
+  scrollbar-gutter: stable;
+}
+
 #archive-wrap {
   width: 100%;
   min-height: 100dvh;
@@ -375,4 +389,18 @@ body.detail-open {
   right: 0;
   width: 100%;
   overflow: hidden;
+}
+
+/* 위 잠금이 걸리면 #control-bars의 position:sticky가 무력해진다. body가
+   position:fixed가 되면서 문서 스크롤이 0으로 떨어지면, sticky는 붙잡을
+   스크롤이 없어 그냥 제자리(= body 맨 위)에 놓인다. 그런데 그 body는
+   top:-스크롤량 만큼 올라가 있으므로, 결국 바도 같이 그만큼 위로 딸려
+   올라간다 — 열고 닫을 때마다 탭 줄이 스크롤한 거리만큼 위아래로 튀는
+   이유다.
+
+   그 어긋난 양(--scroll-lock-top)을 부호만 뒤집어 되돌려 준다.
+   transform은 레이아웃을 건드리지 않으므로, position을 fixed로 바꿀 때와
+   달리 바가 흐름에서 빠지면서 아래 그리드가 위로 밀려 올라가는 일이 없다. */
+body.detail-open #control-bars {
+  transform: translateY(calc(-1 * var(--scroll-lock-top, 0px)));
 }
