@@ -262,6 +262,24 @@ const COLOR_SEED_SALT = 819842174;
 // 깨진다. 시드 고정이면 언제 몇 번을 다시 그려도 같은 값이 나온다.
 const ROTATION_SEED_SALT = 573910284;
 
+// bloom 전용 — 두 구성 요소(호 그룹 / 중심-거리 원 그룹)를 각각 통째로
+// 돌리는 각도의 고정 시드 솔트. 색·전체 회전과 또 다른 난수열에서 나오게
+// 솔트를 달리한다.
+//
+// [전체 회전(ROTATION_SEED_SALT)만으로는 왜 부족한가]
+// bloom의 선은 360도를 arcCount로 똑같이 나눈 자리에 놓여서 도형이 완전한
+// 회전 대칭이다. 그래서 전체를 통째로 돌리면 돌린 그림이 원래 그림과 겹쳐,
+// 개체마다 회전값이 달라도 눈에는 같은 배치로 읽힌다. 두 그룹을 따로
+// 돌리면 둘의 상대 각도가 개체마다 달라지고, 그 상대 각도는 대칭으로
+// 상쇄되지 않아 배치가 실제로 달라 보인다.
+//
+// [그래서 실제로 보이는 건 둘의 차이]
+// 두 값의 공통분은 전체 회전과 같은 역할이라 눈에 띄지 않고, 차이만
+// 드러난다. 그래도 두 그룹에 각각 값을 주는 쪽으로 쓴다 — '두 요소가 각자
+// 제 각도를 가진다'가 의도이고, 한쪽만 돌리는 코드는 나중에 읽을 때
+// 어느 쪽이 기준인지 헷갈린다.
+const GROUP_ANGLE_SEED_SALT = 294817365;
+
 // radial은 형태가 errorA/errorB만으로 결정되므로 아이템 생성 로직을
 // 공유한다. qrErrorData(실제 데이터, setup에서 로딩 완료 후 호출)의
 // n을 그대로 id로 써서 QR 번호와 1:1로 맞추고, errorA/errorB는 각각
@@ -269,6 +287,8 @@ const ROTATION_SEED_SALT = 573910284;
 //
 // rotation(0~2π)도 여기서 만든다 — 두 탭이 이 함수를 공유하므로 같은 번호의
 // QR은 burst에서든 bloom에서든 같은 각도로 놓인다(한 개체 = 한 방향).
+// bloom은 회전 대칭 때문에 이 전체 회전이 눈에 띄지 않아서, 두 구성
+// 요소를 각각 돌리는 각도를 따로 둔다 — GROUP_ANGLE_SEED_SALT 참고.
 function generateFlowerItems() {
   const normA = normalizeErrorAxis(qrErrorData.map((d) => d.errorA));
   const normB = normalizeErrorAxis(qrErrorData.map((d) => d.errorB));
@@ -299,6 +319,11 @@ function generateRadialItems() {
     item.dotColor = dotColor;
     const tipOptions = RADIAL_COLOR_PALETTE.filter((c) => c !== lineColor && c !== dotColor);
     item.tipColor = tipOptions[Math.floor(rnd() * tipOptions.length)];
+    // 호 그룹 / 원 그룹을 각각 통째로 돌리는 각도(0~2π). 색과 섞이지 않게
+    // 전용 RNG를 따로 만들어 쓴다 — 위 rnd()를 더 소비하면 색 선택이 밀린다.
+    const angleRnd = makeRadialSpokeRng(item.id + GROUP_ANGLE_SEED_SALT);
+    item.lineAngleOffset = angleRnd() * TWO_PI;
+    item.dotAngleOffset = angleRnd() * TWO_PI;
     item.burstDelay = 0; // 실제 값은 애니메이션을 재생할 때마다 assignBurstDelays()가 채운다
   });
   return list;
@@ -376,11 +401,12 @@ function drawItem(item, g, cx, cy, size, grow = null, perSpokeBurst = false) {
     item.dotColor,
     item.tipColor,
     true,
-    // lineAngleOffset / dotAngleOffset — 회전은 위 g.rotate()가 통째로
-    // 맡으므로 여기서는 0으로 둔다. 이 둘을 서로 다르게 주면 호와 점이
-    // 따로 도는 것처럼 보여 '배치'가 아니라 '움직임'으로 읽힌다.
-    0,
-    0,
+    // lineAngleOffset / dotAngleOffset — 두 그룹을 각각 통째로 돌린다
+    // (GROUP_ANGLE_SEED_SALT 참고). 개체마다 고정된 값이라 '움직임'이
+    // 아니라 '배치'로 읽힌다 — 매 프레임 다시 뽑으면 둘이 따로 도는 것처럼
+    // 보이므로, 반드시 아이템에 박아둔 값을 그대로 넘겨야 한다.
+    item.lineAngleOffset || 0,
+    item.dotAngleOffset || 0,
     lg,
     dg
   );
