@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 아카이브 페이지와 똑같은 뷰포트 설정 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#000000" />
+    <title>툴바 접힘 테스트</title>
+    <style>
+      /* ============================================================
+         사파리 툴바 접힘 진단용 — 아카이브에서 쓰는 CSS 기법을 전부 뺀
+         맨바닥 페이지다. flex도 sticky도 overflow도 캔버스도 없고, 그냥
+         세로로 긴 문서 하나뿐이다.
+
+         [보는 법]
+         아래로 쭉 스크롤했을 때
+           · 하단 툴바가 작은 알약으로 접히고 색 띠가 그 아래까지 이어지면
+             → 기기·사파리는 정상. 원인은 archive/style.css 안에 있다.
+           · 그대로 펼쳐져 있고 툴바 위에서 색 띠가 끊기면
+             → 페이지 CSS와 무관한 문제(사파리 설정·버전 등)다.
+
+         화면 왼쪽 위 숫자는 window.innerHeight 다. 툴바가 접히는 순간
+         이 값이 커지면 뷰포트가 실제로 확장된 것이고, 변화가 없으면
+         사파리가 끝까지 작은 뷰포트를 유지하고 있다는 뜻이다.
+         ============================================================ */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: #000;
+        font-family: -apple-system, sans-serif;
+      }
+
+      .row {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        color: #000;
+        font-weight: 700;
+        font-size: 15px;
+      }
+
+      /* 왼쪽 위에 붙여두는 측정값 — 스크롤과 무관하게 항상 보이도록. */
+      #hud {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 10;
+        padding: 6px 10px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1.5;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">측정 중…</div>
+    <script>
+      // 색 띠를 길게 깔아 스크롤을 만든다. 색이 있어야 툴바 아래까지
+      // 이어지는지 눈으로 바로 확인된다.
+      const palette = ['#f299c1', '#fee987', '#7ecaac', '#4d6787', '#f58b6e'];
+      let html = '';
+      for (let i = 0; i < 60; i++) {
+        html += `<div class="row" style="background:${palette[i % palette.length]}">${i + 1}</div>`;
+      }
+      document.body.insertAdjacentHTML('beforeend', html);
+
+      // innerHeight가 툴바 접힘에 따라 변하는지 본다. 최솟값·최댓값을 같이
+      // 기록해두면 한 번이라도 확장된 적이 있는지 알 수 있다.
+      const hud = document.getElementById('hud');
+      let lo = Infinity;
+      let hi = 0;
+
+      function update() {
+        const h = window.innerHeight;
+        lo = Math.min(lo, h);
+        hi = Math.max(hi, h);
+        hud.textContent =
+          `innerHeight ${h}  (최소 ${lo} / 최대 ${hi})\n` +
+          `screen ${window.screen.height}  dpr ${window.devicePixelRatio}`;
+        hud.style.whiteSpace = 'pre';
+      }
+
+      update();
+      window.addEventListener('resize', update);
+      window.addEventListener('scroll', update, { passive: true });
+    </script>
+  </body>
+</html>

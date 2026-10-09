@@ -22,15 +22,12 @@ html,
 body {
   width: 100%;
   height: auto;
-  /* [주의] 여기를 overflow-x: hidden 으로 두면 안 된다. hidden은 이 요소를
-     '스크롤 컨테이너'로 만들어 버리는데, 그러면 아래 #control-bars의
-     position:sticky가 뷰포트가 아니라 이 컨테이너를 기준으로 삼는다.
-     html/body는 자기 자신이 스크롤되지 않으므로 결국 아무 데도 안 붙고
-     그냥 같이 밀려 올라간다 — 실제로 그래서 바가 고정되지 않았다.
-     clip은 잘라내기만 하고 스크롤 컨테이너를 만들지 않아 sticky가 살아난다.
-     지원하지 않는 구형 브라우저에서는 이 줄이 무시될 뿐이라, 가로 넘침
-     방지가 빠지는 것 외에 깨지는 동작은 없다. */
-  overflow-x: clip;
+  /* [주의] 여기에 overflow를 걸지 않는다. 루트 요소의 overflow는 뷰포트로
+     전파돼서 스크롤 동작 전체에 관여한다. hidden은 이 요소를 스크롤
+     컨테이너로 만들어 #control-bars의 position:sticky를 풀어버렸고,
+     clip 역시 사파리가 툴바를 접을지 판단하는 데 영향을 줄 수 있다.
+     이 페이지는 그리드가 auto-fill/minmax로 폭에 맞춰 접히므로 가로로
+     넘칠 일이 없다 — 넘침 방지를 걸 이유 자체가 없다. */
   background: #000;
 }
 
