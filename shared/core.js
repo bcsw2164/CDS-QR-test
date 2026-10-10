@@ -211,32 +211,40 @@ function hookArcPointsFromStart(len, angle, sweepAmt, startDist, mirror = false)
   return points.map(([x, y]) => [x * scale, y * scale]);
 }
 
-function drawRadialBurstFlowerDev(
-  g,
-  cx,
-  cy,
+/* ── bloom geometry 캐시 ───────────────────────────────────────
+   drawRadialBurstFlowerDev 는 호출될 때마다 buildRadialDevGeometry 를 두 번
+   돌린다(1차: 최대 도달 거리 측정, 2차: 그 값으로 크기를 다시 맞춰 재생성).
+   한 번에 (방사형선 최대 14개) × (선 2줄) × (폴리라인 약 26점) 만큼의 삼각함수
+   계산과 배열 생성이 일어나는데, 아카이브 그리드는 셀이 184개라 등장
+   애니메이션이 도는 동안 이게 프레임마다 184 × 2번 반복됐다. 초당 수백만 개의
+   작은 배열이 만들어지고 버려지니, CPU가 약한 노트북에서는 GC까지 겹쳐 렉으로
+   나타난다.
+
+   geometry는 size·errorA·errorB·각도 오프셋·선 굵기 비율만으로 완전히
+   결정되고 애니메이션 진행도(lineGrow/dotGrow)와는 무관하다. 따라서 한 번
+   만들어 두면 그 아이템이 그 크기로 그려지는 동안 계속 재사용할 수 있다 —
+   그려지는 결과는 캐시가 없을 때와 완전히 동일하다.
+
+   [주의] 반환된 객체는 공유물이다. 쓰는 쪽에서 절대 수정하면 안 된다.
+
+   크기(size)가 바뀌면(리사이즈, 상세 박스 등) 키가 달라져 항목이 쌓이므로,
+   한계치를 넘으면 통째로 비운다. 아카이브 한 화면 = 184개라 1000이면
+   리사이즈 몇 번 분량은 그대로 들고 있을 수 있다. */
+const RADIAL_DEV_GEOMETRY_CACHE_MAX = 1000;
+const radialDevGeometryCache = new Map();
+
+function getFittedRadialDevGeometry(
   size,
   errorA,
   errorB,
-  lineColorHex,
-  dotColorHex,
-  tipColorHex,
-  mirrorSecondary = true,
-  lineAngleOffset = 0,
-  dotAngleOffset = 0,
-  lineGrow = 1,
-  dotGrow = 1,
-  strokeWeightRatio = RADIAL_STROKE_WEIGHT_RATIO
+  mirrorSecondary,
+  lineAngleOffset,
+  dotAngleOffset,
+  strokeWeightRatio
 ) {
-  // lineGrow/dotGrow (기본 1) — 등장 애니메이션 배율.
-  //   lineGrow : 선분(호) + 그 끝을 따라가는 원 (한 덩어리로 같이 움직임)
-  //   dotGrow  : 중심에서 멀어지는 errorA-거리 원 (선분과 따로 움직임)
-  // archive의 폭죽 등장에서 선분이 먼저, 중심-거리 원이 살짝 늦게 0→1 로
-  // 커지도록 따로 넘긴다. 스포크의 outerProgress/innerProgress 와 같은
-  // 목적이지만, 이쪽은 그룹 전체를 한 번에 스케일(캔버스 변형)하는 방식이고
-  // 스포크처럼 선분마다 개별 랜덤 지연을 주지는 않는다.
-  // strokeWeightRatio (기본 RADIAL_STROKE_WEIGHT_RATIO) — 호출부에서 선
-  // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(기본값은 공용 상수).
+  const key = `${size}|${errorA}|${errorB}|${mirrorSecondary ? 1 : 0}|${lineAngleOffset}|${dotAngleOffset}|${strokeWeightRatio}`;
+  const hit = radialDevGeometryCache.get(key);
+  if (hit) return hit;
 
   // 1차 패스(측정용) — size 그대로 geometry를 만들어서, 선의 모든
   // 정점(+weight/2)과 원 중심(+dotSize/2) 중 원점에서 가장 먼 지점을
@@ -267,6 +275,52 @@ function drawRadialBurstFlowerDev(
   const fitScale = maxExtent > 0 ? size / 2 / maxExtent : 1;
   const shape = buildRadialDevGeometry(
     size * fitScale,
+    errorA,
+    errorB,
+    mirrorSecondary,
+    lineAngleOffset,
+    dotAngleOffset,
+    strokeWeightRatio
+  );
+
+  if (radialDevGeometryCache.size >= RADIAL_DEV_GEOMETRY_CACHE_MAX) radialDevGeometryCache.clear();
+  radialDevGeometryCache.set(key, shape);
+  return shape;
+}
+
+function drawRadialBurstFlowerDev(
+  g,
+  cx,
+  cy,
+  size,
+  errorA,
+  errorB,
+  lineColorHex,
+  dotColorHex,
+  tipColorHex,
+  mirrorSecondary = true,
+  lineAngleOffset = 0,
+  dotAngleOffset = 0,
+  lineGrow = 1,
+  dotGrow = 1,
+  strokeWeightRatio = RADIAL_STROKE_WEIGHT_RATIO
+) {
+  // lineGrow/dotGrow (기본 1) — 등장 애니메이션 배율.
+  //   lineGrow : 선분(호) + 그 끝을 따라가는 원 (한 덩어리로 같이 움직임)
+  //   dotGrow  : 중심에서 멀어지는 errorA-거리 원 (선분과 따로 움직임)
+  // archive의 폭죽 등장에서 선분이 먼저, 중심-거리 원이 살짝 늦게 0→1 로
+  // 커지도록 따로 넘긴다. 스포크의 outerProgress/innerProgress 와 같은
+  // 목적이지만, 이쪽은 그룹 전체를 한 번에 스케일(캔버스 변형)하는 방식이고
+  // 스포크처럼 선분마다 개별 랜덤 지연을 주지는 않는다.
+  // strokeWeightRatio (기본 RADIAL_STROKE_WEIGHT_RATIO) — 호출부에서 선
+  // 굵기 비율만 다르게 넘기고 싶을 때 쓴다(기본값은 공용 상수).
+
+  // 아래 2패스(측정 → 재스케일)의 결과는 size·errorA·errorB·각도 오프셋에만
+  // 달려 있고, 등장 애니메이션의 lineGrow/dotGrow 와는 무관하다(그쪽은
+  // g.scale 로만 적용된다). 그래서 캐시에 담아 재사용한다 — 매 프레임
+  // 똑같은 geometry를 두 번씩 새로 만들던 비용이 사라진다.
+  const shape = getFittedRadialDevGeometry(
+    size,
     errorA,
     errorB,
     mirrorSecondary,
