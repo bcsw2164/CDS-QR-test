@@ -330,7 +330,9 @@ body:has(#detail-overlay.open) #menu-btn {
   width: 100%;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  cursor: pointer;
+  /* 눌러서 뒤집히지만 커서는 기본 화살표 그대로 둔다(.detail-box 와 통일).
+     ‹ › 버튼만 손가락 커서를 유지한다. */
+  cursor: default;
 }
 
 #detail-flipper {
@@ -416,6 +418,15 @@ body:has(#detail-overlay.open) #menu-btn {
 #detail-next {
   left: 100%;
   margin-left: calc(-1 * var(--line));
+}
+
+/* 상세 박스 안은 기본 화살표 커서. 텍스트 위에서 I빔(글자 선택) 커서가
+   뜨지 않게 박스 전체에 한 번 걸어둔다.
+   ‹ › 버튼(.detail-nav)과 뒤집히는 카드(#detail-media)는 각자 cursor:
+   pointer를 따로 갖고 있어서 이 선언에 영향받지 않는다 — 누를 수 있는
+   요소라는 신호는 그대로 남는다. */
+.detail-box {
+  cursor: default;
 }
 
 .detail-box p {

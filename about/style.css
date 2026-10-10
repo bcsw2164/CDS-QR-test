@@ -324,6 +324,8 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
 
 .main-text {
   text-align: center;
+  /* 본문 위에서도 기본 화살표 커서 (I빔 대신) */
+  cursor: default;
   /* 본문만 Wanted Sans. 로고·메뉴·아카이브 버튼은 body에 걸린
      Pretendard를 그대로 쓴다. */
   font-family: 'Wanted Sans', 'Pretendard', sans-serif;

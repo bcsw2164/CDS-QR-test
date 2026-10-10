@@ -52,6 +52,8 @@ body {
 
 .marquee-track span {
   flex-shrink: 0;
+  /* 흘러가는 문구 위에서도 기본 화살표 커서 (I빔 대신) */
+  cursor: default;
   white-space: nowrap;
   padding: 8px clamp(24px, 6vmin, 80px) 8px 0;
   font-family: 'Pretendard', sans-serif;
