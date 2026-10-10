@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #231f20;
+        font-family: WantedSansVariable-ExtraBold, 'Wanted Sans Variable';
+        font-size: 46.58px;
+        font-variation-settings: 'wght' 800;
+        font-weight: 700;
+      }
+
+      .cls-1, .cls-3 {
+        letter-spacing: -.03em;
+      }
+
+      .cls-4 {
+        fill: #848484;
+      }
+
+      .cls-5, .cls-6 {
+        stroke: #000;
+        stroke-miterlimit: 10;
+        stroke-width: 7px;
+      }
+
+      .cls-5 {
+        fill: #fff;
+      }
+
+      .cls-7 {
+        letter-spacing: -.02em;
+      }
+
+      .cls-8 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-6 {
+        fill: none;
+      }
+    </style>
+  </defs>
+  <rect class="cls-5" x="134.92" y="295.95" width="809.52" height="1328.1"/>
+  <rect class="cls-5" x="189.46" y="419.93" width="700.45" height="700.45"/>
+  <rect class="cls-4" x="206.86" y="437.34" width="665.64" height="665.64"/>
+  <text class="cls-1" transform="translate(654.18 378.83)"><tspan x="0" y="0">통대창탕후루</tspan></text>
+  <text class="cls-1" transform="translate(499.4821 1209.8008)"><tspan x="0" y="0">여기에 텍스트를 삽입</tspan><tspan x="0" y="55.9">여기에 텍스트를 삽입</tspan><tspan x="0" y="111.8">여기에 텍스트를 삽입</tspan><tspan x="0" y="167.69">여기에 텍스트를 삽입</tspan><tspan x="0" y="223.59">여기에 텍스트를 삽입</tspan></text>
+  <text class="cls-2" transform="translate(189.46 378.83)"><tspan class="cls-3" x="0" y="0">N</tspan><tspan class="cls-8" x="34.11" y="0">O</tspan><tspan class="cls-7" x="68.89" y="0">.3</tspan></text>
+  <rect class="cls-5" x="172.05" y="402.52" width="34.82" height="34.82"/>
+  <rect class="cls-5" x="872.5" y="402.52" width="34.82" height="34.82"/>
+  <rect class="cls-5" x="172.05" y="1102.97" width="34.82" height="34.82"/>
+  <rect class="cls-5" x="872.5" y="1102.97" width="34.82" height="34.82"/>
+  <g>
+    <polygon points="557.71 1533.81 557.71 1564.82 547.38 1564.82 547.38 1575.16 557.71 1575.16 557.71 1585.5 537.04 1585.5 537.04 1564.82 526.7 1564.82 526.7 1554.48 547.38 1554.48 547.38 1544.15 516.36 1544.15 516.36 1585.5 506.02 1585.5 506.02 1533.81 557.71 1533.81"/>
+    <path d="M450.42,1533.81v51.69h41.35v-10.34h10.34v-41.35h-51.69ZM491.76,1564.82h-10.34v10.34h-20.67v-31.01h31.01v20.68Z"/>
+    <polygon points="593.5 1544.15 593.5 1554.48 583.16 1554.48 583.16 1564.82 572.82 1564.82 572.82 1554.48 562.49 1554.48 562.49 1544.15 572.82 1544.15 572.82 1533.81 583.16 1533.81 583.16 1544.15 593.5 1544.15"/>
+    <polygon points="628.95 1544.15 628.95 1554.48 618.61 1554.48 618.61 1564.82 608.27 1564.82 608.27 1554.48 597.94 1554.48 597.94 1544.15 608.27 1544.15 608.27 1533.81 618.61 1533.81 618.61 1544.15 628.95 1544.15"/>
+  </g>
+  <line class="cls-6" x1="179.23" y1="1495.54" x2="900.14" y2="1495.54"/>
+  <rect class="cls-4" x="189.46" y="1168.33" width="278.37" height="278.37"/>
+</svg>

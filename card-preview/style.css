@@ -1,0 +1,125 @@
+/* 저장 카드 미리보기 전용 — 카드 바깥은 전부 회색으로 깔아서
+   흰 카드의 경계가 보이게 한다. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 40px 20px 120px;
+  background: #8a8a8a;
+  font-family: 'Pretendard', sans-serif;
+  display: flex;
+  justify-content: center;
+}
+
+#stage canvas {
+  display: block;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  /* 기본은 화면 높이에 맞춰 축소. #stage.actual 이면 1:1(실제 픽셀). */
+  max-height: calc(100vh - 160px);
+  width: auto !important;
+  height: auto !important;
+}
+
+#stage.actual canvas {
+  max-height: none;
+}
+
+#controls {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #1a1a1a;
+  border-radius: 999px;
+  z-index: 10;
+}
+
+#controls button {
+  appearance: none;
+  border: 0;
+  background: #333;
+  color: #bbb;
+  font: 500 14px 'Pretendard', sans-serif;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+#controls button:hover {
+  background: #444;
+  color: #fff;
+}
+
+#controls button.on {
+  background: #fff;
+  color: #111;
+}
+
+#controls .sep {
+  width: 1px;
+  height: 20px;
+  background: #444;
+  margin: 0 4px;
+}
+
+#meta {
+  color: #888;
+  font: 500 13px/1 'Pretendard', sans-serif;
+  padding-right: 6px;
+}
+
+#controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 용량 비교 표 — 왼쪽 위에 띄워 카드를 가리지 않게 한다. */
+#report {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  color: #ddd;
+  font: 500 13px/1.6 'Pretendard', sans-serif;
+  z-index: 10;
+}
+
+#report:empty {
+  display: none;
+}
+
+#report .r {
+  display: flex;
+  gap: 2px;
+  background: #1a1a1a;
+}
+
+#report .r span {
+  display: block;
+  width: 86px;
+  padding: 7px 10px;
+  text-align: right;
+}
+
+#report .r span:first-child {
+  text-align: left;
+  width: 112px;
+  color: #888;
+}
+
+#report .head {
+  color: #888;
+  border-bottom: 1px solid #333;
+}
+
+#report .note {
+  padding: 8px 10px;
+  color: #8a8a8a;
+  background: #1a1a1a;
+}

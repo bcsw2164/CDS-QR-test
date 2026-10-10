@@ -1025,6 +1025,61 @@ function updateDetailNavButtons() {
   document.getElementById('detail-next').style.display = atLast ? 'none' : '';
 }
 
+// ── 이미지 저장 ────────────────────────────────────────────
+//
+// 지금 열려 있는 항목을 한 장의 이미지(그래픽 + 이름 + QR + 오차 수치)로
+// 합성해 내보낸다. 합성은 shared/save-card.js가 맡고, 여기서는 그 함수에
+// 넘길 재료만 모은다.
+//
+// [두 가지 오차값을 왜 따로 넘기나]
+// item.errorA/errorB는 184개 중 순위로 0~1에 편 정규화값이다 — 그래픽의
+// 모양을 정하는 값이지, 사람에게 보여줄 수치가 아니다. 카드에 찍히는
+// "64%"는 qrErrorData에 든 원본 비율이라 따로 집어서 넘긴다.
+//
+// [QR은 왜 <img>를 그대로 쓰나]
+// 상세 박스가 이미 그 이미지를 띄우고 있어 브라우저 캐시에 올라와 있다.
+// 새로 로드하면 그 사이 공유 시트를 띄울 자격(사용자 제스처)을 잃는다.
+async function saveDetailCard() {
+  const btn = document.getElementById('detail-save');
+  if (btn.disabled) return;
+
+  const itemId = detailOrderIds[detailPos];
+  const item = itemById(itemId);
+  const n = qrIndexOf(itemId);
+  const raw = qrErrorData.find((d) => d.n === n);
+  const qrEl = document.getElementById('detail-qr');
+  if (!item || !raw) return;
+
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = '만드는 중...';
+
+  try {
+    // 아직 안 받아졌을 때만 기다린다(대개 이미 떠 있는 이미지라 즉시 통과).
+    if (!qrEl.complete || !qrEl.naturalWidth) {
+      await qrEl.decode().catch(() => {});
+    }
+
+    const canvas = SaveCard.render({
+      id: n,
+      name: qrNames[n] || '익명',
+      shape: currentShape,
+      item,
+      unfilled: raw.errorA,
+      overflow: raw.errorB,
+      qrSource: qrEl,
+      qrKey: qrEl.src,
+    });
+
+    btn.textContent = label;
+    const shape = currentShape === 'radial' ? 'bloom' : 'burst';
+    await SaveCard.save(canvas, `QR++_${n}_${shape}.jpg`);
+  } finally {
+    btn.textContent = label;
+    btn.disabled = false;
+  }
+}
+
 function openDetailOverlay(itemId) {
   detailOrderIds = currentOrderedIds();
   detailPos = detailOrderIds.indexOf(Number(itemId));
@@ -1152,6 +1207,11 @@ async function setup() {
   document.getElementById('detail-next').addEventListener('click', (e) => {
     e.stopPropagation();
     stepDetail(1);
+  });
+
+  document.getElementById('detail-save').addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveDetailCard();
   });
 
   // 키보드 ← / → 로도 이동(오버레이가 열려 있을 때만), Esc 로 닫기.

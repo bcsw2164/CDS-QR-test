@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>저장 카드 미리보기</title>
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin="anonymous" />
+    <link
+      rel="stylesheet"
+      as="style"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+    />
+    <!-- Wanted Sans — 카드 안의 모든 글자(NO / 이름 / 분석 텍스트).
+         archive/index.html 과 같은 CDN이라 추가 의존성은 없다. -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/static/complete/WantedSans.min.css"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  </head>
+  <body>
+    <!-- 캔버스는 card.js가 #stage 안에 붙인다. 실제 픽셀 크기는 CARD.W × CARD.H
+         (1080 × 1350) 그대로이고, 화면에서만 CSS로 줄여 보여준다. -->
+    <div id="stage"></div>
+
+    <div id="controls">
+      <button type="button" data-shape="radial-spokes" class="on">burst</button>
+      <button type="button" data-shape="radial">bloom</button>
+      <span class="sep"></span>
+      <button type="button" id="zoom-toggle">1:1 보기</button>
+      <button type="button" id="export-jpg">JPG 내보내기</button>
+      <button type="button" id="measure">용량 비교</button>
+      <span id="meta"></span>
+    </div>
+
+    <!-- 용량 비교 결과가 들어가는 자리 -->
+    <div id="report"></div>
+
+    <script src="../shared/core.js"></script>
+    <!-- 카드 합성 — archive 페이지와 같은 파일을 쓴다. 레이아웃은 여기서 고친다. -->
+    <script src="../shared/save-card.js"></script>
+    <script src="card.js"></script>
+  </body>
+</html>

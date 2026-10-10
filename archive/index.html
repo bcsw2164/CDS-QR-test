@@ -73,24 +73,32 @@
       </div>
     </div>
     <div id="detail-overlay">
-      <div class="detail-box">
-        <span class="corner corner-tl"></span>
-        <span class="corner corner-tr"></span>
-        <span class="corner corner-bl"></span>
-        <span class="corner corner-br"></span>
-        <button id="detail-prev" class="detail-nav" aria-label="이전">&lsaquo;</button>
-        <button id="detail-next" class="detail-nav" aria-label="다음">&rsaquo;</button>
-        <div id="detail-media" data-stage="graphic">
-          <div id="detail-flipper">
-            <div id="detail-graphic"></div>
-            <img id="detail-qr" src="" alt="QR 이미지" />
+      <!-- 박스와 저장 버튼을 세로로 묶는다 — 버튼은 박스 '밖', 바로 아래에
+           같은 폭으로 놓인다. -->
+      <div class="detail-stack">
+        <div class="detail-box">
+          <span class="corner corner-tl"></span>
+          <span class="corner corner-tr"></span>
+          <span class="corner corner-bl"></span>
+          <span class="corner corner-br"></span>
+          <button id="detail-prev" class="detail-nav" aria-label="이전">&lsaquo;</button>
+          <button id="detail-next" class="detail-nav" aria-label="다음">&rsaquo;</button>
+          <div id="detail-media" data-stage="graphic">
+            <div id="detail-flipper">
+              <div id="detail-graphic"></div>
+              <img id="detail-qr" src="" alt="QR 이미지" />
+            </div>
           </div>
+          <p id="detail-name"></p>
         </div>
-        <p id="detail-name"></p>
+        <!-- 이 항목을 한 장의 이미지로 저장한다(그래픽 + 이름 + QR + 수치).
+             합성은 shared/save-card.js, 누르면 공유 시트가 열린다. -->
+        <button id="detail-save" type="button">이미지 저장</button>
       </div>
     </div>
     <script src="../shared/menu.js"></script>
     <script src="../shared/core.js"></script>
+    <script src="../shared/save-card.js"></script>
     <script src="sketch.js"></script>
   </body>
 </html>
