@@ -52,7 +52,7 @@ const RADIAL_ARC_SEGMENTS = 24; // 휘는 구간을 근사하는 폴리라인 �
 // 보장한다(호출하는 쪽에서 한 번 뽑아 lineColorHex/dotColorHex로 넘김 —
 // 매 프레임 다시 뽑으면 리사이즈·슬라이더 조작마다 색이 바뀌어 버리므로
 // "새 아이템이 생길 때" 딱 한 번만 뽑아 고정해서 써야 한다).
-const RADIAL_COLOR_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#4d6787', '#f58b6e'];
+const RADIAL_COLOR_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#567591', '#f58b6e'];
 const RADIAL_STROKE_WEIGHT_RATIO = 0.1; // 호 굵기 = size × 이 비율 (볼드하지 않은 일반 두께)
 
 // errorA가 제어하는 중심 둘레 원 — 선 개수(arcCount)만큼 균등 배치되고,

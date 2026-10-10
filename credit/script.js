@@ -36,7 +36,7 @@ function makeRandom(seed) {
    RADIAL_COLOR_PALETTE). 이름마다 하나를 랜덤으로 골라 --name-color로
    심어두면, 마우스를 올렸을 때 CSS가 그 색을 꺼내 쓴다(style.css의
    .credit-name:hover). */
-const NAME_HOVER_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#4d6787', '#f58b6e'];
+const NAME_HOVER_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#567591', '#f58b6e'];
 
 function renderNames(names) {
   const holder = document.getElementById('credit-names');
