@@ -706,6 +706,174 @@ function buildGridView(burst = false) {
     });
 
     renderGridFrame(millis() / 1000); // 첫 프레임을 즉시 한 번 그려서 애니메이션 시작 전에도 바로 보이게
+    updateHoverGeometry(); // 셀이 새로 생겼으므로 호버용 중심 좌표도 다시 잰다
+  });
+}
+
+// ── 호버 — 커서 주변이 함께 반응하는 자기장 ─────────────────────
+//
+// [왜 CSS :hover가 아닌가]
+// 예전에는 .archive-cell:hover canvas 에 transform:scale 을 걸어, 커서가
+// 올라간 칸 하나만 커졌다. 커서를 빠르게 움직이면 한 칸씩 띄엄띄엄
+// 반응해서 움직임이 끊겨 보인다. 주변 칸까지 묶어 반응시키려면 이웃을
+// 지목해야 하는데, CSS 선택자로는 2차원 격자의 이웃을 짚을 수 없다 —
+// 오른쪽 칸은 인접 형제(+)지만 아래 칸은 '열 수만큼' 떨어진 형제이고,
+// 그 열 수는 auto-fill이 화면 폭을 보고 정해서 고정값이 없다.
+// 그래서 커서와의 '거리'로 계산한다.
+//
+// [어떻게 보이나]
+// 커서를 중심으로 반경 안의 칸들이 거리에 따라 다른 배율로 커진다 —
+// 가까울수록 크고, 경계에서 1(제 크기)로 수렴한다. 커서가 지나가면 그
+// 자리의 칸들이 차례로 부풀었다 가라앉아서, 빠르게 움직일 때 궤적이
+// 넓게 남는다.
+const HOVER_RADIUS_RATIO = 2.2; // 반응 반경 = 셀 크기 × 이 값
+// 거리에 따른 감쇠 지수. 1이면 선형(경계까지 고르게 퍼져 뭉툭하다),
+// 크면 중심에 몰려 뾰족해진다. 2면 중심은 또렷하고 가장자리는 은근하다.
+const HOVER_FALLOFF = 2;
+// 목표 배율로 다가가는 속도(프레임당 비율). 커질 때 빠르고 줄어들 때
+// 느린 건 기존 CSS transition의 비대칭(0.35s 확대 / 2s 복귀)을 옮겨온
+// 것이다 — 빠르게 붙고 천천히 풀려야 궤적이 남는다.
+const HOVER_GROW_SPEED = 0.3;
+const HOVER_SHRINK_SPEED = 0.055;
+
+// 터치 기기는 제외 — 탭한 뒤 확대가 그대로 붙어 있는 현상을 막는다.
+// (기존 CSS의 @media (hover: hover) and (pointer: fine) 를 JS로 옮긴 것)
+let hoverEnabled = false;
+// { el, cx, cy, scale, applied } — cx/cy는 문서 좌표계 중심.
+// 스크롤해도 변하지 않으므로 빌드·리사이즈 때만 다시 잰다.
+let hoverCells = [];
+let hoverCellSize = 0;
+let hoverPointer = null; // 뷰포트 좌표. 커서가 창을 벗어나면 null
+let hoverRaf = null;
+
+// 셀 중심 좌표를 다시 잰다. 측정은 .archive-cell(부모 div) 기준이다 —
+// canvas는 이 기능이 transform을 먹이는 대상이라, 확대 중에 재면 크기가
+// 달라진 사각형을 읽게 된다(중심은 같지만 굳이 섞을 이유가 없다).
+function updateHoverGeometry() {
+  if (!hoverEnabled) return;
+  const sx = window.scrollX;
+  const sy = window.scrollY;
+  hoverCells = gridCells.map(({ gfx }) => {
+    const el = gfx.canvas;
+    const r = (el.parentElement || el).getBoundingClientRect();
+    return {
+      el,
+      cx: r.left + sx + r.width / 2,
+      cy: r.top + sy + r.height / 2,
+      scale: 1,
+      applied: 1,
+    };
+  });
+  hoverCellSize = gridCells.length > 0 ? gridCells[0].cellSize : 0;
+}
+
+function startHoverLoop() {
+  if (hoverEnabled && hoverRaf === null) hoverRaf = requestAnimationFrame(hoverFrame);
+}
+
+// 상세 오버레이가 열려 있는 동안에는 호버를 받지 않는다.
+//
+// [왜 이벤트가 아니라 상태를 보나]
+// 예전에는 오버레이의 pointerenter로 껐는데, 그 이벤트는 커서가 '움직여서'
+// 들어올 때만 온다. 클릭은 커서를 고정한 채 일어나므로 바로 그 자리에
+// 오버레이가 열려도 이벤트가 오지 않고, window의 pointermove는 커튼 위에서도
+// 계속 들어온다. 그래서 커튼 뒤 그래픽이 확대 상태로 커서를 따라다녔다.
+function hoverBlocked() {
+  const overlay = document.getElementById('detail-overlay');
+  return overlay !== null && overlay.classList.contains('open');
+}
+
+// 모든 칸을 제 크기로 즉시 되돌린다(감쇠 없이).
+// 오버레이를 열 때 쓴다 — 커튼이 반투명해서, 천천히 줄어드는 과정이 뒤에서
+// 그대로 보인다. 어차피 가려질 거라면 끌지 않고 끊는 쪽이 깔끔하다.
+function resetHover() {
+  hoverPointer = null;
+  for (const c of hoverCells) {
+    c.scale = 1;
+    c.applied = 1;
+    c.el.style.transform = '';
+    c.el.style.zIndex = '';
+  }
+  if (hoverRaf !== null) {
+    cancelAnimationFrame(hoverRaf);
+    hoverRaf = null;
+  }
+}
+
+// 매 프레임 모든 칸의 목표 배율을 거리에서 구하고 현재 배율을 그쪽으로
+// 당긴다. 커서가 없고 모든 칸이 제 크기로 돌아오면 루프를 멈춘다 —
+// 가만히 있을 때 쓸데없이 도는 것을 막는다.
+function hoverFrame() {
+  hoverRaf = null;
+  const radius = hoverCellSize * HOVER_RADIUS_RATIO;
+  // 커서는 뷰포트 좌표로 들어오므로 문서 좌표로 바꿔 비교한다. 매 프레임
+  // 다시 더하기 때문에, 커서를 멈춘 채 스크롤만 해도 반응이 따라온다.
+  const px = hoverPointer ? hoverPointer.x + window.scrollX : null;
+  const py = hoverPointer ? hoverPointer.y + window.scrollY : null;
+
+  let moving = false;
+  for (const c of hoverCells) {
+    let target = 1;
+    if (px !== null && radius > 0) {
+      const d = Math.hypot(c.cx - px, c.cy - py);
+      if (d < radius) {
+        target = 1 + (CELL_HOVER_SCALE - 1) * Math.pow(1 - d / radius, HOVER_FALLOFF);
+      }
+    }
+
+    const speed = target > c.scale ? HOVER_GROW_SPEED : HOVER_SHRINK_SPEED;
+    c.scale += (target - c.scale) * speed;
+    // 목표가 제 크기인데 거의 다 돌아왔으면 딱 1로 떨어뜨린다. 지수적으로
+    // 수렴하는 값은 영원히 1이 안 되므로, 끊어주지 않으면 루프가 안 멈춘다.
+    if (target === 1 && c.scale - 1 < 0.002) c.scale = 1;
+    if (c.scale !== 1) moving = true;
+
+    // 바뀐 칸만 건드린다 — 184개에 매 프레임 스타일을 쓰면 그만큼 낭비다.
+    if (Math.abs(c.scale - c.applied) > 0.001 || (c.scale === 1 && c.applied !== 1)) {
+      c.applied = c.scale;
+      if (c.scale === 1) {
+        c.el.style.transform = '';
+        c.el.style.zIndex = '';
+      } else {
+        c.el.style.transform = `scale(${c.scale.toFixed(4)})`;
+        // 큰 칸이 위로 — 커진 정도에 비례해 쌓임 순서를 준다. 안 주면
+        // 뒤쪽 칸(DOM 순서상 나중)이 앞 칸의 확대분을 가려 잘린다.
+        //
+        // 1~5로 묶는 건 위에 떠 있어야 할 것들을 넘지 않기 위해서다 —
+        // 상단 툴바가 10, 상세 오버레이가 100, 메뉴가 190~200이다.
+        // 커진 정도를 그대로 쓰면(예: ×1000) 셀이 툴바와 모달 위로 올라온다.
+        const lift = (c.scale - 1) / (CELL_HOVER_SCALE - 1); // 0~1
+        c.el.style.zIndex = String(Math.round(lift * 4) + 1);
+      }
+    }
+  }
+
+  if (moving || hoverPointer !== null) hoverRaf = requestAnimationFrame(hoverFrame);
+}
+
+// setup()에서 한 번만 부른다.
+function initHover() {
+  hoverEnabled = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (!hoverEnabled) return;
+
+  // 그리드 밖으로 나가도 가장자리 칸은 반응해야 하므로 window에서 받는다.
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      if (hoverBlocked()) return; // 오버레이가 열려 있으면 커튼 위 움직임은 무시
+      hoverPointer = { x: e.clientX, y: e.clientY };
+      startHoverLoop();
+    },
+    { passive: true }
+  );
+
+  // 커서가 창을 완전히 벗어날 때만 해제한다(relatedTarget이 없는 경우).
+  document.addEventListener('pointerout', (e) => {
+    if (e.relatedTarget === null) {
+      hoverPointer = null;
+      startHoverLoop();
+    }
   });
 }
 
@@ -1079,6 +1247,7 @@ async function saveDetailCard() {
 }
 
 function openDetailOverlay(itemId) {
+  resetHover(); // 커튼 뒤에 확대된 채 남은 그래픽을 즉시 제 크기로 되돌린다
   detailOrderIds = currentOrderedIds();
   detailPos = detailOrderIds.indexOf(Number(itemId));
   if (detailPos < 0) detailPos = 0;
@@ -1229,6 +1398,7 @@ async function setup() {
   radialItems = generateRadialItems();
   spokeItems = generateSpokeItems();
 
+  initHover(); // 커서 주변이 함께 커지는 호버(PC 전용)
   buildGridView(true); // 첫 로드에도 첫 탭 폭죽 등장 애니메이션 재생
 }
 

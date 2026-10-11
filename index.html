@@ -14,13 +14,10 @@
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin="anonymous" />
 
-    <!-- Pretendard — 로고·메뉴·버튼 등 UI 요소 -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
-    />
-
-    <!-- Wanted Sans — 본문 문단 -->
+    <!-- Wanted Sans — 이 페이지의 모든 글자(로고·메뉴·본문·버튼).
+         Pretendard CDN 링크는 제거했다 — 이 페이지에서 더 이상 쓰지
+         않으므로 요청만 하나 늘 뿐이다. archive·credit 페이지는 각자
+         자기 HTML에서 Pretendard를 불러오므로 영향이 없다. -->
     <link
       rel="preload"
       as="style"
@@ -62,61 +59,141 @@
       </div>
     </div>
 
-    <!-- ── 메인 ─────────────────────────────────────────── -->
+    <!-- ── 메인 ─────────────────────────────────────────
+         화면 맨 위에 QR 루프 영상이 오고, 그 아래로 리드 문장 →
+         본문 문단 → 아카이브 버튼 순서로 한 줄기로 흐른다.
+         모바일을 기준으로 짠 배치라, 넓은 화면에서는 같은 순서를
+         유지한 채 단 폭만 넓어진다. -->
     <main id="main">
       <section id="section-main">
 
+        <!-- [주의] #text-area는 화면 전체 너비를 유지해야 한다. 스포크
+             그래픽이 이 상자를 기준으로 left/right: -(음수)px 배치되어
+             화면 가장자리 밖으로 삐져나가는 구조이기 때문이다. 여기에
+             max-width를 걸면 그래픽이 가운데로 모여 그 효과가 사라진다.
+             글의 폭을 잡는 일은 안쪽의 .col이 맡는다. -->
         <div id="text-area">
           <!-- 스포크 그래픽 캔버스는 sketch.js가 여기에 추가 -->
 
-          <!-- 문장을 의미 단위(절)로 끊어 <span class="clause">로 감싼다.
-               각 절은 자기 안에서만 자동 줄바꿈되고 절과 절 사이는 항상
-               줄이 나뉘므로, "데이터화하고, / 이를" 처럼 뜻이 넘어가는
-               자리에서 끊긴다. <br>과 달리 절 안쪽 줄바꿈은 화면 너비에
-               맡겨둘 수 있다. -->
-          <div class="text-block">
-            <div class="text-anchor">
+          <!-- 글이 놓이는 중앙 단. 화면이 넓어져도 이 상자가 가운데에
+               서고, 글은 이 안에서 왼쪽 정렬된다.
+
+               .intro는 영상과 글을 두 칸으로 나누는 그리드다. 세로로
+               긴 화면(모바일)에서는 한 칸이라 지금처럼 영상 아래 글이
+               오고, 가로로 넓은 화면에서는 두 칸이 되어 영상 옆에 글이
+               선다. 영상이 정사각(800×800)이라 폭이 커지는 만큼 높이도
+               같이 커지는데, 두 칸으로 나누면 영상이 화면 높이를 다
+               먹지 않고 글과 함께 한 화면에 들어온다. -->
+          <div class="col intro">
+
+            <!-- QR 루프 영상 — muted/playsinline이 없으면 자동재생이
+                 막히고, iOS에서는 전체화면으로 튀어나온다. 재생 시작·
+                 정지는 sketch.js가 화면 진입 여부로 판단한다. -->
+            <div class="intro-media">
+              <div id="qr-video-wrap">
+                <video id="qr-video"
+                       src="assets/media/qr_import2.mp4"
+                       muted loop playsinline
+                       preload="none"
+                       disablepictureinpicture></video>
+              </div>
+            </div>
+
+            <!-- 글 묶음 — 리드 · 본문 · 버튼. 두 칸 배치에서는 통째로
+                 오른쪽 칸에 들어간다. -->
+            <div class="intro-text">
+
+            <!-- 리드 문장 — 이 페이지에서 가장 큰 글.
+                 줄바꿈은 전적으로 화면 너비에 맡긴다. 문장을 끊어
+                 두지 않으므로 기기마다 줄 수가 달라지고, 끊기는 자리는
+                 어절 경계다(style.css의 word-break: keep-all). -->
+            <p class="lead">
+              <span class="accent">QR++</span>는 사람이 손으로 복제한 QR의 미세한 흔적을 데이터화하고
+              새로운 시각 결과물로 확장하는 데이터 드로잉 프로젝트입니다.
+            </p>
+
+            <!-- 본문 문단 — 리드보다 작고 연하다. -->
+            <div class="body-text">
               <p class="main-text">
-                <span class="clause">동일한 QR 패턴을 여러 사람이 복제하며 생긴 오차와 흔적을 데이터화하고,</span>
-                <span class="clause">이를 새로운 그래픽으로 재구성합니다.</span>
+                기계의 복제 오류는 불량이지만, 사람의 복제 오류는 의도되지 않은
+                유일성이 됩니다.
+              </p>
+              <p class="main-text">
+                QR 코드는 사람이 의미를 읽을 수 없고 기계만이 완벽하게 생성·판독하는
+                패턴입니다. 그 위에 사람이 손으로 따라 그리는 순간, 기계의 언어 위에
+                사람의 흔적이 한 겹 쌓입니다.
+              </p>
+              <p class="main-text">
+                온·오프라인을 통해 184개의 QR을 수집했고, 이를 모아 아카이브
+                했습니다. 수집은 지금도 계속되고 있습니다.
               </p>
             </div>
-          </div>
 
-          <!-- QR 루프 영상 — 텍스트 블록 다음에 흐름으로 놓이므로
-               텍스트 아래에서 시작한다. muted/playsinline이 없으면
-               자동재생이 막히고, iOS에서는 전체화면으로 튀어나온다.
-               재생 시작·정지는 sketch.js가 화면 진입 여부로 판단한다. -->
-          <div id="qr-video-wrap">
-            <video id="qr-video"
-                   src="assets/media/qr_import2.mp4"
-                   muted loop playsinline
-                   preload="none"
-                   disablepictureinpicture></video>
-          </div>
+            <!-- 아카이브로 넘어가는 버튼. 화면에 고정하지 않고 문단
+                 아래에 흐름으로 놓아, 스크롤해서 여기까지 내려와야
+                 나타난다. 화살표는 글자가 아니라 ::after로 붙인다
+                 (복사·스크린리더에 '보러가기'만 남는다). -->
+            <a id="archive-fab" href="archive/index.html">보러가기</a>
 
-          <!-- 영상 아래 설명 문구. #qr-video-wrap 안이 아니라 바깥에
-               둬야 한다 — 그 래퍼에는 mix-blend-mode: multiply가 걸려
-               있어서, 안에 넣으면 글자까지 배경과 곱해져 버린다. -->
-          <p class="main-text video-caption">
-            <span class="clause">온·오프라인을 통해 총 184개의 QR을 수집했고,</span>
-            <span class="clause">이를 모아 아카이브 했습니다.</span>
-          </p>
-
-          <!-- 아카이브로 넘어가는 버튼. 화면에 고정하지 않고 위 문구
-               아래에 흐름으로 놓아, 스크롤해서 여기까지 내려와야
-               나타난다. -->
-          <a id="archive-fab" href="archive/index.html">아카이브</a>
-
-          <!-- 마무리 문단 — 버튼 아래. -->
-          <p class="main-text text-closing">
-            <span class="clause">QR은 정보 전달을 위한 기계의 언어를 넘어</span>
-            <span class="clause">새로운 시각 언어이자 생성 예술의 매체로 확장됩니다.</span>
-          </p>
+            </div><!-- /.intro-text -->
+          </div><!-- /.col.intro -->
         </div>
 
       </section>
+
+      <!-- ── 상세 토글 ───────────────────────────────────
+           <details>/<summary>를 쓴 이유 — 브라우저가 기본으로 열고
+           닫아주므로 JS가 필요 없고, 검색(Ctrl+F)·인쇄·스크린리더에서
+           자동으로 펼쳐진다. id를 달아뒀으므로 index.html#data-export
+           처럼 주소로 특정 항목을 열린 상태로 공유할 수도 있다.
+
+           name 속성이 같은 <details>는 한 번에 하나만 열린다(아코디언).
+           지원하지 않는 브라우저에서는 그냥 둘 다 열릴 수 있을 뿐이다. -->
+      <section id="section-detail">
+
+        <!-- [구조] 선(border)을 화면 끝까지 긋기 위해, <details>는 .col로
+             감싸지 않고 화면 전체 너비로 둔다. 대신 안쪽 내용만 .col을
+             써서 본문과 같은 폭·같은 좌우 여백에 맞춘다. 선을 긋는 요소와
+             글의 폭을 정하는 요소를 분리한 것이다. -->
+        <details class="detail" id="data-export" name="about-detail">
+          <summary>
+            <span class="col detail-head">
+              <span class="detail-label">Data export</span>
+            </span>
+          </summary>
+          <div class="detail-body">
+            <div class="col">
+              <!-- TODO: 수집 경로 · 가공 4단계 · 두 오차 수치 · 오차 시각화 비교 -->
+              <p class="main-text">준비 중입니다.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="detail" id="how-to-make" name="about-detail">
+          <summary>
+            <span class="col detail-head">
+              <span class="detail-label">How to make?</span>
+            </span>
+          </summary>
+          <div class="detail-body">
+            <div class="col">
+              <!-- TODO: 세 가지 전제 · burst 매핑 · bloom 매핑 · 양 끝 비교 -->
+              <p class="main-text">준비 중입니다.</p>
+            </div>
+          </div>
+        </details>
+
+      </section>
     </main>
+
+    <!-- ── 푸터 ─────────────────────────────────────────── -->
+    <footer id="footer">
+      <div class="col">
+        <p class="footer-title">QR++ · [이름]</p>
+        <p class="footer-line">2025 졸업전시</p>
+        <p class="footer-line">[연락처]</p>
+      </div>
+    </footer>
 
     <!-- ── 스크립트 ─────────────────────────────────────
          순서가 중요하다. sketch.js가 p5의 createGraphics·noCanvas와

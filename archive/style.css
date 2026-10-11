@@ -189,42 +189,34 @@ body:has(#detail-overlay.open) #menu-btn {
   cursor: pointer;
 }
 
-/* 마우스를 올린 그래픽만 커진다 — PC 전용 인터랙션.
-   (hover: hover)와 (pointer: fine)으로 걸러서, 터치 기기에서는 탭한 뒤
-   확대 상태가 그대로 "붙어 있는" 현상이 생기지 않게 한다.
+/* 커서 주변 그래픽이 함께 커진다 — PC 전용 인터랙션.
+   배율과 쌓임 순서는 sketch.js의 hoverFrame()이 커서와의 거리를 재서
+   매 프레임 직접 써넣는다(아래 '호버 — 커서 주변이 함께 반응하는 자기장'
+   주석 참고). 여기서는 그 transform이 동작할 토대만 만든다.
 
-   커질 때 이웃 셀 위로 올라타야 하므로 position:relative + z-index를 준다
-   (그리드 셀은 기본 쌓임 순서가 DOM 순서라, 그냥 두면 뒤쪽 셀이 앞쪽
-   셀의 확대된 그래픽을 가린다).
+   [왜 :hover 규칙이 없나]
+   CSS 선택자로는 2차원 격자의 이웃을 짚을 수 없다 — 아래 칸은 '열 수만큼'
+   떨어진 형제이고 그 열 수는 auto-fill이 화면 폭을 보고 정한다. 그래서
+   커서가 올라간 칸 하나만 반응시킬 수 있었다.
 
-   들어올 때와 나갈 때 속도를 따로 둔다 — 아래 .archive-cell:hover canvas 의
-   transition이 '커지는' 구간, .archive-cell canvas 의 transition이
-   '원래대로 줄어드는' 구간을 담당한다(hover가 풀리면 기본 규칙으로
-   돌아가므로, 기본 쪽 duration이 곧 복귀 속도다).
+   [왜 transition이 없나]
+   감속은 JS가 프레임마다 목표 배율로 당기는 방식으로 처리한다. 여기에
+   transition까지 걸면 두 번 보간돼서 커서를 따라오는 반응이 눌린 것처럼
+   늦어진다.
 
-   커브는 cubic-bezier(0.22, 1, 0.36, 1) = ease-out-quart. 처음에 빠르게
-   붙고 끝에서 부드럽게 멎는다.
+   position:relative + z-index는 커질 때 이웃 셀 위로 올라타기 위한 것이다
+   (그리드 셀의 기본 쌓임 순서는 DOM 순서라, 그냥 두면 뒤쪽 셀이 앞쪽 셀의
+   확대된 그래픽을 가린다). JS가 줄어드는 동안에도 z-index를 쥐고 있다가
+   제 크기로 돌아온 뒤에 놓는다. JS가 넣는 z-index는 1~5로 묶여 있다 —
+   상단 툴바(10)·상세 오버레이(100)·메뉴(190~200)를 넘지 않아야 한다.
 
-   z-index에 '0초 + 복귀시간만큼의 지연'을 걸어둔 건, 줄어드는 동안에도
-   이웃 위에 떠 있게 하려는 것이다. 그냥 두면 마우스를 떼는 순간 z-index가
-   곧바로 0으로 떨어져서, 아직 1.4배인 그래픽이 이웃 셀 뒤로 숨어 잘린다. */
+   will-change: transform 은 쓰지 않는다. 셀이 184개라 전부 합성 레이어로
+   띄우면 GPU 메모리가 그만큼 늘고, 브라우저가 한도를 넘었다고 판단하면
+   오히려 무시한다. 캔버스는 그 자체로 합성에 유리해서 없이도 충분하다. */
 @media (hover: hover) and (pointer: fine) {
   .archive-cell canvas {
     position: relative;
     z-index: 0;
-    /* 뗐을 때(복귀) — 0.7s로 천천히 */
-    transition:
-      transform 2s cubic-bezier(0.22, 1, 0.36, 1),
-      z-index 0s 2s;
-  }
-
-  .archive-cell:hover canvas {
-    z-index: 2;
-    transform: scale(1.5);
-    /* 올렸을 때(확대) — 0.35s로 빠르게 */
-    transition:
-      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      z-index 0s;
   }
 }
 
