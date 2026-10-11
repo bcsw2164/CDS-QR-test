@@ -482,18 +482,22 @@ body:has(#detail-overlay.open) #menu-btn {
   /* 글자 폭에 맞춰 가운데에 놓는다(stretch 아님) — 박스 폭을 다 쓰면
      버튼이 박스만큼 무거워져서 카드보다 먼저 눈에 들어온다. */
   align-self: center;
-  padding: clamp(9px, 1.8vmin, 15px) clamp(36px, 7vmin, 60px);
+  padding: clamp(9px, 1.8vmin, 15px) clamp(22px, 4.2vmin, 36px);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, color 0.15s;
 }
 
-#detail-save:hover {
+/* ‹ › 버튼(.detail-nav)과 같은 방식 — 트랜지션 없이 바로 뒤집히고,
+   터치에서도 눌린 게 보이도록 :active 를 함께 묶는다. */
+#detail-save:hover,
+#detail-save:active {
   background: #111;
   color: #fff;
 }
 
+/* 저장 중에는 잠근다 — 합성에 수백 ms가 걸려 그 사이 연타되면 공유 시트가
+   겹쳐 뜬다. 다만 흐려지게는 하지 않는다: 공유 시트가 떠 있는 동안에도 이
+   상태가 유지되므로, 색이 변하면 뒤에서 버튼이 꺼진 것처럼 보인다. */
 #detail-save[disabled] {
   pointer-events: none;
-  opacity: 0.55;
 }

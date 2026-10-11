@@ -1050,9 +1050,9 @@ async function saveDetailCard() {
   const qrEl = document.getElementById('detail-qr');
   if (!item || !raw) return;
 
+  // 잠그기만 하고 글자는 그대로 둔다 — 합성이 짧아 바꿔 봐야 깜빡일 뿐이고,
+  // 글자 수가 달라지면 버튼 폭까지 덜컥인다.
   btn.disabled = true;
-  const label = btn.textContent;
-  btn.textContent = '만드는 중...';
 
   try {
     // 아직 안 받아졌을 때만 기다린다(대개 이미 떠 있는 이미지라 즉시 통과).
@@ -1071,11 +1071,9 @@ async function saveDetailCard() {
       qrKey: qrEl.src,
     });
 
-    btn.textContent = label;
     const shape = currentShape === 'radial' ? 'bloom' : 'burst';
     await SaveCard.save(canvas, `QR++_${n}_${shape}.jpg`);
   } finally {
-    btn.textContent = label;
     btn.disabled = false;
   }
 }
