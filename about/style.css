@@ -14,6 +14,17 @@
   padding: 0;
 }
 
+/* 드래그로 글자를 선택했을 때의 색. 기본값인 파란 바탕 대신
+   페이지의 흑백을 그대로 쓴다(검은 바탕 + 흰 글자).
+
+   [주의] ::selection은 상속되지 않는다. 부모에 한 번 걸어두면
+   자식이 물려받는 보통의 속성과 달리, 선택될 수 있는 요소마다
+   따로 적용되므로 전체 선택자(*)로 걸어야 모든 글자에 먹는다. */
+*::selection {
+  background: var(--c-fg);
+  color: var(--c-bg);
+}
+
 /* ── 기본 ───────────────────────────────────────────── */
 :root {
   --c-bg:     #fff;
@@ -503,6 +514,8 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   margin-top: clamp(28px, 6vw, 52px); /* ← 문단과의 간격 */
   position: relative;
   z-index: 3;
+  /* 차오르는 색이 테두리 밖으로 비어져 나가지 않게 자른다 */
+  overflow: hidden;
   /* em이라 아래 font-size 하나만 바꾸면 여백도 같은 비율로 따라온다.
      px이나 vmin으로 두면 글자와 여백이 따로 놀아 두 군데를 맞춰야 한다. */
   padding: 0.5em 0.9em;
@@ -526,6 +539,72 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   content: '→';
   margin-left: 0.7em;
   font-weight: 500;
+  /* 글자·화살표는 색 레이어 위에 — 안 그러면 색에 덮인다 */
+  position: relative;
+  z-index: 1;
+}
+
+.fab-label {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 버튼 색 채움 ──────────────────────────────────
+   마우스를 올리면 팔레트 5색이 왼쪽에서 오른쪽으로 차례로 차오른다.
+   각 색은 버튼 전체를 덮는 판이고, 가로로만 눌려 있다가(scaleX 0)
+   제 크기로 펴지면서(scaleX 1) 앞의 색을 덮는다. 뒤의 색일수록
+   늦게 출발해(transition-delay) 한 겹씩 쌓이는 것처럼 보인다.
+
+   opacity가 아니라 transform을 쓰는 이유는 두 가지다. 투명도로
+   하면 색이 '번지는' 느낌이지 '차오르는' 느낌이 나지 않고,
+   transform은 GPU에서 처리돼 레이아웃 계산 없이 부드럽게 돈다.
+
+   transform-origin: left — 눌린 판이 왼쪽 모서리에 고정된 채
+   오른쪽으로 펴진다. 이 값을 right로 바꾸면 반대 방향이 된다. */
+.fab-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none; /* 마우스 판정은 버튼 자신이 한다 */
+}
+
+.fab-fill i {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* 처음에 빠르게 나가 끝에서 부드럽게 멎는 곡선.
+
+     이 시간(한 색이 끝까지 펴지는 데 걸리는 시간)은 아래 색마다의
+     출발 시차보다 조금만 길게 잡는다. 훨씬 길면 다섯 색이 거의
+     동시에 움직여서 마지막 색만 보이고, 너무 짧으면 색 사이가
+     뚝뚝 끊긴다. */
+  transition: transform 0.32s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+/* shared/core.js의 RADIAL_COLOR_PALETTE와 같은 순서.
+   delay가 색이 출발하는 시차다 — 값을 키우면 더 또렷하게
+   하나씩 지나가고, 줄이면 한꺼번에 차오른다. */
+.fab-fill i:nth-child(1) { background: #f299c1; transition-delay: 0s;   } /* 핑크 */
+.fab-fill i:nth-child(2) { background: #fee987; transition-delay: 0.2s; } /* 노랑 */
+.fab-fill i:nth-child(3) { background: #7ecaac; transition-delay: 0.4s; } /* 초록 */
+.fab-fill i:nth-child(4) { background: #567591; transition-delay: 0.6s; } /* 네이비 */
+.fab-fill i:nth-child(5) { background: #f58b6e; transition-delay: 0.8s; } /* 주황 */
+
+/* 마우스를 쓰는 기기에서만 건다. 터치 기기에서는 탭한 뒤 hover
+   상태가 남아 색이 칠해진 채로 머무는 부작용이 생긴다. */
+@media (hover: hover) and (pointer: fine) {
+  #archive-fab:hover .fab-fill i {
+    transform: scaleX(1);
+  }
+}
+
+/* 기기에서 '동작 줄이기'를 켠 사용자에게는 차오르는 연출 없이
+   마지막 색만 즉시 보여준다. */
+@media (prefers-reduced-motion: reduce) {
+  .fab-fill i {
+    transition: none;
+  }
 }
 
 /* ── 상세 토글 ─────────────────────────────────────
@@ -585,6 +664,10 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
 }
 
 .detail-label {
+  /* 표시만 대문자로 바꾼다. HTML의 글자는 'Step 01' 그대로라
+     검색·복사·스크린리더에는 원래 표기가 남는다(메뉴 항목의
+     .menu-item도 같은 방식이다). */
+  text-transform: uppercase;
   font-size: clamp(33px, 23.7px + 2.38vw, 58px); /* ← 토글 제목 크기 */
   font-weight: 900;
   letter-spacing: -0.03em;
@@ -617,9 +700,11 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
 
 /* ── 푸터 ───────────────────────────────────────── */
 #footer {
-  padding-top: clamp(40px, 8vw, 72px);
-  padding-bottom: clamp(48px, 9vw, 88px);
-  font-size: clamp(12px, 10.1px + 0.48vw, 17px);
+  /* 위아래 여백을 다르게 준다 — 위를 넉넉히, 아래를 얕게 잡아
+     글자가 화면 아래쪽에 가깝게 앉는다. */
+  padding-top: clamp(72px, 13vw, 132px);    /* ← 토글과의 간격 */
+  padding-bottom: clamp(24px, 4vw, 40px);   /* ← 화면 끝과의 간격 */
+  font-size: clamp(14px, 11px + 0.76vw, 22px);
   letter-spacing: -0.015em;
   line-height: 1.7;
   word-break: keep-all;
@@ -628,10 +713,19 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
 
 .footer-title {
   font-weight: 800;
-  margin-bottom: 0.3em;
 }
 
-.footer-line {
-  font-weight: 500;
-  color: #555;
+/* 인스타그램 링크. 밑줄 없이 본문과 같은 검정으로 두고,
+   누를 수 있다는 표시는 아래 hover 반전에 맡긴다. */
+.footer-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 마우스를 올리면 흑백을 뒤집어 눌린 것처럼 보이게 한다.
+   터치 기기에는 hover가 없어 아무 일도 일어나지 않는다. */
+.footer-link:hover {
+  background: var(--c-fg);
+  color: var(--c-bg);
+  text-decoration: none;
 }
