@@ -159,6 +159,22 @@ body:has(#detail-overlay.open) #menu-btn {
 #canvas-holder {
   flex: 1;
   min-height: 0;
+  /* 호버로 커진 가장자리 칸이 가로 스크롤바를 만들지 않게 여기서 끊는다.
+     transform은 레이아웃을 바꾸지 않지만 '스크롤 가능 영역'은 넓혀서,
+     맨 왼쪽·오른쪽 열의 칸이 커지면 그만큼 문서가 옆으로 넓어진다.
+
+     [왜 html/body가 아니라 여기인가]
+     위 html,body 규칙의 주의사항 참고 — 루트의 overflow는 뷰포트로 전파돼서
+     #control-bars의 sticky를 풀거나 사파리 툴바 동작에 영향을 준다.
+     이 요소는 루트가 아니고 sticky 요소를 담고 있지도 않아서(#control-bars는
+     형제다) 그런 부작용이 없다.
+
+     [왜 hidden이 아니라 clip인가]
+     hidden은 이 요소를 스크롤 컨테이너로 만들고, 그러면 명시하지 않은
+     overflow-y가 visible에서 auto로 바뀌어 그리드가 자체 세로 스크롤을
+     갖게 된다(페이지 스크롤과 따로 도는 셈). clip은 스크롤 컨테이너를
+     만들지 않고 넘친 부분만 잘라내므로 세로는 그대로 visible로 남는다. */
+  overflow-x: clip;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 6px;

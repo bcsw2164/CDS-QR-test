@@ -771,14 +771,19 @@ function startHoverLoop() {
   if (hoverEnabled && hoverRaf === null) hoverRaf = requestAnimationFrame(hoverFrame);
 }
 
-// 상세 오버레이가 열려 있는 동안에는 호버를 받지 않는다.
+// 상세 오버레이나 메뉴가 열려 있는 동안에는 호버를 받지 않는다.
+// 둘 다 화면을 덮는 커튼이고, 그 위에서 커서를 움직일 때 뒤 그리드가 따라
+// 들썩이면 산만하다(커튼이 반투명해서 그대로 비친다).
 //
 // [왜 이벤트가 아니라 상태를 보나]
 // 예전에는 오버레이의 pointerenter로 껐는데, 그 이벤트는 커서가 '움직여서'
 // 들어올 때만 온다. 클릭은 커서를 고정한 채 일어나므로 바로 그 자리에
 // 오버레이가 열려도 이벤트가 오지 않고, window의 pointermove는 커튼 위에서도
 // 계속 들어온다. 그래서 커튼 뒤 그래픽이 확대 상태로 커서를 따라다녔다.
+// 메뉴도 같은 문제를 겪으므로 같은 방식으로 본다 — 메뉴는 shared/menu.js가
+// body에 .menu-open 을 붙여 상태를 알린다.
 function hoverBlocked() {
+  if (document.body.classList.contains('menu-open')) return true;
   const overlay = document.getElementById('detail-overlay');
   return overlay !== null && overlay.classList.contains('open');
 }
@@ -805,6 +810,14 @@ function resetHover() {
 // 가만히 있을 때 쓸데없이 도는 것을 막는다.
 function hoverFrame() {
   hoverRaf = null;
+
+  // 도중에 커튼이 열렸으면(메뉴·상세) 즉시 걷어낸다. 메뉴는 shared/menu.js가
+  // 여는 거라 이쪽에 훅이 없으므로, 이벤트를 기다리지 않고 루프에서 확인한다.
+  if (hoverBlocked()) {
+    resetHover();
+    return;
+  }
+
   const radius = hoverCellSize * HOVER_RADIUS_RATIO;
   // 커서는 뷰포트 좌표로 들어오므로 문서 좌표로 바꿔 비교한다. 매 프레임
   // 다시 더하기 때문에, 커서를 멈춘 채 스크롤만 해도 반응이 따라온다.
