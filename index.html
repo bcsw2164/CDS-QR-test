@@ -35,7 +35,22 @@
 
     <!-- ── 네비게이션 ───────────────────────────────────── -->
     <nav id="nav">
-      <a id="nav-logo" href="index.html">QR++</a>
+      <!-- 로고는 글자가 아니라 도형이다 — 저장 카드(shared/save-card.js의
+           LOGO_PATHS)와 같은 패스를 쓴다. 폰트가 폴백되는 환경에서도
+           모양이 변하지 않고, 카드와 네비의 로고가 어긋날 일이 없다.
+           assets/logo-qrpp.svg 와 같은 내용인데 여기 직접 적은 이유는
+           fill="currentColor"가 #nav-logo의 color(var(--c-fg))를
+           상속받게 하려는 것이다(<img>로 불러오면 색을 못 넘긴다).
+           글자가 사라졌으므로 읽어주는 이름은 aria-label로 남긴다. -->
+      <a id="nav-logo" href="index.html" aria-label="QR++">
+        <svg viewBox="450.42 1533.81 178.53 51.69" fill="currentColor"
+             aria-hidden="true" focusable="false">
+          <path fill-rule="evenodd" d="M557.71 1533.81L557.71 1564.82L547.38 1564.82L547.38 1575.16L557.71 1575.16L557.71 1585.5L537.04 1585.5L537.04 1564.82L526.7 1564.82L526.7 1554.48L547.38 1554.48L547.38 1544.15L516.36 1544.15L516.36 1585.5L506.02 1585.5L506.02 1533.81Z"/>
+          <path fill-rule="evenodd" d="M450.42,1533.81v51.69h41.35v-10.34h10.34v-41.35h-51.69ZM491.76,1564.82h-10.34v10.34h-20.67v-31.01h31.01v20.68Z"/>
+          <path fill-rule="evenodd" d="M593.5 1544.15L593.5 1554.48L583.16 1554.48L583.16 1564.82L572.82 1564.82L572.82 1554.48L562.49 1554.48L562.49 1544.15L572.82 1544.15L572.82 1533.81L583.16 1533.81L583.16 1544.15Z"/>
+          <path fill-rule="evenodd" d="M628.95 1544.15L628.95 1554.48L618.61 1554.48L618.61 1564.82L608.27 1564.82L608.27 1554.48L597.94 1554.48L597.94 1544.15L608.27 1544.15L608.27 1533.81L618.61 1533.81L618.61 1544.15Z"/>
+        </svg>
+      </a>
       <button id="menu-btn" aria-label="메뉴" aria-expanded="false">
         <span></span><span></span><span></span><span></span>
       </button>
@@ -133,142 +148,12 @@
                  나타난다. 화살표는 글자가 아니라 ::after로 붙인다
                  (복사·스크린리더에 '보러가기'만 남는다). -->
             <a id="archive-fab" href="archive/index.html">
-              <!-- 마우스를 올렸을 때 왼쪽에서 오른쪽으로 차오르는 색
-                   레이어 5장. 순서는 아카이브 그래픽 팔레트와 같고,
-                   장식이라 스크린리더에서는 읽히지 않는다. -->
-              <span class="fab-fill" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i>
-              </span>
               <span class="fab-label">보러가기</span>
             </a>
 
             </div><!-- /.intro-text -->
           </div><!-- /.col.intro -->
         </div>
-
-      </section>
-
-      <!-- ── 상세 토글 ───────────────────────────────────
-           <details>/<summary>를 쓴 이유 — 브라우저가 기본으로 열고
-           닫아주므로 JS가 필요 없고, 검색(Ctrl+F)·인쇄·스크린리더에서
-           자동으로 펼쳐진다. id를 달아뒀으므로 index.html#data-export
-           처럼 주소로 특정 항목을 열린 상태로 공유할 수도 있다.
-
-           <details>에 name 속성을 주지 않았으므로 아코디언이 아니다 —
-           다른 토글을 열어도 이미 열린 토글은 닫히지 않고, 사용자가
-           직접 눌러야 닫힌다. -->
-      <section id="section-detail">
-
-        <!-- [구조] 선(border)을 화면 끝까지 긋기 위해, <details>는 .col로
-             감싸지 않고 화면 전체 너비로 둔다. 대신 안쪽 내용만 .col을
-             써서 본문과 같은 폭·같은 좌우 여백에 맞춘다. 선을 긋는 요소와
-             글의 폭을 정하는 요소를 분리한 것이다. -->
-        <details class="detail" id="step-01">
-          <summary>
-            <span class="col detail-head">
-              <span class="detail-label">Step 01</span>
-            </span>
-          </summary>
-          <div class="detail-body">
-            <div class="col">
-              <p class="main-text">
-                QR 패턴 카드와 트레싱지, 반송 봉투를 담은 키트를 우편과 현장에서
-                나눠 드렸습니다. 참여자는 카드 위에 트레싱지를 올리고, 보이는 모양을
-                펜으로 따라 그렸습니다. 5~10분이면 충분하고, 잘 그리지 않아도 됩니다.
-              </p>
-              <div class="detail-figs">
-              <figure class="detail-fig">
-                <img src="assets/about/kit-photo.jpg" alt="우편으로 보낸 실험 키트" loading="lazy" />
-                <figcaption>실험 키트</figcaption>
-              </figure>
-              <figure class="detail-fig">
-                <img src="assets/about/onsite-2.jpg" alt="펜으로 QR을 따라 그리는 손" loading="lazy" />
-                <figcaption>따라 그리는 순간</figcaption>
-              </figure>
-              </div>
-              <p class="main-text">
-                돌아온 그림은 모두 같은 조건으로 스캔한 뒤, 기울어짐과 종이의 얼룩을
-                지워 손의 궤적만 남겼습니다. 이렇게 184장이 같은 크기의 이미지가 되었습니다.
-              </p>
-              <div class="detail-figs">
-              <figure class="detail-fig">
-                <img src="assets/about/original-qr.jpg" alt="원본 QR" loading="lazy" />
-                <figcaption>원본</figcaption>
-              </figure>
-              <figure class="detail-fig">
-                <img src="assets/about/scan-raw.jpg" alt="참여자가 그린 QR 스캔본" loading="lazy" />
-                <figcaption>스캔한 손그림</figcaption>
-              </figure>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <details class="detail" id="step-02">
-          <summary>
-            <span class="col detail-head">
-              <span class="detail-label">Step 02</span>
-            </span>
-          </summary>
-          <div class="detail-body">
-            <div class="col">
-              <p class="main-text">
-                손그림을 원본 위에 겹쳐 놓고, 칸 하나하나를 비교했습니다.
-                어긋나는 방식은 두 가지입니다.
-              </p>
-              <p class="main-text">
-                <b>덜 채움</b> — 원본은 검은데 손그림은 비어 있는 부분<br />
-                <b>삐져나감</b> — 원본은 흰데 손그림이 칠해진 부분
-              </p>
-              <p class="main-text">
-                각각을 전체 대비 비율로 계산하면 사람마다 두 개의 숫자가 나옵니다.
-                이 숫자가 다음 단계의 그래픽을 움직이는 값입니다.
-              </p>
-              <div class="detail-figs">
-              <figure class="detail-fig">
-                <img src="assets/about/diff-clean-overlay.png" alt="오차가 작은 사례" loading="lazy" />
-                <figcaption>오차가 작은 경우</figcaption>
-              </figure>
-              <figure class="detail-fig">
-                <img src="assets/about/diff-messy-overlay.png" alt="오차가 큰 사례" loading="lazy" />
-                <figcaption>오차가 큰 경우</figcaption>
-              </figure>
-              </div>
-              <p class="detail-note">빨강은 덜 채운 곳, 파랑은 삐져나간 곳입니다.</p>
-            </div>
-          </div>
-        </details>
-
-        <details class="detail" id="step-03">
-          <summary>
-            <span class="col detail-head">
-              <span class="detail-label">Step 03</span>
-            </span>
-          </summary>
-          <div class="detail-body">
-            <div class="col">
-              <p class="main-text">
-                그래픽은 모두 같은 규칙으로 그려집니다. 달라지는 것은 두 개의 오차값뿐이고,
-                무작위는 들어가지 않습니다. 그래서 같은 사람의 데이터는 언제 다시 그려도
-                같은 모양이 됩니다.
-              </p>
-              <p class="main-text">
-                덜 채울수록 선이 넓게 퍼지고, 많이 삐져나갈수록 끝이 크게 흔들리거나
-                휘어 감깁니다. 오차가 값이 아니라 모양으로 읽히게 한 것입니다.
-              </p>
-              <div class="detail-figs">
-              <figure class="detail-fig">
-                <img src="assets/about/spoke_035.png" alt="스포크 그래픽 예시 1" loading="lazy" />
-                <figcaption>같은 규칙</figcaption>
-              </figure>
-              <figure class="detail-fig">
-                <img src="assets/about/spoke_120.png" alt="스포크 그래픽 예시 2" loading="lazy" />
-                <figcaption>다른 사람</figcaption>
-              </figure>
-              </div>
-            </div>
-          </div>
-        </details>
 
       </section>
     </main>

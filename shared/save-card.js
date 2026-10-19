@@ -36,7 +36,7 @@
   const L = {
     pageBg: '#ffffff', // 카드 바깥(테두리 선이 닿는 가장자리)
     ink: '#231f20', // 글자색 (SVG의 .cls-1 / .cls-2)
-    dim: '#848484', // 보조 글자색 (SVG의 .cls-4)
+    dim: '#848484', // 보조 글자색 (SVG의 .cls-4) — 현재 쓰는 곳 없음
     stroke: '#000000',
     line: 8, // 테두리·구분선 공통 두께
 
@@ -59,11 +59,30 @@
 
     qr: { x: 189.46, y: 1168.33, s: 278.37 },
 
+    /* QR 옆 설명 블록.
+
+       [크기를 한 종으로 줄인 이유]
+       예전에는 라벨만 32, 나머지는 46.58 이었고 설명/수치 줄의 색도
+       번갈아 바뀌었다. 크기 2종 × 색 2종이 줄마다 다르게 조합돼서,
+       위계가 아니라 "영역에 맞춰 넣은" 인상으로 읽혔다. 실제로도
+       5줄 × 행간 55.9 가 QR 세로(278.37)를 13px 남기고 꽉 채우는
+       역산 레이아웃이었다.
+
+       [크기를 왜 글자 폭에서 역산하나]
+       글줄이 들어갈 폭은 textX 499.48 부터 nameRightX 889.91 까지
+       390.43 뿐이다. 예전 문구 '칠해야 할 곳의 00%를 남겼고' 는 약
+       12.65em 이라 30px 이 상한이었다. 지금 문구는 10.2em 쯤이라
+       38 까지 올라가는데, 이 추정치는 폰트가 폴백되거나 데이터가
+       세 자리(100%)가 되면 틀어진다. 그래서 숫자를 믿지 않고
+       drawQrBlock 에서 실제로 재서, 넘칠 때만 비례로 줄인다.
+
+       baseline 을 숫자로 박지 않는다 — 3줄짜리 블록은 QR 보다 훨씬
+       짧아서, 위에 맞추면 아래가 비어 보인다. QR 세로 중심에 맞추도록
+       drawQrBlock 에서 구한다(= qr 위치를 바꾸면 따라온다). */
     textX: 499.4821,
-    textBaseline: 1209.8008,
-    textLead: 55.9,
-    textSize: 46.58,
-    textLabelSize: 32, // 첫 줄(라벨)만 작게 — 나머지는 textSize
+    textSize: 38, // 바라는 크기. 넘치면 drawQrBlock 이 재서 줄인다
+    textLeadRatio: 1.5, // 행간 ÷ 글자 크기. 예전 1.20 은 한글에 너무 빡빡했다
+    textLabelGapRatio: 0.75, // 라벨 다음에만 더 벌려 문단처럼 끊는다
 
     dividerY: 1495.54,
     dividerX1: 179.23,
@@ -202,6 +221,7 @@
     return w - t; // 마지막 글자 뒤의 자간은 빼준다
   }
 
+  // 끝 x 를 돌려준다 — drawRuns 가 다음 조각을 이어 붙이는 데 쓴다.
   function drawTracked(ctx, str, x, baselineY, size, color) {
     setFont(ctx, size);
     ctx.fillStyle = color;
@@ -212,6 +232,16 @@
       ctx.fillText(ch, cx, baselineY);
       cx += ctx.measureText(ch).width + t;
     }
+    return cx;
+  }
+
+  /* 한 줄 안에서 색만 바꿔 이어 쓴다.
+     drawTracked 가 마지막 글자 뒤의 자간까지 더한 x 를 주므로, 조각
+     경계의 간격이 글자 사이 간격과 똑같이 유지된다. */
+  function drawRuns(ctx, runs, x, baselineY, size) {
+    let cx = x;
+    for (const r of runs) cx = drawTracked(ctx, r.t, cx, baselineY, size, r.color);
+    return cx;
   }
 
   function drawTrackedRight(ctx, str, rightX, baselineY, size, color) {
@@ -294,7 +324,15 @@
   // 더 많이 틀린 것처럼 읽히는데 사실이 아니다. 그래서 분모를 문장에 박아
   // 넣는다 — "칠해야 할 곳의" / "비워둘 곳의".
   //
-  // 설명 줄은 옅게, 수치가 든 줄은 진하게 해서 숫자에 먼저 눈이 가게 한다.
+  // [색을 한 가지로 둔다]
+  // 예전에는 설명을 옅게(dim), 수치를 진하게(ink) 칠해 숫자에 눈이 먼저
+  // 가게 했다. 그런데 줄마다 색이 갈리면서 블록 전체가 산만해 보였다.
+  // 지금은 전부 ink 한 색이다 — 위계는 색이 아니라 자리(QR 옆의 작은
+  // 설명)와 문장 구조가 맡는다.
+  //
+  // 조각(runs) 구조는 그대로 남겨 뒀다. 전부 같은 색이라 지금은 이어 쓰기와
+  // 다를 바 없지만, 다시 숫자만 강조하고 싶어질 때 그 조각의 color 만
+  // 바꾸면 되기 때문이다.
   function drawQrBlock(ctx, qrSource, crop, unfilled, overflow) {
     ctx.drawImage(
       sourceCanvas(qrSource),
@@ -302,16 +340,64 @@
       L.qr.x, L.qr.y, L.qr.s, L.qr.s
     );
 
+    const pct = (v) => Math.round(v * 100);
+
+    /* [어조를 왜 바꿨나]
+       예전 문구는 '칠해야 할 곳의 00%를 남겼고 / 비워둘 곳의 00%를
+       넘었습니다' 였다. 뜻은 분명한데 '해야 한다 / 넘었다' 가 지시·평가
+       어조라, 손으로 베낀 결과를 채점한 것처럼 읽혔다. 분모도 '칠해야 할
+       곳' 이라고 길게 풀었지만 실제 분모는 그냥 원본의 검은 영역 / 흰
+       영역이다 — 짧고 정확한 쪽으로 바꾸면서 글자 크기도 벌었다.
+       서술은 experiments.js 가 쓰는 말('잉크가 모자란 / 번진 상태')과
+       같은 결이다.
+
+       [조사를 '셀은' 으로 둔 이유 — '셀 00%는' 이 아니다]
+       qr_error_data.json 의 값은 셀을 센 개수가 아니라 면적 비율이다
+       (어떤 셀 개수로도 나눠지지 않고, 소수점 3자리로 반올림돼 있을
+       뿐이다). '검은 셀 23%는 비었고' 로 적으면 "검은 셀 중 23개묶음이
+       통째로 비었다" 는 개수 이야기로 읽힌다. '검은 셀은 23% 비었고' 는
+       정도로 읽혀서 면적 비율과 맞는다.
+
+       [참고] QR 규격의 공식 용어는 '모듈(module)' 이고 '셀(cell)' 은
+       Data Matrix 계열과 통용 표현이다. 둘 다 통하지만, 규격 용어로
+       바꿀 거라면 여기 두 줄만 고치면 된다. */
     const lines = [
-      { t: '원본과 비교한 결과', size: L.textLabelSize, color: L.dim },
-      { t: '칠해야 할 곳의', size: L.textSize, color: L.dim },
-      { t: `${Math.round(unfilled * 100)}%를 남겼고`, size: L.textSize, color: L.ink },
-      { t: '비워둘 곳의', size: L.textSize, color: L.dim },
-      { t: `${Math.round(overflow * 100)}%를 넘었습니다`, size: L.textSize, color: L.ink },
+      [{ t: '원본과 비교한 결과', color: L.ink }],
+      [
+        { t: '검은 셀은 ', color: L.ink },
+        { t: `${pct(unfilled)}%`, color: L.ink },
+        { t: ' 비었고', color: L.ink },
+      ],
+      [
+        { t: '흰 셀은 ', color: L.ink },
+        { t: `${pct(overflow)}%`, color: L.ink },
+        { t: ' 번졌습니다', color: L.ink },
+      ],
     ];
 
-    lines.forEach((ln, i) => {
-      drawTracked(ctx, ln.t, L.textX, L.textBaseline + L.textLead * i, ln.size, ln.color);
+    /* 가장 긴 줄을 실제로 재서 글줄 폭에 맞춘다. 조각으로 나뉘어 있어도
+       자간이 일정하므로 이어 붙여 재면 그려질 폭과 같다. */
+    const maxW = L.nameRightX - L.textX;
+    const widest = Math.max(
+      ...lines.map((runs) => trackedWidth(ctx, runs.map((r) => r.t).join(''), L.textSize))
+    );
+    const size = widest > maxW ? L.textSize * (maxW / widest) : L.textSize;
+
+    const lead = size * L.textLeadRatio;
+    const labelGap = size * L.textLabelGapRatio;
+    // 라벨 다음에만 labelGap 을 끼운다.
+    const offsets = lines.map((_, i) => (i === 0 ? 0 : labelGap + lead * i));
+
+    /* QR 세로 중심에 맞춘다.
+       글자의 시각적 높이는 캡 높이(위) + 디센더(아래)다. 폰트에서 재 오면
+       폴백 환경에서 값이 흔들려 중심이 어긋나므로, 흔한 비율을 상수로 쓴다 —
+       중심만 잡는 용도라 소수점 오차는 눈에 안 띈다. */
+    const capH = size * 0.72;
+    const blockH = capH + offsets[offsets.length - 1] + size * 0.21;
+    const firstBaseline = L.qr.y + (L.qr.s - blockH) / 2 + capH;
+
+    lines.forEach((runs, i) => {
+      drawRuns(ctx, runs, L.textX, firstBaseline + offsets[i], size);
     });
   }
 

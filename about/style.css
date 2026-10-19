@@ -33,13 +33,6 @@
   --border-w: clamp(4px, 1vw, 6px);
   --pad-x:    clamp(20px, 5.3vw, 44px);
   --nav-h:    clamp(56px, 10vw, 76px);
-  /* 메뉴 버튼 크기. #menu-btn 치수와 --nav-pad-x 계산이 이 값을 같이 쓴다. */
-  --menu-btn-size: clamp(28px, 7.4vw, 44px);
-  /* 네비의 좌우 여백 — 버튼이 상하로 뜨는 여백((--nav-h - 버튼 크기)/2)과
-     같은 값으로 맞춘다. 상하 여백은 --nav-h(기존 값)가 그대로 정하고,
-     좌우를 거기에 맞춰 줄이는 방향이다. 콘텐츠 영역의 --pad-x는
-     그대로 두고, 네비만 이 값을 쓴다. */
-  --nav-pad-x: calc((var(--nav-h) - var(--menu-btn-size)) / 2);
 
   /* [폐기된 개념] 예전에는 글 단 폭을 따로 두었지만(--measure),
      그러면 글이 .col 안쪽 끝까지 가지 않아 오른쪽에 설명되지 않는
@@ -96,18 +89,42 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 좌우 여백을 다르게 둔다 — 왼쪽(로고)은 원래 --pad-x를 그대로 쓰고,
-     우측(메뉴 버튼)만 상하 여백과 맞춘 --nav-pad-x를 쓴다. */
-  padding: 0 var(--nav-pad-x) 0 var(--pad-x);
+  padding: 0 var(--pad-x);
 }
 
+/* 로고는 인라인 SVG 도형이다(index.html 참고).
+   글자가 아니므로 font-size·font-weight·letter-spacing 을 두지 않는다 —
+   크기는 아래 svg 의 height 하나가 정한다. */
 #nav-logo {
-  font-size: clamp(22px, 5.9vw, 42px);
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
   color: var(--c-fg);
   text-decoration: none;
   user-select: none;
+}
+
+/* [왜 em 이 아니라 자기 clamp 인가]
+   이 로고는 전부 수직·수평 직선이라 막대 두께가 캡 높이의 20%
+   (10.34 / 51.69)로 고정돼 있다. Wanted Sans weight 900 의 세로획은
+   23~25% 라, 글자를 도형으로 바꾼 것만으로 이미 조금 얇다.
+
+   처음에는 높이를 0.72em 으로 두어 예전 글자의 font-size clamp 를
+   그대로 따라가게 했는데, 그러면 모바일(390px)에서 높이 16.6px →
+   막대 3.3px 까지 내려간다. 3px 대 막대는 안티에일리어싱이 경계 양쪽을
+   회색으로 깔아서 실제보다 더 얇고 흐리게 읽힌다 — PC 는 6px 대라
+   멀쩡한데 모바일만 "weight 가 빠져 보이는" 이유다.
+
+   그래서 글자 쪽 clamp 와 분리하고 하한을 21px 로 올렸다(막대 4.2px).
+   좁은 화면에서 로고가 커지는 셈이지만, 메뉴 버튼이 같은 폭에서
+   28.9px(clamp(28px, 7.4vw, 44px))이라 네비 높이는 그대로다.
+
+   비율(178.53 : 51.69 ≈ 3.45 : 1)은 width:auto 가 지킨다.
+   display:block 이 없으면 인라인 요소의 baseline 여백이 붙어
+   네비 높이가 몇 px 늘어난다. */
+#nav-logo svg {
+  display: block;
+  height: clamp(21px, 4.25vw, 30px);
+  width: auto;
 }
 
 /* 2×2 그리드 아이콘 버튼 */
@@ -116,8 +133,8 @@ body {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: clamp(5px, 1.3vw, 8px);
-  width: var(--menu-btn-size);
-  height: var(--menu-btn-size);
+  width: clamp(28px, 7.4vw, 44px);
+  height: clamp(28px, 7.4vw, 44px);
   background: none;
   border: none;
   cursor: pointer;
@@ -390,6 +407,56 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   .intro-text > .lead {
     margin-top: calc(3% - 0.225em);
   }
+
+  /* ── 한 화면에 맞추기 ──────────────────────────────
+     가로로 넓은 화면에서는 스크롤 없이 페이지 전체가 한 화면에
+     들어오게 한다. 늘어나던 위아래 여백을 줄이고, 영상의 높이에
+     상한을 걸어 '네비 + 영상 + 푸터'가 화면 높이를 넘지 않게 한다.
+     글이 영상보다 길어지는 아주 낮은 화면에서는 어쩔 수 없이
+     스크롤이 생긴다(내용을 자르지 않기 위한 안전장치).
+
+     모바일(세로형)은 이 블록에 들어오지 않으므로 이전과 같다. */
+  :root {
+    --fit-gap-top: clamp(32px, 5vw, 72px); /* ← 네비와 내용 사이 여백 */
+    --fit-gap:  clamp(16px, 3vw, 40px);  /* ← 내용 아래 여백 */
+    --footer-h: clamp(48px, 5vw, 72px);  /* ← 푸터 높이 */
+  }
+
+  body {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #main {
+    flex: 1;
+  }
+
+  .intro {
+    margin-top: var(--fit-gap-top);
+  }
+
+  #text-area {
+    padding-bottom: var(--fit-gap);
+  }
+
+  /* 영상 높이 상한 = 화면 − 네비 − 푸터 − 위·아래 여백.
+     폭은 칸 전체를 쓰되 높이가 먼저 걸리면 영상이 작아지므로,
+     왼쪽 선에 맞추도록 object-position을 왼쪽으로 둔다. */
+  #qr-video {
+    max-height: calc(100dvh - var(--nav-h) - var(--footer-h) - var(--fit-gap-top) - var(--fit-gap));
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  /* 푸터 기본 규칙이 이 블록보다 뒤에 있어, 같은 #footer만으로는
+     패딩이 되돌려진다. body를 붙여 특이도를 높였다. */
+  body #footer {
+    height: var(--footer-h);
+    padding-top: 0;
+    display: flex;
+    align-items: flex-end;
+  }
 }
 
 /* ── QR 루프 영상 ────────────────────────────────── */
@@ -523,8 +590,6 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   margin-top: clamp(28px, 6vw, 52px); /* ← 문단과의 간격 */
   position: relative;
   z-index: 3;
-  /* 차오르는 색이 테두리 밖으로 비어져 나가지 않게 자른다 */
-  overflow: hidden;
   /* em이라 아래 font-size 하나만 바꾸면 여백도 같은 비율로 따라온다.
      px이나 vmin으로 두면 글자와 여백이 따로 놀아 두 군데를 맞춰야 한다. */
   padding: 0.5em 0.9em;
@@ -548,200 +613,27 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   content: '→';
   margin-left: 0.7em;
   font-weight: 500;
-  /* 글자·화살표는 색 레이어 위에 — 안 그러면 색에 덮인다 */
-  position: relative;
-  z-index: 1;
 }
 
-.fab-label {
-  position: relative;
-  z-index: 1;
-}
+/* ── 버튼 반전 ─────────────────────────────────────
+   마우스를 올리면 바탕과 글자(화살표 포함)의 흑백이 서로 뒤집힌다.
+   테두리는 글자색과 같은 --c-fg라 따로 바꾸지 않아도 그대로 이어진다.
+   전환 효과 없이 즉시 바뀐다.
 
-/* ── 버튼 색 채움 ──────────────────────────────────
-   마우스를 올리면 팔레트 5색이 왼쪽에서 오른쪽으로 차례로 차오른다.
-   각 색은 버튼 전체를 덮는 판이고, 가로로만 눌려 있다가(scaleX 0)
-   제 크기로 펴지면서(scaleX 1) 앞의 색을 덮는다. 뒤의 색일수록
-   늦게 출발해(transition-delay) 한 겹씩 쌓이는 것처럼 보인다.
-
-   opacity가 아니라 transform을 쓰는 이유는 두 가지다. 투명도로
-   하면 색이 '번지는' 느낌이지 '차오르는' 느낌이 나지 않고,
-   transform은 GPU에서 처리돼 레이아웃 계산 없이 부드럽게 돈다.
-
-   transform-origin: left — 눌린 판이 왼쪽 모서리에 고정된 채
-   오른쪽으로 펴진다. 이 값을 right로 바꾸면 반대 방향이 된다. */
-.fab-fill {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none; /* 마우스 판정은 버튼 자신이 한다 */
-}
-
-.fab-fill i {
-  position: absolute;
-  inset: 0;
-  transform: scaleX(0);
-  transform-origin: left center;
-  /* 처음에 빠르게 나가 끝에서 부드럽게 멎는 곡선.
-
-     이 시간(한 색이 끝까지 펴지는 데 걸리는 시간)은 아래 색마다의
-     출발 시차보다 조금만 길게 잡는다. 훨씬 길면 다섯 색이 거의
-     동시에 움직여서 마지막 색만 보이고, 너무 짧으면 색 사이가
-     뚝뚝 끊긴다. */
-  transition: transform 0.32s cubic-bezier(0.33, 0, 0.2, 1);
-}
-
-/* shared/core.js의 RADIAL_COLOR_PALETTE와 같은 순서.
-   delay가 색이 출발하는 시차다 — 값을 키우면 더 또렷하게
-   하나씩 지나가고, 줄이면 한꺼번에 차오른다. */
-.fab-fill i:nth-child(1) { background: #f299c1; transition-delay: 0s;   } /* 핑크 */
-.fab-fill i:nth-child(2) { background: #fee987; transition-delay: 0.2s; } /* 노랑 */
-.fab-fill i:nth-child(3) { background: #7ecaac; transition-delay: 0.4s; } /* 초록 */
-.fab-fill i:nth-child(4) { background: #567591; transition-delay: 0.6s; } /* 네이비 */
-.fab-fill i:nth-child(5) { background: #f58b6e; transition-delay: 0.8s; } /* 주황 */
-
-/* 마우스를 쓰는 기기에서만 건다. 터치 기기에서는 탭한 뒤 hover
-   상태가 남아 색이 칠해진 채로 머무는 부작용이 생긴다. */
+   마우스를 쓰는 기기에서만 건다. 터치 기기에서는 탭한 뒤 hover
+   상태가 남아 반전된 채로 머무는 부작용이 생긴다. */
 @media (hover: hover) and (pointer: fine) {
-  #archive-fab:hover .fab-fill i {
-    transform: scaleX(1);
+  #archive-fab:hover {
+    background: var(--c-fg);
+    color: var(--c-bg);
   }
-}
-
-/* 기기에서 '동작 줄이기'를 켠 사용자에게는 차오르는 연출 없이
-   마지막 색만 즉시 보여준다. */
-@media (prefers-reduced-motion: reduce) {
-  .fab-fill i {
-    transition: none;
-  }
-}
-
-/* ── 상세 토글 ─────────────────────────────────────
-   <details>/<summary> 기본 모양을 지우고 다시 입힌다. 제목은 이
-   페이지에서 리드 다음으로 큰 글이고, 위아래를 네비와 같은 굵기의
-   선(--border-w)으로 막아 한 덩어리로 읽히게 했다.
-
-   선은 화면 끝에서 끝까지 이어진다 — <details>가 .col 바깥에 있어
-   화면 전체 너비를 쓰고, 안쪽 내용만 .col로 감싸 본문과 같은 폭에
-   맞추기 때문이다. 선을 긋는 요소와 글 폭을 정하는 요소가 분리되어
-   있다. */
-#section-detail {
-  position: relative;
-  z-index: 3;
-}
-
-.detail {
-  border-top: var(--border-w) solid var(--c-fg);
-}
-
-/* 마지막 항목 아래에도 선을 둬서 목록이 열려 있는 채로 끝나지
-   않게 한다. */
-.detail:last-of-type {
-  border-bottom: var(--border-w) solid var(--c-fg);
-}
-
-.detail > summary {
-  /* 기본 삼각형 표식을 지운다. list-style은 파이어폭스·크롬,
-     ::-webkit-details-marker는 구형 사파리용이다. */
-  list-style: none;
-  /* 여백을 주지 않는다 — summary는 화면 전체 너비로 두고, 폭과
-     여백은 안쪽 .detail-head(.col)가 맡는다. */
-  cursor: pointer;
-  /* 열고 닫을 때 글자가 잡히지 않게 — 토글은 드래그할 대상이 아니다 */
-  user-select: none;
-}
-
-/* 제목과 삼각형 표식을 양끝으로 밀어내는 줄. .col을 함께 쓰므로
-   본문과 같은 폭·같은 좌우 여백에 선다. */
-.detail-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5em;
-  padding-block: 0.5em; /* ← 선과 제목 사이 간격 */
-}
-
-.detail > summary::-webkit-details-marker {
-  display: none;
-}
-
-/* 키보드로 이동할 때 어디에 있는지 보이게 한다. outline을 지우면
-   마우스 없이 쓰는 사람이 현재 위치를 잃는다. */
-.detail > summary:focus-visible {
-  outline: var(--border-w) solid var(--c-fg);
-  outline-offset: -2px;
-}
-
-.detail-label {
-  /* 표시만 대문자로 바꾼다. HTML의 글자는 'Step 01' 그대로라
-     검색·복사·스크린리더에는 원래 표기가 남는다(메뉴 항목의
-     .menu-item도 같은 방식이다). */
-  text-transform: uppercase;
-  font-size: clamp(33px, 23.7px + 2.38vw, 58px); /* ← 토글 제목 크기 */
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.35;
-}
-
-/* 삼각형 표식. 글자가 아니라 여기서 붙이고, 열리면 180° 돌아
-   위를 향한다. */
-.detail-head::after {
-  content: '▼';
-  flex-shrink: 0;
-  font-size: clamp(11px, 8.8px + 0.57vw, 17px);
-  line-height: 1;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.detail[open] .detail-head::after {
-  transform: rotate(180deg);
-}
-
-.detail-body {
-  padding-top: clamp(8px, 2vw, 20px); /* ← 'Step' 글자와 내용 사이 간격 */
-  padding-bottom: 1.8em;
-}
-
-/* 토글 안의 본문은 바깥 본문보다 한 단계 작게 — 펼친 내용이
-   개요보다 커 보이면 위계가 뒤집힌다. */
-.detail-body .main-text {
-  font-size: clamp(13px, 10.8px + 0.57vw, 19px);
-}
-
-/* 토글 안의 이미지 — 두 장을 한 줄에 나란히 놓는다. 좁은 화면에서도
-   두 장이 유지되도록 줄바꿈하지 않는다. */
-.detail-figs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 560px; /* ← PC에서 이미지가 커지지 않게 묶는 폭. 모바일은 이보다 좁아 영향 없다 */
-  gap: clamp(8px, 2vw, 20px);
-  margin-top: 1.35em;
-}
-
-.detail-figs + .main-text {
-  margin-top: 1.35em;
-}
-
-.detail-fig img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-}
-
-.detail-fig figcaption,
-.detail-note {
-  margin-top: 0.6em;
-  font-size: clamp(12px, 10.5px + 0.4vw, 16px);
-  letter-spacing: -0.015em;
-  color: #777;
 }
 
 /* ── 푸터 ───────────────────────────────────────── */
 #footer {
   /* 위아래 여백을 다르게 준다 — 위를 넉넉히, 아래를 얕게 잡아
      글자가 화면 아래쪽에 가깝게 앉는다. */
-  padding-top: clamp(72px, 13vw, 132px);    /* ← 토글과의 간격 */
+  padding-top: clamp(72px, 13vw, 132px);    /* ← 본문과의 간격 */
   padding-bottom: clamp(24px, 4vw, 40px);   /* ← 화면 끝과의 간격 */
   font-size: clamp(14px, 11px + 0.76vw, 22px);
   letter-spacing: -0.015em;
