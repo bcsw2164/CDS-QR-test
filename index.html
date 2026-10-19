@@ -154,15 +154,16 @@
            자동으로 펼쳐진다. id를 달아뒀으므로 index.html#data-export
            처럼 주소로 특정 항목을 열린 상태로 공유할 수도 있다.
 
-           name 속성이 같은 <details>는 한 번에 하나만 열린다(아코디언).
-           지원하지 않는 브라우저에서는 그냥 둘 다 열릴 수 있을 뿐이다. -->
+           <details>에 name 속성을 주지 않았으므로 아코디언이 아니다 —
+           다른 토글을 열어도 이미 열린 토글은 닫히지 않고, 사용자가
+           직접 눌러야 닫힌다. -->
       <section id="section-detail">
 
         <!-- [구조] 선(border)을 화면 끝까지 긋기 위해, <details>는 .col로
              감싸지 않고 화면 전체 너비로 둔다. 대신 안쪽 내용만 .col을
              써서 본문과 같은 폭·같은 좌우 여백에 맞춘다. 선을 긋는 요소와
              글의 폭을 정하는 요소를 분리한 것이다. -->
-        <details class="detail" id="step-01" name="about-detail">
+        <details class="detail" id="step-01">
           <summary>
             <span class="col detail-head">
               <span class="detail-label">Step 01</span>
@@ -170,13 +171,40 @@
           </summary>
           <div class="detail-body">
             <div class="col">
-              <!-- TODO: 수집 경로 · 가공 4단계 · 두 오차 수치 · 오차 시각화 비교 -->
-              <p class="main-text">넣을까말까고민중</p>
+              <p class="main-text">
+                QR 패턴 카드와 트레싱지, 반송 봉투를 담은 키트를 우편과 현장에서
+                나눠 드렸습니다. 참여자는 카드 위에 트레싱지를 올리고, 보이는 모양을
+                펜으로 따라 그렸습니다. 5~10분이면 충분하고, 잘 그리지 않아도 됩니다.
+              </p>
+              <div class="detail-figs">
+              <figure class="detail-fig">
+                <img src="assets/about/kit-photo.jpg" alt="우편으로 보낸 실험 키트" loading="lazy" />
+                <figcaption>실험 키트</figcaption>
+              </figure>
+              <figure class="detail-fig">
+                <img src="assets/about/onsite-2.jpg" alt="펜으로 QR을 따라 그리는 손" loading="lazy" />
+                <figcaption>따라 그리는 순간</figcaption>
+              </figure>
+              </div>
+              <p class="main-text">
+                돌아온 그림은 모두 같은 조건으로 스캔한 뒤, 기울어짐과 종이의 얼룩을
+                지워 손의 궤적만 남겼습니다. 이렇게 184장이 같은 크기의 이미지가 되었습니다.
+              </p>
+              <div class="detail-figs">
+              <figure class="detail-fig">
+                <img src="assets/about/original-qr.jpg" alt="원본 QR" loading="lazy" />
+                <figcaption>원본</figcaption>
+              </figure>
+              <figure class="detail-fig">
+                <img src="assets/about/scan-raw.jpg" alt="참여자가 그린 QR 스캔본" loading="lazy" />
+                <figcaption>스캔한 손그림</figcaption>
+              </figure>
+              </div>
             </div>
           </div>
         </details>
 
-        <details class="detail" id="step-02" name="about-detail">
+        <details class="detail" id="step-02">
           <summary>
             <span class="col detail-head">
               <span class="detail-label">Step 02</span>
@@ -184,13 +212,34 @@
           </summary>
           <div class="detail-body">
             <div class="col">
-              <!-- TODO: 세 가지 전제 · burst 매핑 · bloom 매핑 · 양 끝 비교 -->
-              <p class="main-text">넣을까말까고민중</p>
+              <p class="main-text">
+                손그림을 원본 위에 겹쳐 놓고, 칸 하나하나를 비교했습니다.
+                어긋나는 방식은 두 가지입니다.
+              </p>
+              <p class="main-text">
+                <b>덜 채움</b> — 원본은 검은데 손그림은 비어 있는 부분<br />
+                <b>삐져나감</b> — 원본은 흰데 손그림이 칠해진 부분
+              </p>
+              <p class="main-text">
+                각각을 전체 대비 비율로 계산하면 사람마다 두 개의 숫자가 나옵니다.
+                이 숫자가 다음 단계의 그래픽을 움직이는 값입니다.
+              </p>
+              <div class="detail-figs">
+              <figure class="detail-fig">
+                <img src="assets/about/diff-clean-overlay.png" alt="오차가 작은 사례" loading="lazy" />
+                <figcaption>오차가 작은 경우</figcaption>
+              </figure>
+              <figure class="detail-fig">
+                <img src="assets/about/diff-messy-overlay.png" alt="오차가 큰 사례" loading="lazy" />
+                <figcaption>오차가 큰 경우</figcaption>
+              </figure>
+              </div>
+              <p class="detail-note">빨강은 덜 채운 곳, 파랑은 삐져나간 곳입니다.</p>
             </div>
           </div>
         </details>
 
-        <details class="detail" id="step-03" name="about-detail">
+        <details class="detail" id="step-03">
           <summary>
             <span class="col detail-head">
               <span class="detail-label">Step 03</span>
@@ -198,8 +247,25 @@
           </summary>
           <div class="detail-body">
             <div class="col">
-              <!-- TODO: 내용 미정 -->
-              <p class="main-text">넣을까말까고민중</p>
+              <p class="main-text">
+                그래픽은 모두 같은 규칙으로 그려집니다. 달라지는 것은 두 개의 오차값뿐이고,
+                무작위는 들어가지 않습니다. 그래서 같은 사람의 데이터는 언제 다시 그려도
+                같은 모양이 됩니다.
+              </p>
+              <p class="main-text">
+                덜 채울수록 선이 넓게 퍼지고, 많이 삐져나갈수록 끝이 크게 흔들리거나
+                휘어 감깁니다. 오차가 값이 아니라 모양으로 읽히게 한 것입니다.
+              </p>
+              <div class="detail-figs">
+              <figure class="detail-fig">
+                <img src="assets/about/spoke_035.png" alt="스포크 그래픽 예시 1" loading="lazy" />
+                <figcaption>같은 규칙</figcaption>
+              </figure>
+              <figure class="detail-fig">
+                <img src="assets/about/spoke_120.png" alt="스포크 그래픽 예시 2" loading="lazy" />
+                <figcaption>다른 사람</figcaption>
+              </figure>
+              </div>
             </div>
           </div>
         </details>
