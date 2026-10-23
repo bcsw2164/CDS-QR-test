@@ -642,8 +642,27 @@ body.menu-open .menu-item:nth-child(4) { transition-delay: 0.54s; }
   cursor: default;
 }
 
+/* 제작자 표기와 갱신 날짜를 한 줄에 양 끝으로 벌린다. .col은 기본적으로
+   margin-inline:auto로 가운데 오는 상자라, #footer가 flex가 되는 축소
+   모드에서도 폭이 줄지 않도록 width:100%를 함께 준다 — 그래야
+   space-between이 가운데 열의 좌우 끝을 기준으로 먹는다. */
+#footer .col {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  width: 100%;
+}
+
 .footer-title {
   font-weight: 800;
+}
+
+/* 갱신 날짜. 색은 제작자 표기와 같은 검정, 굵기만 한 단계 낮춰
+   한 줄에서 과하게 튀지 않게 한다. 줄바꿈은 막아 날짜가 쪼개지지 않게 한다. */
+.footer-updated {
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* 인스타그램 링크. 밑줄 없이 본문과 같은 검정으로 두고,
