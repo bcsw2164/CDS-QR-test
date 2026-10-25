@@ -754,5 +754,25 @@
   "qr_clean_189": {
     "unfilledRate": 0.251,
     "overflowRate": 0.129
+  },
+  "qr_clean_190": {
+    "unfilledRate": 0.74,
+    "overflowRate": 0.105
+  },
+  "qr_clean_191": {
+    "unfilledRate": 0.146,
+    "overflowRate": 0.04
+  },
+  "qr_clean_192": {
+    "unfilledRate": 0.148,
+    "overflowRate": 0.023
+  },
+  "qr_clean_193": {
+    "unfilledRate": 0.065,
+    "overflowRate": 0.046
+  },
+  "qr_clean_194": {
+    "unfilledRate": 0.108,
+    "overflowRate": 0.058
   }
 }
