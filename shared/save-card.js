@@ -474,27 +474,33 @@
     return new File([bytes], filename, { type: 'image/jpeg' });
   }
 
-  // [PC 와 모바일을 왜 갈라 놓나]
-  // 윈도우의 Chrome·Edge 도 Web Share API 를 지원해서, 그냥 두면 PC 에서도
-  // 윈도우 공유 창이 뜬다. 하지만 PC 에서 바라는 건 공유가 아니라 다운로드
-  // 폴더에 바로 받는 것이다. 반대로 모바일은 공유 시트 말고는 갤러리로 갈
-  // 길이 없다(iOS 의 a[download] 는 사진이 아닌 '파일' 앱으로 간다).
-  // 그래서 "공유를 쓸 수 있는가"가 아니라 "모바일인가"로 가른다.
-  function isMobile() {
-    // UA Client Hints — 크로미움 계열에서 가장 정확하다.
-    if (navigator.userAgentData) return navigator.userAgentData.mobile === true;
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return true;
-    // iPadOS 13+ 는 데스크탑과 같은 UA 를 쓴다 — 터치 지점 수로 가린다.
+  // [왜 iOS 만 공유 시트인가]
+  // 웹에는 갤러리에 직접 쓰는 길이 없어서, 저장은 두 수단 중 하나로 흉내낸다
+  // — 공유 시트(navigator.share) 아니면 내려받기(a[download]). 어느 쪽이
+  // 갤러리로 이어지는지가 OS 마다 다르다.
+  //
+  //   iOS   : a[download] 는 사진이 아니라 '파일' 앱으로 간다. 갤러리로 가는
+  //           길은 공유 시트의 "이미지 저장" 뿐이다.          → 공유
+  //   안드로이드 : 공유 시트에는 "이미지 저장"에 해당하는 항목이 아예 없다 —
+  //           보낼 앱 목록만 뜬다. 그래서 공유로는 갤러리에 넣을 수가 없다.
+  //           반면 a[download] 는 Download 폴더에 떨어지고, 미디어 스캐너가
+  //           이를 집어 갤러리의 'Download' 앨범에 띄운다.    → 내려받기
+  //   PC    : 윈도우 Chrome·Edge 도 Web Share 를 지원해 그냥 두면 윈도우
+  //           공유 창이 뜨지만, 바라는 건 다운로드 폴더다.    → 내려받기
+  //
+  // 즉 갈림길은 "모바일인가"가 아니라 "iOS 인가"다.
+  function isIOS() {
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
+    // iPadOS 13+ 는 데스크탑 맥과 같은 UA 를 쓴다 — 터치 지점 수로 가린다.
     return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
   }
 
-  // 모바일이면 공유 시트를 띄우고, PC 면 바로 내려받는다.
+  // iOS 면 공유 시트를 띄우고, 그 밖에는 바로 내려받는다.
   // 반환값은 'shared' | 'downloaded' | 'cancelled'.
   //
-  // 공유 시트에서 "이미지 저장"을 골라야 갤러리에 들어간다 — 웹에는 갤러리에
-  // 직접 쓰는 길이 없다.
+  // iOS 공유 시트에서는 "이미지 저장"을 골라야 갤러리에 들어간다.
   function save(canvas, filename) {
-    if (isMobile()) {
+    if (isIOS()) {
       const file = toFile(canvas, filename);
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         return navigator

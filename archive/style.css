@@ -101,8 +101,10 @@ html {
     color 0.15s;
 }
 
-.shape-btn:hover {
-  background: #ddd;
+@media (hover: hover) and (pointer: fine) {
+  .shape-btn:hover {
+    background: #ddd;
+  }
 }
 
 .shape-btn.active {
@@ -136,8 +138,10 @@ html {
     color 0.15s;
 }
 
-.mode-btn:hover {
-  background: #ddd;
+@media (hover: hover) and (pointer: fine) {
+  .mode-btn:hover {
+    background: #ddd;
+  }
 }
 
 .mode-btn.active {
@@ -409,7 +413,17 @@ body:has(#detail-overlay.open) #menu-btn {
 
    transition을 일부러 두지 않는다(기존 background/color 0.15s 삭제):
    반전은 '전환'이 아니라 딱 끊어 바뀌어야 QR의 흑백 대비처럼 읽힌다. */
-.detail-nav:hover,
+/* :hover 는 마우스가 있는 환경에만 건다. 터치 기기에서는 탭한 요소에
+   hover 상태가 '달라붙어' 다른 곳을 누를 때까지 반전이 풀리지 않는다
+   (sticky hover) — ‹ › 를 한 번 누르면 검정으로 남아버리는 원인이다.
+   터치에서는 누르는 동안만 반전되는 :active 로 충분하다. */
+@media (hover: hover) and (pointer: fine) {
+  .detail-nav:hover {
+    background: #111;
+    color: #fff;
+  }
+}
+
 .detail-nav:active {
   background: #111;
   color: #fff;
@@ -497,7 +511,13 @@ body:has(#detail-overlay.open) #menu-btn {
 
 /* ‹ › 버튼(.detail-nav)과 같은 방식 — 트랜지션 없이 바로 뒤집히고,
    터치에서도 눌린 게 보이도록 :active 를 함께 묶는다. */
-#detail-save:hover,
+@media (hover: hover) and (pointer: fine) {
+  #detail-save:hover {
+    background: #111;
+    color: #fff;
+  }
+}
+
 #detail-save:active {
   background: #111;
   color: #fff;
