@@ -4,7 +4,7 @@
    errorA/errorB는 data/qr_error_data.json에 담긴 실제 추출
    데이터를 그대로 쓴다 — 키(qr_clean_NNN)의 번호가 QR 이미지 번호와
    동일해 1:1로 매칭된다. ITEM_COUNT는 이 데이터 개수로 정해진다(현재
-   200). 그래픽 생성 로직은 shared/core.js를 About 페이지와 공유한다.
+   203). 그래픽 생성 로직은 shared/core.js를 About 페이지와 공유한다.
 
    각 데이터는 1~ITEM_COUNT번 번호(제출 순서)를 갖는다. 탭으로 정렬
    기준을 바꿔도 이 번호와 그래픽 자체는 그대로이고, 배치 순서만 바뀐다.
@@ -894,10 +894,10 @@ function initHover() {
 //
 // qrErrorData의 id가 실제 QR 번호이자 itemId이므로 QR 이미지도 같은
 // 번호로 그대로 대응된다(1:1). ITEM_COUNT와 QR_IMAGE_COUNT가 항상
-// 같은 수(현재 200)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
+// 같은 수(현재 203)라 아래 모듈러 순환은 사실상 항등함수로 동작하지만,
 // 혹시 둘의 개수가 어긋나는 경우를 대비해 남겨둔다.
 //
-const QR_IMAGE_COUNT = 200; // images/qr/qr_final_001.jpg ~ qr_final_200.jpg
+const QR_IMAGE_COUNT = 203; // images/qr/qr_final_001.jpg ~ qr_final_203.jpg
 
 // data/qr_error_data.json 에서 실제 errorA(unfilledRate)/
 // errorB(overflowRate) 데이터를 읽어 n(QR 번호) 오름차순으로 정렬해
@@ -922,7 +922,7 @@ function loadErrorData() {
 }
 
 // data/qr_name.json 에서 qr 번호 → 이름 매핑을 읽어둔다.
-// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~200 번만 쓴다.
+// 이미지와 동일하게 QR_IMAGE_COUNT 장을 기준으로 순환하므로 1~203 번만 쓴다.
 // '스캔여부' 항목은 사용하지 않는다. 로딩 전/이름 미정 항목은 '익명' 으로 표시.
 let qrNames = {}; // { 1: '정솔하', 2: '통대창탕후루', ... }
 
