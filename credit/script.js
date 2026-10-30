@@ -1,17 +1,12 @@
-/* ============================================================
-   Credit — script.js
-   ------------------------------------------------------------
-   data/qr_name.json의 이름을 순서대로 나열하고, 그 뒤쪽 레이어에
-   현장 사진(images/onsite/NN.jpg)을 듬성듬성 흑백으로 깔아둔다.
+/* Credit — data/qr_name.json의 이름을 나열하고, 뒤쪽 레이어에 현장 사진을
+   듬성듬성 흑백으로 깔아둔다.
 
-   사진 추가 방법:
-     images/onsite/01.jpg, 02.jpg, ... 형식으로 번호를 이어 저장하고
-     아래 PHOTO_COUNT를 사진 장수에 맞게 올리면 된다.
-   ============================================================ */
+   사진 추가: images/onsite/01.jpg, 02.jpg, ... 로 번호를 이어 저장하고
+   아래 PHOTO_COUNT를 장수에 맞게 올린다. 자세한 내용은 docs/credit.md 참고. */
 
 const PHOTO_COUNT = 21;
-/* 첫 화면 근처에 놓이는 장수. 이만큼만 즉시 받고 나머지는 lazy로 미룬다.
-   사진은 위에서부터 차례로 배치되므로 앞 번호가 곧 첫 화면이다. */
+/* 첫 화면 근처 장수 — 이만큼만 즉시 받고 나머지는 lazy로 미룬다.
+   index.html의 <link rel="preload"> 장수와 맞출 것. */
 const EAGER_COUNT = 3;
 const NAME_JSON = '../data/qr_name.json';
 
@@ -19,8 +14,7 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-/* 고정 시드 난수(mulberry32). 새로고침해도 사진 배치가 그대로 유지돼서
-   "매번 달라 보이는" 산만함 없이 의도한 레이아웃을 재현한다. */
+/* 고정 시드 난수(mulberry32) — 새로고침해도 사진 배치가 그대로 유지된다. */
 function makeRandom(seed) {
   let t = seed >>> 0;
   return function () {
@@ -32,10 +26,8 @@ function makeRandom(seed) {
   };
 }
 
-/* 아카이브 그래픽에 쓰는 팔레트와 같은 5색(shared/core.js의
-   RADIAL_COLOR_PALETTE). 이름마다 하나를 랜덤으로 골라 --name-color로
-   심어두면, 마우스를 올렸을 때 CSS가 그 색을 꺼내 쓴다(style.css의
-   .credit-name:hover). */
+/* shared/core.js의 RADIAL_COLOR_PALETTE와 같은 5색. 이름마다 하나를 골라
+   --name-color로 심어두면 CSS가 hover에서 꺼내 쓴다. */
 const NAME_HOVER_PALETTE = ['#f299c1', '#fee987', '#7ecaac', '#567591', '#f58b6e'];
 
 function renderNames(names) {
@@ -47,8 +39,8 @@ function renderNames(names) {
     const item = document.createElement('span');
     item.className = 'credit-name';
     item.textContent = name;
-    // 사진 배치(makeRandom)와 달리 고정 시드를 쓰지 않는다 — 새로고침할
-    // 때마다 색 조합이 다시 섞이는 쪽이 184명의 목록에 생기를 준다.
+    // 사진 배치와 달리 고정 시드를 쓰지 않는다 — 새로고침마다 색이 다시 섞이는
+    // 쪽이 긴 목록에 생기를 준다.
     item.style.setProperty(
       '--name-color',
       NAME_HOVER_PALETTE[Math.floor(Math.random() * NAME_HOVER_PALETTE.length)]
@@ -59,35 +51,25 @@ function renderNames(names) {
   holder.appendChild(frag);
 }
 
-/* 그래픽 크기의 기준 단위 — 메인페이지 sketch.js의 viewportUnit()과 같은 방식.
-   폭만 쓰면 아이패드 가로처럼 납작한 화면에서 사진이 과하게 부풀고, 반대로
-   아이폰 세로처럼 좁은 화면에서는 작은 등급이 손톱만 해진다. 높이에 1.2를
-   곱한 값과 견줘 작은 쪽을 쓰면 두 경우 모두 기준이 안정된다. */
+/* 크기의 기준 단위 — about/sketch.js의 viewportUnit()과 같은 방식.
+   폭만 쓰면 납작한 화면에서 사진이 과하게 부풀고 좁은 화면에서는 작은 등급이
+   손톱만 해진다. 높이×1.2와 견줘 작은 쪽을 쓰면 둘 다 안정된다. */
 function viewportUnit() {
   return Math.min(window.innerWidth, window.innerHeight * 1.2);
 }
 
-/* [minPx, 배수, maxPx] — 기준 단위에 비례하되 양끝을 잠근다.
-   좁은 화면에서는 minPx가 바닥을, 넓은 화면에서는 maxPx가 천장을 잡아주므로
-   화면 폭 대비 비율(%)로 두던 이전 방식과 달리 기기별 체감 크기가 비슷해진다. */
+/* [minPx, 배수, maxPx] — 기준 단위에 비례하되 양끝을 잠근다. */
 function resolveSize([minPx, factor, maxPx]) {
   return Math.round(Math.max(minPx, Math.min(maxPx, viewportUnit() * factor)));
 }
 
-/* 사진 크기 등급 — 메인페이지 스포크 그래픽처럼 대·중·소 차이를 확실하게 둔다.
+/* 사진 크기 등급 — 대·중·소 차이를 확실하게 둔다.
      size  : [minPx, 배수, maxPx]
-     jitter: 같은 등급끼리도 조금씩 달라 보이게 하는 흔들림 폭(±비율)
-     bleed : 화면 밖으로 삐져나가는 양(자기 폭 대비 비율). 0이면 안쪽에만 놓인다.
-             #photo-layer가 overflow: hidden이라 삐져나간 부분은 잘려 보인다.
+     jitter: 같은 등급끼리도 달라 보이게 하는 흔들림 폭(±비율)
+     bleed : 화면 밖으로 삐져나가는 양(자기 폭 대비 비율). 0이면 안쪽에만 놓인다
 
-   가로로 넓은 화면(PC·아이패드 가로)에서는 네 등급 모두 maxPx에 걸리므로
-   maxPx끼리의 비율이 곧 그 화면의 인상이 된다. 소를 280으로 두던 때는
-   특대와 1:3.4까지 벌어져 작은 사진이 혼자 겉돌아 보였다 — 소·중의 천장을
-   올려 1:2.4로 좁히고, 등급 간 배율도 1.4→1.3→1.3으로 고르게 맞췄다.
-
-   아이폰 14 세로(기준 390) / 아이패드 프로 13 가로(기준 1229) 기준 실제 폭:
-     소   164 / 390      중   242 / 550
-     대   332 / 720      특대 449 / 950 */
+   가로로 넓은 화면에서는 네 등급 모두 maxPx에 걸리므로 maxPx끼리의 비율이 곧
+   그 화면의 인상이 된다 — 등급 간 배율과 기기별 실제 폭은 docs/credit.md 참고. */
 const PHOTO_TIERS = {
   s:  { size: [150, 0.42, 390], jitter: 0.1,  bleed: [0, 0] },
   m:  { size: [230, 0.62, 550], jitter: 0.12, bleed: [0, 0.08] },
@@ -98,11 +80,10 @@ const PHOTO_TIERS = {
 const TIER_PATTERN = ['l', 's', 'xl', 'm', 's', 'l', 'm', 'xl', 's', 'm', 'l', 's'];
 
 /* 사진을 이름 흐름의 뒤쪽에 뿌린다.
-   - 세로: 전체 높이를 사진 장수만큼의 구간으로 나누고 각 구간 안에서만
-     흔들어서, 한쪽에 몰리지 않고 "듬성듬성" 간격이 유지되게 한다.
-     큰 등급은 구간보다 커서 이름과 겹치는데, 그건 의도한 것이다.
-   - 가로: 좌/우를 번갈아 배치해 지그재그로 읽히게 한다. 큰 등급은
-     bleed만큼 가장자리 밖으로 밀어내 화면에서 잘리게 한다. */
+   - 세로: 전체 높이를 장수만큼의 구간으로 나누고 각 구간 안에서만 흔들어 간격을
+     유지한다. 큰 등급이 이름과 겹치는 건 의도한 것이다.
+   - 가로: 좌/우를 번갈아 지그재그로. 큰 등급은 bleed만큼 가장자리 밖으로 밀어내
+     #photo-layer의 overflow:hidden에 잘리게 한다. */
 function layoutPhotos() {
   const layer = document.getElementById('photo-layer');
   const stage = document.getElementById('credit-stage');
@@ -120,13 +101,13 @@ function layoutPhotos() {
 
     const tier = PHOTO_TIERS[TIER_PATTERN[(i - 1) % TIER_PATTERN.length]];
     const jitter = 1 + (rand() - 0.5) * tier.jitter;
-    // 사진 폭은 px. 단, 무대보다 넓어지면 답답해지므로 무대 폭의 96%로 제한.
+    // 무대보다 넓어지면 답답해지므로 무대 폭의 96%로 제한
     const width = Math.min(Math.round(resolveSize(tier.size) * jitter), stageW * 0.96);
     const bleedRatio = tier.bleed[0] + rand() * (tier.bleed[1] - tier.bleed[0]);
 
-    // 구간 내부에서 위아래로 흔들어 같은 간격으로 늘어선 느낌을 깬다.
+    // 구간 내부에서 위아래로 흔들어 같은 간격으로 늘어선 느낌을 깬다
     const top = band * (i - 1) + band * (0.15 + rand() * 0.35);
-    // 좌우 번갈아. bleed가 0보다 크면 inset이 음수가 되어 화면 밖으로 나간다.
+    // 좌우 번갈아. bleed가 0보다 크면 inset이 음수가 되어 화면 밖으로 나간다
     const side = i % 2 === 0 ? 'right' : 'left';
     const inset = bleedRatio > 0
       ? -Math.round(width * bleedRatio)
@@ -140,14 +121,9 @@ function layoutPhotos() {
     img.alt = '';
 
     /* [중요] loading·decoding·fetchPriority는 반드시 src보다 먼저 정한다.
-       브라우저는 src가 정해지는 순간 그 시점의 loading 값으로 "지금 받을지
-       미룰지"를 결정해 버린다. 예전 코드는 src를 먼저 주고 뒤이어
-       loading='lazy'를 붙였는데, 그때는 이미 늦어서 lazy가 무시되고
-       21장(약 9MB)이 한꺼번에 내려받기 큐에 들어갔다. 연결 수가 한정돼
-       있으니 서로 밀려 첫 화면 사진마저 늦게 떴다 — "크레딧 사진이 초기에
-       잘 안 뜬다"의 원인이다.
-
-       첫 EAGER_COUNT장만 즉시 받고 나머지는 스크롤에 맞춰 받는다. */
+       브라우저는 src가 정해지는 순간의 loading 값으로 "지금 받을지"를 결정한다 —
+       순서가 바뀌면 lazy가 무시되고 21장이 한꺼번에 큐에 들어가, 첫 화면 사진마저
+       늦게 뜬다(docs/credit.md). */
     const isFirstScreen = i <= EAGER_COUNT;
     img.loading = isFirstScreen ? 'eager' : 'lazy';
     img.decoding = 'async';

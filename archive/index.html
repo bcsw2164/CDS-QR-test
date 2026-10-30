@@ -6,14 +6,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <!-- 사파리 상·하단 툴바 틴트 색. 페이지 배경(검정)과 맞춰야 툴바가
-         페이지의 연장선처럼 보인다. -->
+    <!-- 사파리 툴바 틴트 색. 페이지 배경(검정)과 맞춰야 툴바가 연장선처럼 보인다. -->
     <meta name="theme-color" content="#000000" />
     <title>QR++</title>
-    <!-- 파비콘 — 아카이브 그래픽 qr_124(정현)를 내용 영역만 잘라 쓴다.
-         원본은 export/1004/burst_124.png.
-         배경은 투명 — 탭 바가 밝든 어둡든 그래픽만 떠 보인다. 다만 iOS는
-         apple-touch-icon의 투명부를 검정으로 채운다. -->
+    <!-- 파비콘 원본: export/1004/burst_124.png. 배경 투명(iOS는 apple-touch-icon의 투명부를 검정으로 채움) -->
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/icons/favicon-16.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="../assets/icons/favicon-48.png" />
@@ -34,14 +30,12 @@
   </head>
   <body>
     <div id="archive-wrap">
-      <!-- 문서 스크롤로 바뀌면서 버튼 두 줄이 같이 밀려 올라가므로,
-           둘을 한 상자로 묶어 position:sticky로 화면 위에 고정한다. -->
+      <!-- 버튼 두 줄을 한 상자로 묶어 position:sticky로 화면 위에 고정한다. -->
       <div id="control-bars">
         <div id="shape-row" class="shape-row">
           <button class="shape-btn active" data-shape="radial-spokes">burst</button>
           <button class="shape-btn" data-shape="radial">bloom</button>
-          <!-- 보류한 안(ring·tile)은 archive/experiments.js 에 보관해 두었다.
-               다시 켜는 법은 그 파일 맨 위 주석 참고. -->
+          <!-- 보류한 안(ring·tile)은 archive/experiments.js 에 보관. 복구 절차는 그 파일 헤더 참고. -->
         </div>
         <div id="mode-row" class="mode-row">
           <button class="mode-btn active" data-mode="collected">수집순</button>
@@ -50,10 +44,7 @@
       </div>
       <div id="canvas-holder"></div>
     </div>
-    <!-- ── 메뉴 (우측 하단) ─────────────────────────────
-         버튼·커튼·항목 디자인은 ../shared/menu.css, 열고 닫기는
-         ../shared/menu.js가 담당한다. 메인 페이지 네비 메뉴와 같은
-         구조이고 위치만 우측 하단이다. -->
+    <!-- ── 메뉴 (우측 하단) — 디자인은 shared/menu.css, 동작은 shared/menu.js ──── -->
     <button id="menu-btn" aria-label="메뉴" aria-expanded="false">
       <span></span><span></span><span></span><span></span>
     </button>
@@ -63,9 +54,7 @@
         <a class="menu-item" data-key="about" href="../index.html">About</a>
         <a class="menu-item" data-key="archive" href="../archive/index.html" aria-current="page">Archive</a>
         <a class="menu-item" data-key="credit" href="../credit/index.html">Credit</a>
-        <!-- Apply — 외부 구글 폼. 새 탭으로 열어 이 사이트를 벗어나지 않게
-             한다. rel="noopener"는 새 탭이 window.opener로 이 페이지를
-             건드리지 못하게 막는 보안 조치다. -->
+        <!-- Apply — 외부 구글 폼. rel="noopener"는 새 탭이 window.opener로 이 페이지를 건드리지 못하게 막는다. -->
         <a class="menu-item" data-key="apply"
            href="https://docs.google.com/forms/d/e/1FAIpQLSeOAERlk3hNw2IOnEcZyU76RGW8_SGniRNc4jonOmi9ew3ZWg/viewform?usp=header"
            target="_blank"
@@ -73,8 +62,7 @@
       </div>
     </div>
     <div id="detail-overlay">
-      <!-- 박스와 저장 버튼을 세로로 묶는다 — 버튼은 박스 '밖', 바로 아래에
-           같은 폭으로 놓인다. -->
+      <!-- 박스와 저장 버튼을 세로로 묶는다 — 버튼은 박스 '밖', 바로 아래에 놓인다. -->
       <div class="detail-stack">
         <div class="detail-box">
           <span class="corner corner-tl"></span>
@@ -91,8 +79,7 @@
           </div>
           <p id="detail-name"></p>
         </div>
-        <!-- 이 항목을 한 장의 이미지로 저장한다(그래픽 + 이름 + QR + 수치).
-             합성은 shared/save-card.js, 누르면 공유 시트가 열린다. -->
+        <!-- 이 항목을 한 장의 이미지로 저장. 합성은 shared/save-card.js. -->
         <button id="detail-save" type="button">저장하기</button>
       </div>
     </div>

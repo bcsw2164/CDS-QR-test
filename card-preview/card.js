@@ -1,22 +1,15 @@
-/* ============================================================
-   저장 카드 미리보기 — card.js
-   ------------------------------------------------------------
-   archive 상세 오버레이에서 "이미지 저장"을 눌렀을 때 만들어질 한 장을,
-   실제 출력 픽셀 크기 그대로 띄워 본다.
+/* 저장 카드 미리보기 — archive 상세의 "저장하기"가 만들 한 장을 실제 출력 픽셀
+   크기 그대로 띄워 본다. 그리는 일은 전부 shared/save-card.js 가 하므로, 여기서
+   보이는 그림이 곧 폰에 저장될 그림이다. 이 파일은 재료를 모으고 미리보기 전용
+   기능(탭 전환 / 1:1 보기 / 내보내기 / 용량 비교)만 얹는다.
 
-   카드를 그리는 일은 전부 shared/save-card.js 가 한다 — archive 와 똑같은
-   코드를 쓰므로, 여기서 보이는 그림이 곧 폰에 저장될 그림이다. 이 파일은
-   그 함수에 넘길 재료(아이템·이름·수치·QR)를 모으고, 미리보기 전용 기능
-   (탭 전환 / 1:1 보기 / 내보내기 / 용량 비교)만 얹는다.
+   [주의] 레이아웃을 고칠 곳은 여기가 아니라 shared/save-card.js 의 L 상수다.
+   자세한 내용은 docs/credit.md 참고. */
 
-   레이아웃을 고칠 곳은 여기가 아니라 shared/save-card.js 의 L 상수다.
-   ============================================================ */
-
-// 미리볼 대상 — 1번 '정솔하'
+// 미리볼 대상
 const TARGET_ID = 1;
 
-// archive/sketch.js 와 동일한 시드 솔트.
-// 값이 같아야 아카이브 화면과 카드의 색·회전이 일치한다.
+// [주의] archive/sketch.js 와 같은 값이어야 아카이브 화면과 카드의 색·회전이 일치한다.
 const COLOR_SEED_SALT = 819842174;
 const ROTATION_SEED_SALT = 573910284;
 const GROUP_ANGLE_SEED_SALT = 294817365;
@@ -35,8 +28,7 @@ function preload() {
 }
 
 function setup() {
-  // p5 캔버스는 쓰지 않는다 — 카드는 save-card.js 가 자기 캔버스에 그린다.
-  // 다만 p5 인스턴스 자체는 살아 있어야 한다(createGraphics 가 필요하다).
+  // p5 캔버스는 쓰지 않지만 인스턴스 자체는 살아 있어야 한다(createGraphics 가 필요).
   noCanvas();
   noLoop();
 
@@ -74,8 +66,7 @@ function parseNames(list) {
   });
 }
 
-// archive/sketch.js 의 normalizeErrorAxis 와 동일 — 값의 절대 크기가 아니라
-// 184개 중 몇 번째인지(퍼센타일)로 0~1에 고르게 편다. 동점은 평균 순위.
+// archive/sketch.js 의 normalizeErrorAxis 와 동일 — 퍼센타일 정규화(동점은 평균 순위).
 function normalizeErrorAxis(values) {
   const n = values.length;
   if (n <= 1) return values.map(() => 0);
@@ -92,8 +83,8 @@ function normalizeErrorAxis(values) {
   return ranks.map((r) => r / (n - 1));
 }
 
-// archive/sketch.js 의 generateFlowerItems + generateRadialItems /
-// generateSpokeItems 를 합친 것. 탭에 따라 필요한 색만 더해 준다.
+// archive/sketch.js 의 generateFlowerItems + generateRadialItems/generateSpokeItems 를
+// 합친 것. 탭에 따라 필요한 색만 더해 준다.
 function buildItems(shape) {
   const normA = normalizeErrorAxis(qrErrorData.map((d) => d.errorA));
   const normB = normalizeErrorAxis(qrErrorData.map((d) => d.errorB));
@@ -186,11 +177,8 @@ function bindControls() {
 }
 
 // ── 용량 비교 ───────────────────────────────────────────────
-//
-// 폭과 품질을 바꿔가며 실제로 인코딩해 보고 용량만 재서 표로 보여준다.
-// 추정값으로 고르면 틀리기 쉬워서, 고를 때 쓰는 자를 하나 둔 것이다.
-// 재는 동안 그 폭으로 카드를 실제로 다시 그리므로(= 내보낼 때와 같은 경로)
-// 표의 숫자가 곧 받게 될 파일 크기다.
+// 폭과 품질을 바꿔가며 실제로 인코딩해 보고 용량만 잰다. 재는 동안 그 폭으로 카드를
+// 다시 그리므로(= 내보낼 때와 같은 경로) 표의 숫자가 곧 받게 될 파일 크기다.
 
 const MEASURE_WIDTHS = [810, 1080, 1350, 1620];
 const MEASURE_QUALITIES = [0.8, 0.85, 0.9, 0.95];

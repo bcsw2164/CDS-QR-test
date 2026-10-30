@@ -11,34 +11,21 @@
   padding: 0;
 }
 
-/* iOS 사파리는 "문서 자체가 세로로 스크롤되는 페이지"일 때만 상·하단
-   툴바를 접고, 레이아웃을 툴바 아래까지 포함한 큰 뷰포트 기준으로 잡는다.
-   예전처럼 html/body에 height:100% + overflow:hidden을 걸고 안쪽 div만
-   스크롤시키면 사파리 입장에서는 스크롤이 없는 페이지라, 툴바가 불투명한
-   UI로 고정되고 그 아래는 아예 페이지 영역이 되지 않아 잘려 보인다.
-   그래서 스크롤 주체를 문서로 되돌린다. 배경을 #000으로 둔 것도 같은
-   이유 — 툴바 틴트와 러버밴드(끝까지 당겼을 때) 영역까지 검게 이어진다. */
+/* iOS 사파리는 "문서 자체가 세로로 스크롤되는 페이지"일 때만 툴바를 접는다 —
+   그래서 스크롤 주체를 문서로 되돌렸다. 배경 #000도 같은 이유로, 툴바 틴트와
+   러버밴드 영역까지 검게 이어진다. 자세한 내용은 docs/archive.md 참고. */
 html,
 body {
   width: 100%;
   height: auto;
-  /* [주의] 여기에 overflow를 걸지 않는다. 루트 요소의 overflow는 뷰포트로
-     전파돼서 스크롤 동작 전체에 관여한다. hidden은 이 요소를 스크롤
-     컨테이너로 만들어 #control-bars의 position:sticky를 풀어버렸고,
-     clip 역시 사파리가 툴바를 접을지 판단하는 데 영향을 줄 수 있다.
-     이 페이지는 그리드가 auto-fill/minmax로 폭에 맞춰 접히므로 가로로
-     넘칠 일이 없다 — 넘침 방지를 걸 이유 자체가 없다. */
+  /* [주의] 여기에 overflow를 걸지 않는다 — 루트의 overflow는 뷰포트로 전파돼서
+     #control-bars의 sticky를 풀고 사파리 툴바 동작에도 영향을 준다. 그리드가
+     auto-fill로 폭에 맞춰 접히므로 가로로 넘칠 일도 없다. */
   background: #000;
 }
 
-/* 세로 스크롤바 자리를 항상 비워 둔다. 지금은 상세 오버레이도 메뉴도 문서를
-   스크롤 불가 상태로 만들지 않으므로 스크롤바가 사라질 일이 없지만, 보험으로
-   남겨 둔다. 데스크탑(윈도우 크롬/엣지)의 스크롤바는 콘텐츠 위에 뜨는 게
-   아니라 레이아웃 폭을 실제로 차지해서, 한 번 사라지면 쓸 수 있는 가로폭이
-   15~17px 늘어나며 화면이 통째로 커진다. innerWidth도 같이 바뀌어
-   windowResized()가 buildGridView()로 그리드를 다시 그리기 때문에 더 크게
-   티가 난다. 맥·모바일처럼 스크롤바가 겹쳐 뜨는 환경에서는 원래 폭을
-   차지하지 않아 이 선언이 아무 영향도 주지 않는다. */
+/* 세로 스크롤바 자리를 항상 비워 둔다(보험). 윈도우 스크롤바는 레이아웃 폭을 실제로
+   차지해서, 사라지면 가로폭이 15~17px 늘고 windowResized()가 그리드를 다시 그린다. */
 html {
   scrollbar-gutter: stable;
 }
@@ -50,13 +37,9 @@ html {
   flex-direction: column;
 }
 
-/* 버튼 두 줄 묶음(그래픽 이름 + 수집순/오차율순) — 문서가 스크롤돼도 화면
-   맨 위에 붙어 있는다. 메뉴 버튼(z-index 200)·메뉴 커튼(190)·상세 오버레이
-   (100)보다 낮게 둬서, 메뉴를 열거나 그래픽을 누르면 그 아래로 가려진다.
-
-   배경을 명시한 이유 — 버튼 자체는 흰색이지만 그 사이/바깥의 1px 빈틈으로
-   뒤의 그래픽이 비쳐 지나가면 고정된 바가 아니라 떠 있는 것처럼 보인다.
-   아래 .mode-row의 border-top(4px 검정)과 맞춰 검정으로 깔아둔다. */
+/* 버튼 두 줄 묶음 — 문서가 스크롤돼도 화면 맨 위에 붙어 있는다. z-index는 메뉴
+   버튼(200)·커튼(190)·상세 오버레이(100)보다 낮게 둬서 그 아래로 가려진다.
+   배경을 명시한 이유는 버튼 사이 1px 빈틈으로 뒤 그래픽이 비치면 바가 떠 보이기 때문. */
 #control-bars {
   position: sticky;
   top: 0;
@@ -65,22 +48,15 @@ html {
   background: #111;
 }
 
-/* 시리즈 선택(burst, bloom, ...) — 여백 없이 화면 양 끝을 꽉 채우는 세그먼트.
-   버튼이 flex:1로 균등 분할하므로 개수가 늘어나도(최대 10개 예정)
-   가로 한 줄 안에서 계속 세로로만 쪼개진다. */
+/* 시리즈 선택 — 화면 양 끝을 꽉 채우는 세그먼트. flex:1로 균등 분할한다. */
 .shape-row {
   flex-shrink: 0;
   display: flex;
   width: 100%;
 }
 
-/* 세트 이름(BURST / BLOOM)이 버튼의 전부다. 표시만 대문자로 바꾸고
-   HTML에는 소문자를 그대로 둔다 — 메뉴 항목(shared/menu.css)과 같은
-   방식이라, 검색·스크린리더에는 원래 표기가 남는다.
-
-   글자 크기는 버튼 개수를 기준으로 잡는다. 지금은 둘이 한 줄을 반씩 나눠
-   쓰므로 320px 화면에서도 한 칸이 160px이라 여유가 있다. 탭을 더 붙이면
-   한 칸이 좁아지니 최소·최대값을 같이 낮춰야 한다. */
+/* 표시만 대문자로 — HTML에는 소문자를 그대로 둔다(검색·스크린리더용).
+   [주의] 글자 크기는 버튼 개수 기준이다. 탭을 더 붙이면 최소·최대값을 같이 낮출 것. */
 .shape-btn {
   flex: 1;
   padding: clamp(14px, 2.6vmin, 20px) 0;
@@ -91,8 +67,7 @@ html {
   font-weight: 800;
   font-size: clamp(19px, 3.4vmin, 28px);
   text-transform: uppercase;
-  /* 대문자는 글자 사이가 답답해 보여 소문자와 달리 자간을 살짝 벌린다. */
-  letter-spacing: 0.02em;
+  letter-spacing: 0.02em; /* 대문자는 글자 사이가 답답해 보여 살짝 벌린다 */
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -112,8 +87,7 @@ html {
   color: #fff;
 }
 
-/* 정렬 선택(수집순/오차율순) — 시리즈 선택 바로 아래 여백 없이 붙되,
-   시리즈 바와 헷갈리지 않도록 폰트·세로폭을 작게 하고 경계선으로 구분. */
+/* 정렬 선택 — 시리즈 바로 아래 붙되 폰트·세로폭을 작게 하고 경계선으로 구분. */
 .mode-row {
   flex-shrink: 0;
   display: flex;
@@ -127,8 +101,7 @@ html {
   background: #fff;
   border: none;
   color: #111;
-  /* 위 시리즈 버튼(Pretendard)과 글꼴을 달리해 두 줄의 역할을 구분한다.
-     메인 페이지 본문(.main-text)과 같은 Wanted Sans다. */
+  /* 시리즈 버튼(Pretendard)과 글꼴을 달리해 두 줄의 역할을 구분한다 */
   font-family: 'Wanted Sans', 'Pretendard', sans-serif;
   font-weight: 800;
   font-size: clamp(13px, 2.2vmin, 17px);
@@ -149,50 +122,32 @@ html {
   color: #fff;
 }
 
-/* QR 상세 오버레이(z-index 100)가 열려 있는 동안에는 메뉴 버튼을 숨긴다.
-   메뉴는 z-index 200이라 그냥 두면 모달 위에 버튼이 떠서, 상세를 보다가
-   엉뚱하게 메뉴가 열린다. :has()를 못 쓰는 구형 브라우저에서는 이 규칙만
-   무시되고 나머지 동작은 그대로다. */
+/* 상세 오버레이가 열린 동안 메뉴 버튼을 숨긴다 — 메뉴는 z-index 200이라 그냥 두면
+   모달 위에 떠서 엉뚱하게 열린다. :has()를 못 쓰는 브라우저에서는 이 규칙만 무시된다. */
 body:has(#detail-overlay.open) #menu-btn {
   opacity: 0;
   pointer-events: none;
 }
 
-/* 수집순 / 오차율순 — 실제 CSS Grid. 열 수는 화면 너비에 맞춰
-   auto-fill이 자동으로 정하고, 셀 하나하나가 독립된 <canvas>를 담는다. */
+/* 실제 CSS Grid — 열 수는 auto-fill이 화면 너비에 맞춰 정하고, 셀마다 독립된 <canvas>를 담는다. */
 #canvas-holder {
   flex: 1;
   min-height: 0;
   /* 호버로 커진 가장자리 칸이 가로 스크롤바를 만들지 않게 여기서 끊는다.
-     transform은 레이아웃을 바꾸지 않지만 '스크롤 가능 영역'은 넓혀서,
-     맨 왼쪽·오른쪽 열의 칸이 커지면 그만큼 문서가 옆으로 넓어진다.
-
-     [왜 html/body가 아니라 여기인가]
-     위 html,body 규칙의 주의사항 참고 — 루트의 overflow는 뷰포트로 전파돼서
-     #control-bars의 sticky를 풀거나 사파리 툴바 동작에 영향을 준다.
-     이 요소는 루트가 아니고 sticky 요소를 담고 있지도 않아서(#control-bars는
-     형제다) 그런 부작용이 없다.
-
-     [왜 hidden이 아니라 clip인가]
-     hidden은 이 요소를 스크롤 컨테이너로 만들고, 그러면 명시하지 않은
-     overflow-y가 visible에서 auto로 바뀌어 그리드가 자체 세로 스크롤을
-     갖게 된다(페이지 스크롤과 따로 도는 셈). clip은 스크롤 컨테이너를
-     만들지 않고 넘친 부분만 잘라내므로 세로는 그대로 visible로 남는다. */
+     [주의] hidden이 아니라 clip이어야 한다 — hidden은 이 요소를 스크롤 컨테이너로
+     만들어 그리드가 자체 세로 스크롤을 갖게 된다. html/body가 아니라 여기인 이유도
+     같은 계열이다(docs/archive.md). */
   overflow-x: clip;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 6px;
-  /* 아래쪽에 안전 영역(env(safe-area-inset-bottom))만큼 여백을 더 주면
-     마지막 줄이 툴바·홈 인디케이터에 가리지 않지만, 대신 그리드가 툴바
-     위에서 끊겨 화면 아래쪽이 빈 검정 띠로 남는다. 그래픽이 툴바 아래까지
-     이어져 보이는 쪽을 택했으므로 그 여백을 두지 않는다 — 네 변 모두 6px. */
+  /* 아래쪽 안전 영역 여백을 일부러 두지 않는다 — 주면 그리드가 툴바 위에서 끊겨
+     빈 검정 띠가 남는다. 그래픽이 툴바 아래까지 이어져 보이는 쪽을 택했다. */
   padding: 6px;
   width: 100%;
   align-content: start;
-  /* 스크롤은 문서가 담당한다 — 여기에 overflow를 주면 사파리가 툴바를
-     접지 않는다(위 html/body 주석 참고). */
-  /* 그리드 영역 배경은 항상 검게 (셀 사이 간격·캔버스 로드 전에도 검게).
-     transition을 두면 첫 로드 때 흰색→검정으로 페이드돼서 넣지 않는다. */
+  /* [주의] 여기에 overflow(세로)를 주면 사파리가 툴바를 접지 않는다.
+     배경은 항상 검게 — transition을 두면 첫 로드 때 흰색에서 검정으로 페이드된다. */
   background: #000;
 }
 
@@ -209,30 +164,11 @@ body:has(#detail-overlay.open) #menu-btn {
   cursor: pointer;
 }
 
-/* 커서 주변 그래픽이 함께 커진다 — PC 전용 인터랙션.
-   배율과 쌓임 순서는 sketch.js의 hoverFrame()이 커서와의 거리를 재서
-   매 프레임 직접 써넣는다(아래 '호버 — 커서 주변이 함께 반응하는 자기장'
-   주석 참고). 여기서는 그 transform이 동작할 토대만 만든다.
+/* 커서 주변 그래픽이 함께 커진다 — PC 전용. 배율과 쌓임 순서는 sketch.js의
+   hoverFrame()이 매 프레임 인라인으로 써넣고, 여기서는 그 토대만 만든다
+   (position:relative + z-index 없이는 뒤쪽 셀이 앞 칸의 확대분을 가린다).
 
-   [왜 :hover 규칙이 없나]
-   CSS 선택자로는 2차원 격자의 이웃을 짚을 수 없다 — 아래 칸은 '열 수만큼'
-   떨어진 형제이고 그 열 수는 auto-fill이 화면 폭을 보고 정한다. 그래서
-   커서가 올라간 칸 하나만 반응시킬 수 있었다.
-
-   [왜 transition이 없나]
-   감속은 JS가 프레임마다 목표 배율로 당기는 방식으로 처리한다. 여기에
-   transition까지 걸면 두 번 보간돼서 커서를 따라오는 반응이 눌린 것처럼
-   늦어진다.
-
-   position:relative + z-index는 커질 때 이웃 셀 위로 올라타기 위한 것이다
-   (그리드 셀의 기본 쌓임 순서는 DOM 순서라, 그냥 두면 뒤쪽 셀이 앞쪽 셀의
-   확대된 그래픽을 가린다). JS가 줄어드는 동안에도 z-index를 쥐고 있다가
-   제 크기로 돌아온 뒤에 놓는다. JS가 넣는 z-index는 1~5로 묶여 있다 —
-   상단 툴바(10)·상세 오버레이(100)·메뉴(190~200)를 넘지 않아야 한다.
-
-   will-change: transform 은 쓰지 않는다. 셀이 184개라 전부 합성 레이어로
-   띄우면 GPU 메모리가 그만큼 늘고, 브라우저가 한도를 넘었다고 판단하면
-   오히려 무시한다. 캔버스는 그 자체로 합성에 유리해서 없이도 충분하다. */
+   :hover 규칙·transition·will-change를 일부러 두지 않는다 — 이유는 docs/archive.md. */
 @media (hover: hover) and (pointer: fine) {
   .archive-cell canvas {
     position: relative;
@@ -240,8 +176,7 @@ body:has(#detail-overlay.open) #menu-btn {
   }
 }
 
-/* 그래픽 클릭 시 뜨는 상세 오버레이 — 배경(현재 페이지)이 어두워지면서
-   반투명해 보이는 효과, 박스 밖 클릭 시 닫힘. */
+/* 그래픽 클릭 시 뜨는 상세 오버레이 — 박스 밖을 클릭하면 닫힌다. */
 #detail-overlay {
   position: fixed;
   inset: 0;
@@ -258,26 +193,18 @@ body:has(#detail-overlay.open) #menu-btn {
 #detail-overlay.open {
   opacity: 1;
   pointer-events: auto;
-  /* 커튼이 화면을 다 덮고 포인터도 받으므로, 손가락은 전부 이 위에 닿는다.
-     여기서 터치 제스처를 스크롤로 해석하지 않게 꺼버린다. shared/menu.css의
-     메뉴 커튼과 같은 방식이다. 데스크탑 휠은 sketch.js가 따로 막는다 —
-     메뉴 커튼과 달리 이쪽은 뒤가 비쳐 보여서 조금만 밀려도 눈에 띈다. */
+  /* 뒤 스크롤 잠금 — 터치는 여기서(메뉴 커튼과 같은 방식), 휠·키는 sketch.js가 막는다 */
   touch-action: none;
   overscroll-behavior: contain;
 }
 
 .detail-box {
-  /* 상세 UI의 '선' 두께. 박스 테두리, 좌우 ‹ › 버튼 테두리, 네 꼭짓점
-     장식의 검은 띠가 모두 이 값을 쓴다. 한 군데서 바꾸면 셋이 같이
-     움직이므로 굵기가 서로 어긋날 일이 없다. */
+  /* 상세 UI의 선 두께 — 박스 테두리, ‹ › 버튼 테두리, 꼭짓점 장식이 모두 이 값을 쓴다 */
   --line: 5pt;
   position: relative;
   background: #fff;
-  /* 흰 배경을 테두리 안쪽까지만 칠한다. 기본값(border-box)으로 두면 흰색이
-     검은 테두리 밑에까지 깔리는데, 5pt는 6.67px이라 테두리 바깥 끝이 픽셀
-     경계에 안 떨어진다. 그 끝 픽셀이 안티에일리어싱으로 반투명해지면서
-     밑에 깔린 흰색이 1px 선처럼 비쳐 나왔다. 밑에 흰색이 없으면 비칠 것도
-     없고, 끝 픽셀은 뒤의 어두운 오버레이와 섞여 연한 검정이 된다. */
+  /* 흰 배경을 테두리 안쪽까지만 — 5pt(6.67px)라 테두리 끝이 픽셀 경계에 안 떨어져,
+     기본값이면 밑에 깔린 흰색이 검은 선 바깥으로 1px 비친다 */
   background-clip: padding-box;
   border: var(--line) solid #111;
   padding: clamp(14px, 3vmin, 28px);
@@ -288,8 +215,7 @@ body:has(#detail-overlay.open) #menu-btn {
   gap: clamp(8px, 2vmin, 16px);
 }
 
-/* 네 꼭짓점에 걸치는 검은 사각형 장식 — QR 코드 파인더 패턴 느낌.
-   %기반 위치라 박스 크기(clamp)가 바뀌어도 꼭짓점에 그대로 맞는다. */
+/* 네 꼭짓점의 검은 사각형 장식 — QR 파인더 패턴 느낌. %기반이라 박스 크기가 바뀌어도 맞는다. */
 .corner {
   position: absolute;
   width: clamp(22px, 4vmin, 36px);
@@ -298,13 +224,9 @@ body:has(#detail-overlay.open) #menu-btn {
   transform: translate(-50%, -50%);
 }
 
-/* 검은 사각형 안쪽에 흰 사각형을 띄워 인터페이스가 살짝 분리된 듯한
-   느낌을 준다 — QR 파인더 패턴처럼 검은 테두리만 남기는 형태.
-
-   inset을 %로 두면 남는 검은 띠의 굵기가 사각형 크기를 따라간다. 크기가
-   clamp(22px, 4vmin, 36px)이라 데스크탑에서는 대개 36px에 걸리는데, 그때
-   28%면 약 10px이라 박스·버튼 테두리(5pt ≈ 6.67px)보다 눈에 띄게 굵었다.
-   선 두께 자체를 넣어 셋을 같은 굵기로 맞춘다. */
+/* 안쪽에 흰 사각형을 띄워 검은 테두리만 남긴다.
+   inset에 %가 아니라 --line을 쓴다 — %면 띠 굵기가 사각형 크기를 따라가서
+   데스크탑에서 박스·버튼 테두리보다 눈에 띄게 굵어진다. */
 .corner::after {
   content: '';
   position: absolute;
@@ -332,19 +254,15 @@ body:has(#detail-overlay.open) #menu-btn {
   left: 100%;
 }
 
-/* 그래픽 오브젝트 / QR 이미지가 앞뒤로 붙은 카드. 박스를 클릭할 때마다
-   sketch.js가 #detail-flipper 의 rotateY 각도를 같은 방향으로 180도씩 더한다.
-   perspective를 주지 않아(원근 없음) 3D로 던져지는 느낌 없이 카드가 가로로
-   납작해졌다 펴지듯 뒤집히고, overflow:hidden으로 회전 중 박스 밖으로
-   삐져나오는 부분을 잘라낸다. */
+/* 그래픽 / QR 이미지가 앞뒤로 붙은 카드. sketch.js가 #detail-flipper의 rotateY를
+   180도씩 누적한다. perspective를 주지 않아 3D로 던져지는 느낌 없이 가로로
+   납작해졌다 펴지듯 뒤집히고, overflow:hidden으로 넘친 부분을 잘라낸다. */
 #detail-media {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  /* 눌러서 뒤집히지만 커서는 기본 화살표 그대로 둔다(.detail-box 와 통일).
-     ‹ › 버튼만 손가락 커서를 유지한다. */
-  cursor: default;
+  cursor: default; /* 눌러서 뒤집히지만 커서는 기본 화살표. ‹ › 버튼만 pointer */
 }
 
 #detail-flipper {
@@ -376,8 +294,7 @@ body:has(#detail-overlay.open) #menu-btn {
   height: 100%;
 }
 
-/* 이전/다음 버튼 — 흰 fill · 검은 stroke(크레딧 버튼과 같은 톤).
-   상세 박스(.detail-box, position:relative)의 좌우 바깥쪽에 딱 붙는다. */
+/* 이전/다음 버튼 — 상세 박스의 좌우 바깥쪽에 딱 붙는다. */
 .detail-nav {
   position: absolute;
   top: 50%;
@@ -389,34 +306,21 @@ body:has(#detail-overlay.open) #menu-btn {
   width: clamp(51px, 10.5vmin, 90px);
   height: clamp(51px, 10.5vmin, 90px);
   background: #fff;
-  /* .detail-box와 같은 이유로 흰 배경을 테두리 안쪽까지만 칠한다. 테두리는
-     6px 정수지만 크기가 clamp(…vmin)이고 top:50% + translateY(-50%)로
-     놓이기 때문에, 창 크기에 따라 가장자리가 픽셀 경계에 안 떨어진다.
-     그러면 끝 픽셀이 반투명해지면서 밑에 깔린 흰 배경이 검은 선 바깥으로
-     비친다. hover(#ddd)도 마찬가지라 같이 막힌다. */
-  background-clip: padding-box;
+  background-clip: padding-box; /* .detail-box와 같은 이유 */
   border: var(--line) solid #111;
   color: #111;
   font-family: 'Pretendard', sans-serif;
   font-weight: 800;
   font-size: clamp(34px, 8vmin, 56px);
   line-height: 1;
-  /* ‹ › 글리프가 글꼴상 baseline보다 살짝 아래에 앉아 시각적으로 내려가
-     보이므로, 아래 여백을 조금 줘서 flex 중앙 정렬 기준을 위로 당긴다. */
+  /* ‹ › 글리프가 baseline보다 아래에 앉아 내려가 보이므로 정렬 기준을 위로 당긴다 */
   padding-bottom: 0.14em;
   cursor: pointer;
 }
 
-/* 마우스를 올리면 색이 반전된다 — 안쪽 흰 박스는 검정, ‹ › 글자는 흰색.
-   테두리(--line 검정)는 그대로 둬서 박스·꼭짓점 장식과 이어지는 선이
-   끊기지 않는다.
-
-   transition을 일부러 두지 않는다(기존 background/color 0.15s 삭제):
-   반전은 '전환'이 아니라 딱 끊어 바뀌어야 QR의 흑백 대비처럼 읽힌다. */
-/* :hover 는 마우스가 있는 환경에만 건다. 터치 기기에서는 탭한 요소에
-   hover 상태가 '달라붙어' 다른 곳을 누를 때까지 반전이 풀리지 않는다
-   (sticky hover) — ‹ › 를 한 번 누르면 검정으로 남아버리는 원인이다.
-   터치에서는 누르는 동안만 반전되는 :active 로 충분하다. */
+/* 올리면 흑백이 반전된다. transition을 일부러 두지 않는다 — 반전은 '전환'이 아니라
+   딱 끊어 바뀌어야 QR의 흑백 대비처럼 읽힌다.
+   :hover는 마우스 환경에만(터치는 sticky hover로 반전이 남는다), 터치용은 :active. */
 @media (hover: hover) and (pointer: fine) {
   .detail-nav:hover {
     background: #111;
@@ -429,9 +333,7 @@ body:has(#detail-overlay.open) #menu-btn {
   color: #fff;
 }
 
-/* 버튼 테두리가 박스 테두리 위에 얹혀 한 줄로 보이도록, 버튼 테두리
-   두께만큼 박스 쪽으로 당긴다. --line 을 그대로 쓰므로 선 굵기를 바꿔도
-   이 보정값이 따로 어긋나지 않는다. */
+/* 버튼 테두리가 박스 테두리 위에 얹혀 한 줄로 보이도록 당긴다(--line 연동) */
 #detail-prev {
   right: 100%;
   margin-right: calc(-1 * var(--line));
@@ -442,11 +344,7 @@ body:has(#detail-overlay.open) #menu-btn {
   margin-left: calc(-1 * var(--line));
 }
 
-/* 상세 박스 안은 기본 화살표 커서. 텍스트 위에서 I빔(글자 선택) 커서가
-   뜨지 않게 박스 전체에 한 번 걸어둔다.
-   ‹ › 버튼(.detail-nav)과 뒤집히는 카드(#detail-media)는 각자 cursor:
-   pointer를 따로 갖고 있어서 이 선언에 영향받지 않는다 — 누를 수 있는
-   요소라는 신호는 그대로 남는다. */
+/* 박스 전체에 기본 화살표 커서. ‹ › 버튼과 카드는 각자 cursor를 따로 갖고 있다. */
 .detail-box {
   cursor: default;
 }
@@ -459,29 +357,21 @@ body:has(#detail-overlay.open) #menu-btn {
   color: #111;
 }
 
-/* [수집 순번 표시] sketch.js의 SHOW_QR_NUMBER_PREFIX가 true일 때만 붙는
-   클래스 — 번호(No.n)는 왼쪽, 이름은 오른쪽에 배치한다. 번호 표시를
-   없앨 때는 이 블록을 지우면(플래그도 false로) 위 .detail-box p의
-   가운데 정렬로 자동 복구된다. */
+/* [수집 순번 표시] sketch.js의 SHOW_QR_NUMBER_PREFIX가 true일 때만 붙는다.
+   완전히 없앨 때는 이 블록과 그 플래그를 함께 지우면 가운데 정렬로 복구된다. */
 .detail-box p.has-number {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   align-self: stretch;
   width: 100%;
-  /* QR 사진 자체의 여백(코너 파인더 안쪽 여백)만큼 좌우로 들여써서,
-     No.n / 이름 텍스트가 QR 패턴의 실제 좌우 끝보다 밖으로 튀어나가지
-     않게 한다. 이미지마다 살짝 다를 수 있어 대략치(7%)로 맞춤. */
+  /* QR 사진 자체의 여백만큼 들여쓴다. 이미지마다 달라서 대략치(7%)로 맞춤 */
   padding: 0 7%;
 }
 
 
-/* ── 이미지 저장 버튼 ────────────────────────────────────────
-   상세 박스 '밖', 바로 아래에 박스와 같은 폭으로 놓인다. .detail-stack 이
-   둘을 세로로 묶고, 버튼은 stretch 로 박스 폭을 그대로 따라간다.
-
-   선 두께는 박스·‹ › 버튼과 같은 --line 을 쓴다 — .detail-box 안에 있던
-   때와 달리 변수를 물려받지 못하므로 여기서 다시 선언한다. */
+/* ── 이미지 저장 버튼 — 상세 박스 '밖', 바로 아래 ──────────────
+   .detail-box 밖이라 --line 을 물려받지 못하므로 여기서 다시 선언한다. */
 .detail-stack {
   --line: 5pt;
   display: flex;
@@ -495,22 +385,19 @@ body:has(#detail-overlay.open) #menu-btn {
   font-weight: 700;
   font-size: clamp(14px, 2.6vmin, 19px);
   letter-spacing: -0.01em;
-  /* 평소에는 박스와 같은 차림새 — 흰 바탕에 검은 테두리. 누를 수 있다는
-     신호는 포인터를 올렸을 때 검정으로 뒤집히며 준다. */
+  /* 평소에는 박스와 같은 차림새. 누를 수 있다는 신호는 아래 hover 반전이 준다 */
   color: #111;
   background: #fff;
   border: var(--line) solid #111;
   background-clip: padding-box;
-  /* 글자 폭에 맞춰 가운데에 놓는다(stretch 아님) — 박스 폭을 다 쓰면
-     버튼이 박스만큼 무거워져서 카드보다 먼저 눈에 들어온다. */
+  /* 글자 폭에 맞춰 가운데에(stretch 아님) — 박스 폭을 다 쓰면 카드보다 먼저 눈에 든다 */
   align-self: center;
   padding: clamp(9px, 1.8vmin, 15px) clamp(22px, 4.2vmin, 36px);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ‹ › 버튼(.detail-nav)과 같은 방식 — 트랜지션 없이 바로 뒤집히고,
-   터치에서도 눌린 게 보이도록 :active 를 함께 묶는다. */
+/* ‹ › 버튼과 같은 방식 — 트랜지션 없이 바로 뒤집히고, 터치용 :active 를 함께 둔다. */
 @media (hover: hover) and (pointer: fine) {
   #detail-save:hover {
     background: #111;
@@ -523,8 +410,7 @@ body:has(#detail-overlay.open) #menu-btn {
   color: #fff;
 }
 
-/* 저장 중에는 잠근다 — 합성에 수백 ms가 걸려 그 사이 연타되면 공유 시트가
-   겹쳐 뜬다. 다만 흐려지게는 하지 않는다: 공유 시트가 떠 있는 동안에도 이
+/* 저장 중 연타 방지. 흐려지게는 하지 않는다 — 공유 시트가 떠 있는 동안에도 이
    상태가 유지되므로, 색이 변하면 뒤에서 버튼이 꺼진 것처럼 보인다. */
 #detail-save[disabled] {
   pointer-events: none;

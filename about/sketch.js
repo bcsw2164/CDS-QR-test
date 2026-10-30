@@ -1,17 +1,9 @@
-/* ============================================================
-   QR++ — About 페이지 sketch.js
-   ------------------------------------------------------------
-   하는 일 세 가지:
-     1) 네비 메뉴 열고 닫기
-     2) QR 루프 영상을 화면에 들어올 때만 재생
-     3) 스포크 그래픽 6개를 생성하고 스크롤에 따라 회전
+/* QR++ — About 페이지
+   1) 네비 메뉴 토글  2) QR 루프 영상(화면에 들어올 때만 재생)  3) 스포크 그래픽(현재 꺼둠)
 
-   3번은 p5.js 전역 모드로 동작한다. setup()·windowResized()가
-   전역 함수여야 p5가 찾아서 호출하므로, 이 파일은 모듈이 아니라
-   일반 스크립트로 불러야 한다(루트 index.html 참고). 그래픽 생성
-   로직 자체는 shared/core.js의 drawRadialSpokeDots를 그대로 쓴다 —
-   아카이브 burst 탭과 같은 그래픽.
-   ============================================================ */
+   p5 전역 모드 — setup()·windowResized()가 전역이어야 하므로 모듈로 불러서는 안 된다.
+   그래픽 생성은 shared/core.js의 drawRadialSpokeDots를 쓴다(아카이브 burst 탭과 같다).
+   설계 근거·복구 방법은 docs/about.md 참고. */
 
 /* ── 메뉴 토글 ──────────────────────────────────── */
 const menuBtn     = document.getElementById('menu-btn');
@@ -31,23 +23,8 @@ menuOverlay.querySelectorAll('.menu-item').forEach((el) => {
   });
 });
 
-/* ── QR 영상 — 미리 버퍼링하고, 화면에 들어올 때만 재생 ──
-   예전에는 preload="none" + rootMargin 200px 하나로만 처리했다.
-   그러면 영상이 거의 눈앞에 올 때까지 단 1바이트도 받지 않아서,
-   스크롤해 내려온 순간부터 파일을 받기 시작한다. 파일이 크면
-   그 자리에서 몇 초 동안 빈 칸만 보인다 — "처음 접속하면 영상이
-   너무 늦게 뜬다"의 직접적인 원인이다.
-
-   그래서 로딩 단계를 셋으로 나눴다.
-     1) 첫 화면 페인트까지는 preload="none" 그대로 — 영상이
-        글꼴·스크립트와 대역폭을 다투지 않게 한다.
-     2) load 이벤트 뒤 한가해지면 preload="auto"로 올려
-        백그라운드에서 조용히 앞부분을 받아둔다.
-     3) 실제 재생/정지는 지금처럼 화면 진입 여부로 판단하되,
-        rootMargin을 크게 잡아 더 일찍 시작한다.
-
-   데이터 절약 모드나 2G/3G에서는 2)를 건너뛴다 — 그런 회선에서
-   수십 MB를 미리 받아두는 건 손해다. */
+/* ── QR 영상 — 3단계 로딩(preload none → 한가해지면 auto → 화면 진입 시 재생) ──
+   단계를 나눈 이유와 재시도 지점은 docs/about.md 참고. */
 const qrVideo = document.getElementById('qr-video');
 
 /* 느린 회선·데이터 절약 모드 감지. 지원하지 않는 브라우저면 false. */
@@ -58,67 +35,52 @@ function prefersLightLoading() {
 }
 
 if (qrVideo) {
-  /* 재생을 원하는 상태인가(= 화면 안에 있는가). play()가 거절당했을 때
-     나중에 다시 시도할지 판단하는 기준이 된다. */
-  let wantsPlay = false;
+  let wantsPlay = false; // 화면 안에 있는가 = 재생을 원하는 상태인가
 
   const tryPlay = () => {
     if (!wantsPlay) return;
-    // 자동재생 차단(사용자 제스처 없음, iOS 저전력 모드 등)은 조용히 넘긴다.
-    // 아래 first-gesture 핸들러가 다음 터치 때 다시 시도한다.
+    // 자동재생 차단은 조용히 넘긴다 — 아래 재시도 지점들이 다시 시도한다.
     qrVideo.play().catch(() => {});
   };
 
-  /* ── 1·2단계: 한가해지면 버퍼링 시작 ── */
   const startBuffering = () => {
     if (prefersLightLoading()) return;
-    if (qrVideo.preload === 'auto') return; // 이미 올려놨으면 그만
+    if (qrVideo.preload === 'auto') return;
     qrVideo.preload = 'auto';
 
-    /* [주의] load()는 미디어 요소를 처음 상태로 되돌린다 — 재생 중이면
-       멈추고 currentTime도 0으로 돌아간다. 아래 IntersectionObserver는
-       스크립트가 실행되자마자 콜백을 한 번 돌리므로, 영상이 첫 화면에
-       보이는 경우 play()가 이미 시작된 뒤에 이 함수가 불린다. 거기서
-       무조건 load()를 하면 방금 시작한 재생이 취소되고, 관찰자는 계속
-       교차 상태라 다시 발화하지 않아 영영 멈춰 있게 된다.
-       그래서 아직 아무것도 안 받았고 재생 요청도 없을 때만 부른다. */
+    /* [주의] load()는 재생을 취소하고 currentTime을 0으로 되돌린다. 영상이 첫 화면에
+       보이면 play()가 이미 시작된 뒤 여기가 불리므로, 그때 load()를 하면 영영 멈춘다
+       (관찰자는 계속 교차 상태라 다시 발화하지 않는다). */
     if (!wantsPlay && qrVideo.readyState === 0) qrVideo.load();
 
     tryPlay();
   };
 
   const scheduleBuffering = () => {
-    // requestIdleCallback이 없으면(사파리) 짧은 타이머로 대체.
     if ('requestIdleCallback' in window) {
       requestIdleCallback(startBuffering, { timeout: 2000 });
     } else {
-      setTimeout(startBuffering, 300);
+      setTimeout(startBuffering, 300); // 사파리 대체
     }
   };
 
   if (document.readyState === 'complete') scheduleBuffering();
   else window.addEventListener('load', scheduleBuffering, { once: true });
 
-  /* 첫 프레임이 준비되면 표시 — 그 전까지는 CSS가 빈 칸을 가려둔다. */
+  /* 첫 프레임이 준비되면 표시 — 그 전까지는 CSS가 정사각 비율로 자리를 잡아둔다. */
   qrVideo.addEventListener('loadeddata', () => {
     qrVideo.classList.add('is-ready');
   }, { once: true });
 
-  /* 버퍼가 차오를 때마다 재생을 다시 시도한다. preload="none"으로 시작하는
-     탓에 첫 play()가 데이터보다 먼저 불릴 수 있고, 회선이 끊겼다 이어지면
-     저절로 재개되지 않는 경우도 있다. */
+  // 버퍼가 차오를 때마다 재시도(preload none이라 첫 play()가 데이터보다 먼저 올 수 있다)
   qrVideo.addEventListener('canplay', tryPlay);
 
-  /* iOS 저전력 모드에서는 muted 영상이어도 자동재생이 막힌다. 이때는
-     사용자의 첫 터치가 곧 제스처가 되므로 그 시점에 한 번 더 시도한다.
-     이미 재생 중이면 play()는 아무 일도 하지 않는다. */
+  // iOS 저전력 모드 — muted 영상도 자동재생이 막히므로 첫 제스처에 한 번 더
   const retryOnGesture = () => tryPlay();
   window.addEventListener('touchstart', retryOnGesture, { once: true, passive: true });
   window.addEventListener('click', retryOnGesture, { once: true });
 
-  /* ── 3단계: 화면에 들어올 때만 재생 ──
-     화면 밖에서 계속 디코딩하면 스포크 그래픽 회전과 부하가 겹쳐
-     스크롤이 무거워지므로, 벗어나면 멈춘다. */
+  // 화면에 들어올 때만 재생 — 밖에서 계속 디코딩하면 스크롤이 무거워진다
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
       entries.forEach((e) => {
@@ -132,46 +94,22 @@ if (qrVideo) {
     tryPlay();
   }
 
-  /* 탭을 벗어났다 돌아오면 사파리가 재생을 멈춰둔 채로 두기도 한다. */
+  // 탭을 벗어났다 돌아오면 사파리가 멈춰둔 채로 두기도 한다
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) tryPlay();
   });
 }
 
 /* ── 스포크 그래픽 설정 ──────────────────────────
-   시안(모바일 349px 기준)에서 각 그래픽의 지름·중심 좌표를 재서
-   화면 대비 비율과 dvh 위치로 옮긴 값이다. 그래서 기기가 달라져도
-   시안의 배치 비율이 그대로 유지된다.
+   [side, size, top, offset, errorA, errorB, colorSeed, dir, speed]
+     size   : [minPx, 배수, maxPx] — viewportUnit()에 비례하되 양끝을 잠금
+     top    : 네비 아래를 0으로 잡은 캔버스 위쪽 위치(dvh)
+     offset : size 대비 비율. 양수면 그만큼 화면 밖으로 밀려난다
 
-   size   : [minPx, 배수, maxPx] — viewportUnit()에 비례하되 양끝을 잠금
-   top    : 네비 아래를 0으로 잡은 캔버스 위쪽 모서리 위치(dvh).
-            100이면 딱 한 화면 아래.
-            [주의] #section-main에 overflow:hidden이 걸려 있고 그
-            섹션 높이는 내용(영상+글+버튼) 길이로 정해진다. 그래서
-            top이 내용 끝을 넘어서면 그래픽이 통째로 잘려 사라진다.
-            대략 0~90dvh 안에 두는 것이 안전하다 — 내용을 늘리거나
-            줄이면 이 값들도 같이 손봐야 한다.
-   offset : size 대비 비율. 양수면 그 비율만큼 화면 밖으로 밀려나
-            중심이 가장자리 바깥에 놓이고, 음수면 안쪽으로 들어온다.
-            비율이라 크기를 바꿔도 삐져나온 정도가 유지된다.
-
-   [중요] size는 캔버스 크기이지 눈에 보이는 지름이 아니다. 실제로
-   보이는 지름은 errorA가 정한다 — errorA가 클수록 살이 바깥까지
-   뻗어 캔버스를 꽉 채우고, 작을수록 중심에 옹기종기 모인다.
-     errorA 0.15 → 캔버스의 약 60%만 채움
-     errorA 0.50 → 약 71%
-     errorA 0.85 → 약 82%
-   그래서 errorA가 낮은 그래픽은 size를 그만큼 더 키워야 다른 것과
-   같은 크기로 보인다. 아래 size 값은 그 보정을 반영한 것이다.
-
-   보이는 지름 기준 (viewportUnit 대비):
-     특대 2.10 / 중대 0.99 / 대 0.82 / 중 0.68 / 소 0.30
-
-   목록은 top이 작은 것부터, 즉 화면 위에서 아래로 내려가는 순서로
-   적어둔다. 값을 고친 뒤 순서가 어긋나면 이 순서대로 다시 정렬할 것 —
-   배치를 눈으로 좇기 쉬워진다. (순서 자체는 동작에 영향을 주지 않는다.
-   아래 SPOKES_ABOVE_VIDEO도 순서가 아니라 colorSeed로 지목하므로
-   자유롭게 옮겨도 된다.)
+   [주의] #section-main의 overflow:hidden에 걸려 top이 내용 끝을 넘으면 그래픽이
+   통째로 사라진다(0~90dvh 안이 안전). size는 캔버스 크기이지 보이는 지름이 아니다 —
+   보이는 지름은 errorA가 정한다. 목록은 top이 작은 것부터 적어둔다(동작과는 무관).
+   보정 비율·보이는 지름 환산표는 docs/about.md 참고.
    ─────────────────────────────────────────────────── */
 const SPOKE_CFG = [
   //  side     size     top  offset  errA  errB  seed  dir  speed
@@ -185,35 +123,18 @@ const SPOKE_CFG = [
   ['left',  [160, 0.50,  400],  40, 0.14,  0.15, 0.50, 1002,  1, 0.11 ],
   // 중대 — 좌측. 본문 문단 왼쪽
   ['left',  [425, 1.33, 1065],  58, 0.488, 0.60, 0.45, 1003,  1, 0.06 ],
-  // 대 — 좌하단. 버튼 아래가 허전해서 채운 그래픽.
-  // offset 0.42로 왼쪽 절반 가까이가 화면 밖으로 나가고, 아래쪽은
-  // #section-main의 overflow:hidden에 걸려 잘린다(= 모서리에서 삐져나온 모양).
+  // 대 — 좌하단. offset 0.42로 왼쪽 절반 가까이가 화면 밖으로 나간다
   ['left',  [360, 1.12,  900],  86, 0.42,  0.45, 0.55, 1007,  1, 0.07 ],
 ];
 
-/* QR 영상보다 위에 그릴 그래픽을 colorSeed(위 목록 8번째 값)로 지목한다.
-   영상 래퍼가 z-index:1 이라, 여기 적힌 것만 2로 올려 영상 위에 겹치게
-   한다. 나머지는 영상 아래에 깔린다.
-
-   목록 순번(1,2,3…) 대신 colorSeed를 쓰는 이유는, 순번으로 두면 위
-   목록의 줄 순서를 바꿀 때마다 엉뚱한 그래픽이 지목되기 때문이다.
-   colorSeed는 그래픽마다 고유하고 위치와 무관해서 안전하다.
-
-   [참고] 영상 위로 올라간 그래픽은 영상의 multiply 블렌드 대상에서
-   빠진다 — 영상보다 나중에 그려지므로 배경이 아니라 전경이 된다. */
+/* 영상(z-index:1)보다 위에 그릴 그래픽을 colorSeed로 지목한다 — 목록 순번을 쓰면
+   줄 순서를 바꿀 때마다 엉뚱한 그래픽이 지목된다. 위로 올라간 것은 영상의 multiply
+   블렌드 대상에서 빠진다. */
 const SPOKES_ABOVE_VIDEO = [1006]; // 중 — 우측
 
-/* 그래픽 크기의 기준이 되는 단위.
-
-   너비만 쓰면 가로로 납작한 화면(태블릿 가로·데스크톱)에서 어긋난다.
-   크기는 너비를 따라 커지는데 세로 위치는 dvh를 따라가기 때문에,
-   너비는 넓고 높이는 낮은 화면에서 그래픽만 부풀어 화면 높이를 다
-   잡아먹는다. 높이에 1.2를 곱한 값과 견줘 작은 쪽을 쓰면,
-     · 세로로 긴 화면(1.2h > w) — 지금까지처럼 너비를 따라간다
-     · 납작한 화면(1.2h < w)   — 높이가 상한을 잡아준다
-   1.2를 곱하는 건 세로 화면에서 높이가 끼어들지 않게 하려는 여유분.
-   덕분에 모바일에서 주소창이 접혀 높이가 변해도 크기는 그대로다
-   (= 스크롤 중에 그래픽이 다시 그려지지 않는다). */
+/* 그래픽 크기의 기준 단위. 너비만 쓰면 납작한 화면에서 그래픽만 부풀어 화면 높이를
+   다 먹으므로, 높이×1.2와 견줘 작은 쪽을 쓴다(docs/about.md). 덕분에 모바일에서
+   주소창이 접혀 높이가 변해도 크기는 그대로다. */
 function viewportUnit() {
   return Math.min(window.innerWidth, window.innerHeight * 1.2);
 }
@@ -237,11 +158,7 @@ function buildSpokes() {
   });
   spokeEls = [];
 
-  /* 캔버스가 클수록 배율을 낮춘다. 2번 그래픽은 큰 화면에서 한 변이
-     2040px까지 가는데, 여기에 배율 2를 곱하면 4080×4080 = 약 1,660만
-     픽셀이라 이 캔버스 하나가 GPU 메모리 60MB대를 먹는다(.spoke-wrap의
-     will-change:transform 때문에 각자 레이어로 올라간다). 스포크는
-     단색 면과 굵은 선뿐이라 배율을 낮춰도 눈에 띄는 차이가 없다. */
+  // 큰 캔버스는 배율을 낮춘다 — 2040px에 배율 2면 이 하나가 GPU 메모리 60MB대를 먹는다
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const densityFor = (size) => (size > 1200 ? 1 : dpr);
 
@@ -249,28 +166,20 @@ function buildSpokes() {
     const size = resolveSize(sizeSpec);
     const xOff = -Math.round(size * offRatio); // 화면 밖으로 나가는 양
 
-    /* 래퍼 div — 위치 지정 */
     const wrap = document.createElement('div');
     wrap.className = 'spoke-wrap';
     wrap.style.width  = `${size}px`;
     wrap.style.height = `${size}px`;
-    // 영상(z-index:1)보다 위로 올릴 그래픽만 2로
     if (SPOKES_ABOVE_VIDEO.includes(seed)) wrap.style.zIndex = '2';
-    /* %가 아니라 dvh — %로 두면 부모(#text-area) 높이에 묶여서,
-       문단 구성이나 블록 높이를 손댈 때마다 그래픽이 통째로
-       밀린다. dvh는 화면 높이 기준이라 텍스트 구조와 무관하게
-       "네비 아래에서 N화면만큼 내려간 자리"로 고정된다. */
+    // %가 아니라 dvh — %는 부모 높이에 묶여서 문단 구성을 손댈 때마다 그래픽이 밀린다
     wrap.style.top    = `${topDvh}dvh`;
-    wrap.style[side]  = `${xOff}px`; // left 또는 right
+    wrap.style[side]  = `${xOff}px`;
 
-    /* p5.Graphics 생성 + 스포크 드로잉 */
     const g = createGraphics(size, size);
     g.pixelDensity(densityFor(size));
     g.colorMode(HSB, 360, 100, 100);
-    // 배경을 칠하지 않는다 — p5.Graphics는 기본이 투명이라 페이지
-    // 흰 배경이 그대로 비친다. 여기서 background()로 흰색을 칠하면
-    // 캔버스의 정사각형 영역이 불투명해져서, 겹쳐 놓인 다른 그래픽의
-    // 살·점을 사각형 모서리로 잘라먹는다.
+    // [주의] background()로 칠하지 않는다 — 불투명해지면 겹친 다른 그래픽을
+    // 사각형 모서리로 잘라먹는다. p5.Graphics는 기본이 투명이다.
 
     drawRadialSpokeDots(
       g,
@@ -307,10 +216,7 @@ function setup() {
   noLoop(); // 정적 그래픽 — 애니메이션 루프 불필요
 
   /* ── 스포크 그래픽 — 잠시 꺼둠 ──────────────────
-     레이아웃을 새로 잡는 동안 배경 그래픽을 보이지 않게 했다.
-     위의 SPOKE_CFG·buildSpokes·applyRotation은 그대로 남아 있으므로,
-     되살리려면 아래 두 덩어리의 주석만 풀면 된다(windowResized도
-     함께 풀 것).
+     되살리려면 아래 주석과 windowResized()의 주석을 함께 풀면 된다.
 
   buildSpokes();
 
@@ -327,9 +233,8 @@ function setup() {
   */
 }
 
-/* 화면 크기가 바뀌면 다시 계산해 새로 그린다.
-   연속 리사이즈마다 전부 다시 그리면 비싸므로 살짝 묶어서 처리.
-   — 스포크 그래픽을 꺼둔 동안에는 할 일이 없어 내용을 비워뒀다. */
+/* 화면 크기가 바뀌면 다시 계산해 새로 그린다(연속 리사이즈는 묶어서 처리).
+   스포크 그래픽을 꺼둔 동안에는 할 일이 없어 비워뒀다. */
 let resizeTimer = null;
 function windowResized() {
   // clearTimeout(resizeTimer);

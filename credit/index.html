@@ -4,20 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QR++</title>
-    <!-- 파비콘 — 아카이브 그래픽 qr_124(정현)를 내용 영역만 잘라 쓴다.
-         원본은 export/1004/burst_124.png.
-         배경은 투명 — 탭 바가 밝든 어둡든 그래픽만 떠 보인다. 다만 iOS는
-         apple-touch-icon의 투명부를 검정으로 채운다. -->
+    <!-- 파비콘 원본: export/1004/burst_124.png. 배경 투명(iOS는 apple-touch-icon의 투명부를 검정으로 채움) -->
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/icons/favicon-16.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="../assets/icons/favicon-48.png" />
     <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png" />
-    <!-- 첫 화면에 놓이는 사진 3장을 미리 예약한다.
-         사진 배치(script.js의 layoutPhotos)는 이름 JSON을 받아 화면에
-         뿌린 뒤에야 시작하므로, 그냥 두면 사진 요청이 그만큼 늦게 출발한다.
-         여기서 미리 걸어두면 HTML을 읽는 순간부터 받기 시작해, 실제로
-         <img>가 만들어질 때는 이미 캐시에 들어와 있다.
-         (script.js의 EAGER_COUNT와 장수를 맞출 것) -->
+    <!-- 첫 화면 사진을 미리 예약한다 — 사진 배치는 이름 JSON을 받은 뒤에야 시작하므로
+         그냥 두면 요청이 그만큼 늦게 출발한다. script.js의 EAGER_COUNT와 장수를 맞출 것. -->
     <link rel="preload" as="image" href="images/onsite/01.jpg" />
     <link rel="preload" as="image" href="images/onsite/02.jpg" />
     <link rel="preload" as="image" href="images/onsite/03.jpg" />
@@ -47,8 +40,7 @@
         </div>
       </div>
 
-      <!-- 크레딧 본문. #photo-layer(사진)는 뒤, #credit-names(이름)는 그 위에
-           겹쳐 쌓인다. 두 레이어 모두 JS가 채운다. -->
+      <!-- #photo-layer(사진)가 뒤, #credit-names(이름)가 그 위. 둘 다 JS가 채운다. -->
       <main id="credit">
         <div id="credit-stage">
           <div id="photo-layer" aria-hidden="true"></div>
@@ -56,10 +48,7 @@
         </div>
       </main>
     </div>
-    <!-- ── 메뉴 (우측 하단) ─────────────────────────────
-         버튼·커튼·항목 디자인은 ../shared/menu.css, 열고 닫기는
-         ../shared/menu.js가 담당한다. 메인 페이지 네비 메뉴와 같은
-         구조이고 위치만 우측 하단이다. -->
+    <!-- ── 메뉴 (우측 하단) — 디자인은 shared/menu.css, 동작은 shared/menu.js ──── -->
     <button id="menu-btn" aria-label="메뉴" aria-expanded="false">
       <span></span><span></span><span></span><span></span>
     </button>
@@ -69,9 +58,7 @@
         <a class="menu-item" data-key="about" href="../index.html">About</a>
         <a class="menu-item" data-key="archive" href="../archive/index.html">Archive</a>
         <a class="menu-item" data-key="credit" href="../credit/index.html" aria-current="page">Credit</a>
-        <!-- Apply — 외부 구글 폼. 새 탭으로 열어 이 사이트를 벗어나지 않게
-             한다. rel="noopener"는 새 탭이 window.opener로 이 페이지를
-             건드리지 못하게 막는 보안 조치다. -->
+        <!-- Apply — 외부 구글 폼. rel="noopener"는 새 탭이 window.opener로 이 페이지를 건드리지 못하게 막는다. -->
         <a class="menu-item" data-key="apply"
            href="https://docs.google.com/forms/d/e/1FAIpQLSeOAERlk3hNw2IOnEcZyU76RGW8_SGniRNc4jonOmi9ew3ZWg/viewform?usp=header"
            target="_blank"
